@@ -99,6 +99,24 @@ def init_db():
             ('Jane Doe','Worship Director','Jane leads our worship teams with a passion for creating an atmosphere where people can encounter God. She is also a songwriter and mentor to many young musicians.','',2),
         ])
 
+    c.execute('''CREATE TABLE IF NOT EXISTS behind_scenes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        photo TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS behind_scene_members (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        scene_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        role TEXT DEFAULT '',
+        bio TEXT DEFAULT '',
+        photo TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(scene_id) REFERENCES behind_scenes(id) ON DELETE CASCADE
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS beliefs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
         body TEXT NOT NULL, scripture TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
@@ -329,6 +347,35 @@ def ministries():
 def leadership():
     track('leadership'); conn=get_db(); leaders=conn.execute("SELECT * FROM leaders ORDER BY sort_order").fetchall(); conn.close()
     return render_template('leadership.html',leaders=leaders,settings=all_settings())
+
+@app.route('/behind-the-scene')
+def behind_scene():
+    track('behind_the_scene')
+    conn = get_db()
+    scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
+    counts = {
+        row['scene_id']: row['member_count']
+        for row in conn.execute(
+            "SELECT scene_id, COUNT(*) AS member_count FROM behind_scene_members GROUP BY scene_id"
+        ).fetchall()
+    }
+    conn.close()
+    return render_template('behind_scene.html', scenes=scenes, member_counts=counts)
+
+@app.route('/behind-the-scene/<int:sid>')
+def behind_scene_detail(sid):
+    track('behind_the_scene_detail')
+    conn = get_db()
+    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
+    if not scene:
+        conn.close()
+        return redirect(url_for('behind_scene'))
+    members = conn.execute(
+        "SELECT * FROM behind_scene_members WHERE scene_id=? ORDER BY sort_order, name",
+        (sid,)
+    ).fetchall()
+    conn.close()
+    return render_template('behind_scene_detail.html', scene=scene, members=members)
 
 @app.route('/serve')
 def serve():
@@ -603,6 +650,157 @@ def admin_leader_edit(lid):
 def admin_leader_delete(lid):
     conn=get_db(); conn.execute("DELETE FROM leaders WHERE id=?",(lid,)); conn.commit(); conn.close()
     flash('Removed.','info'); return redirect(url_for('admin_leaders'))
+
+# Behind the Scene
+@app.route('/admin/behind-the-scene')
+@login_required
+def admin_behind_scenes():
+    conn = get_db()
+    scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
+    counts = {
+        row['scene_id']: row['member_count']
+        for row in conn.execute(
+            "SELECT scene_id, COUNT(*) AS member_count FROM behind_scene_members GROUP BY scene_id"
+        ).fetchall()
+    }
+    conn.close()
+    return render_template('admin/behind_scenes.html', scenes=scenes, member_counts=counts)
+
+@app.route('/admin/behind-the-scene/new', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_new():
+    if request.method == 'POST':
+        photo = save_upload('photo') or ''
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO behind_scenes (name,description,photo,sort_order) VALUES (?,?,?,?)",
+            (
+                request.form['name'].strip(),
+                request.form.get('description', '').strip(),
+                photo,
+                int(request.form.get('sort_order') or 99),
+            )
+        )
+        conn.commit()
+        conn.close()
+        flash('Behind the Scene group added!', 'success')
+        return redirect(url_for('admin_behind_scenes'))
+    return render_template('admin/behind_scene_form.html', scene=None, members=[])
+
+@app.route('/admin/behind-the-scene/<int:sid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_edit(sid):
+    conn = get_db()
+    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
+    if not scene:
+        conn.close()
+        return redirect(url_for('admin_behind_scenes'))
+    if request.method == 'POST':
+        photo = save_upload('photo')
+        if photo is None:
+            photo = scene['photo']
+        conn.execute(
+            "UPDATE behind_scenes SET name=?,description=?,photo=?,sort_order=? WHERE id=?",
+            (
+                request.form['name'].strip(),
+                request.form.get('description', '').strip(),
+                photo,
+                int(request.form.get('sort_order') or 99),
+                sid,
+            )
+        )
+        conn.commit()
+        flash('Behind the Scene group updated!', 'success')
+        scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
+    members = conn.execute(
+        "SELECT * FROM behind_scene_members WHERE scene_id=? ORDER BY sort_order, name",
+        (sid,)
+    ).fetchall()
+    conn.close()
+    return render_template('admin/behind_scene_form.html', scene=scene, members=members)
+
+@app.route('/admin/behind-the-scene/<int:sid>/delete', methods=['POST'])
+@login_required
+def admin_behind_scene_delete(sid):
+    conn = get_db()
+    conn.execute("DELETE FROM behind_scenes WHERE id=?", (sid,))
+    conn.commit()
+    conn.close()
+    flash('Behind the Scene group removed.', 'info')
+    return redirect(url_for('admin_behind_scenes'))
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_member_new(sid):
+    conn = get_db()
+    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
+    if not scene:
+        conn.close()
+        return redirect(url_for('admin_behind_scenes'))
+    if request.method == 'POST':
+        photo = save_upload('photo') or ''
+        conn.execute(
+            "INSERT INTO behind_scene_members (scene_id,name,role,bio,photo,sort_order) VALUES (?,?,?,?,?,?)",
+            (
+                sid,
+                request.form['name'].strip(),
+                request.form.get('role', '').strip(),
+                request.form.get('bio', '').strip(),
+                photo,
+                int(request.form.get('sort_order') or 99),
+            )
+        )
+        conn.commit()
+        conn.close()
+        flash('Team member added!', 'success')
+        return redirect(url_for('admin_behind_scene_edit', sid=sid))
+    conn.close()
+    return render_template('admin/behind_scene_member_form.html', scene=scene, member=None)
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_member_edit(sid, mid):
+    conn = get_db()
+    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
+    member = conn.execute(
+        "SELECT * FROM behind_scene_members WHERE id=? AND scene_id=?",
+        (mid, sid)
+    ).fetchone()
+    if not scene or not member:
+        conn.close()
+        return redirect(url_for('admin_behind_scenes'))
+    if request.method == 'POST':
+        photo = save_upload('photo')
+        if photo is None:
+            photo = member['photo']
+        conn.execute(
+            "UPDATE behind_scene_members SET name=?,role=?,bio=?,photo=?,sort_order=? WHERE id=? AND scene_id=?",
+            (
+                request.form['name'].strip(),
+                request.form.get('role', '').strip(),
+                request.form.get('bio', '').strip(),
+                photo,
+                int(request.form.get('sort_order') or 99),
+                mid,
+                sid,
+            )
+        )
+        conn.commit()
+        conn.close()
+        flash('Team member updated!', 'success')
+        return redirect(url_for('admin_behind_scene_edit', sid=sid))
+    conn.close()
+    return render_template('admin/behind_scene_member_form.html', scene=scene, member=member)
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/delete', methods=['POST'])
+@login_required
+def admin_behind_scene_member_delete(sid, mid):
+    conn = get_db()
+    conn.execute("DELETE FROM behind_scene_members WHERE id=? AND scene_id=?", (mid, sid))
+    conn.commit()
+    conn.close()
+    flash('Team member removed.', 'info')
+    return redirect(url_for('admin_behind_scene_edit', sid=sid))
 
 # Beliefs
 @app.route('/admin/beliefs')

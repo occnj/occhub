@@ -236,6 +236,9 @@
         <a href="{{ url_for('admin_leaders') }}" class="nav-item {% if 'leader' in request.endpoint %}active{% endif %}">
             <i class="bi bi-person-badge-fill"></i> Leadership
         </a>
+        <a href="{{ url_for('admin_behind_scenes') }}" class="nav-item {% if 'behind_scene' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-people-fill"></i> Oasis Experience Team
+        </a>
         <a href="{{ url_for('admin_ministries') }}" class="nav-item {% if 'ministr' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Ministries
         </a>

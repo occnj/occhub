@@ -12,7 +12,7 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
 .shell{width:100%;max-width:390px;}
-.back-btn{position:absolute;top:56px;left:20px;color:rgba(255,255,255,0.85);font-size:1.2rem;text-decoration:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center;z-index:2;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
 .hero{position:relative;background:var(--teal);min-height:220px;overflow:hidden;}
 .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;}
 .hero-content{position:relative;z-index:1;padding:56px 24px 28px 60px;}
@@ -26,7 +26,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 <body>
 <div class="shell">
   <div class="hero">
-    <a href="/hub" class="back-btn"><i class="bi bi-chevron-left"></i></a>
+    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
     {% if settings.about_hero %}
     <img src="/static/{{ settings.about_hero }}" alt="" class="hero-img">
     {% endif %}

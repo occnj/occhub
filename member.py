@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, request, session, f
 from flask_mail import Mail, Message
 from datetime import datetime, date
 from functools import wraps
+from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import os, sqlite3, uuid
 
@@ -20,12 +21,25 @@ app.config.update(
     MAIL_SERVER='smtp.office365.com', MAIL_PORT=587,
     MAIL_USE_TLS=True, MAIL_USE_SSL=False,
     MAIL_USERNAME=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
-    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD','Oasis2052'),
+    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD',''),
     MAIL_DEFAULT_SENDER=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
 )
 mail = Mail(app)
 
 DB = os.path.join(BASE_DIR,'oasis.db')
+
+def hash_password(password):
+    return generate_password_hash(password)
+
+def password_is_hashed(value):
+    return isinstance(value, str) and value.startswith(('pbkdf2:', 'scrypt:'))
+
+def verify_password(stored_password, provided_password):
+    if not stored_password:
+        return False
+    if password_is_hashed(stored_password):
+        return check_password_hash(stored_password, provided_password)
+    return stored_password == provided_password
 
 def get_db():
     conn = sqlite3.connect(DB)
@@ -44,7 +58,10 @@ def init_db():
         role TEXT DEFAULT 'editor',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )''')
-    c.execute("INSERT OR IGNORE INTO admin_users (username,password,role) VALUES ('admin','oasis2025','superadmin')")
+    c.execute(
+        "INSERT OR IGNORE INTO admin_users (username,password,role) VALUES (?,?,?)",
+        ('admin', hash_password('oasis2025'), 'superadmin')
+    )
 
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     for k,v in [
@@ -225,10 +242,10 @@ def track(page):
         today = datetime.now().strftime('%Y-%m-%d')
         session['today'] = today  # persist so queries can use it
         conn = get_db()
+        forwarded_for = request.headers.get('X-Forwarded-For', '')
+        client_ip = forwarded_for.split(',')[0].strip() if forwarded_for else request.remote_addr
         conn.execute("INSERT INTO analytics (ts,page,ip,ua,sid) VALUES (?,?,?,?,?)",
-            (ts, page,
-             request.headers.get('X-Forwarded-For', request.remote_addr),
-             request.headers.get('User-Agent','')[:200], sid))
+            (ts, page, client_ip, request.headers.get('User-Agent','')[:200], sid))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -241,6 +258,15 @@ def send_email(subject, to, html, reply_to=None):
         mail.send(msg); return True
     except Exception as e:
         app.logger.warning(f"Email failed: {e}"); return False
+
+def ensure_admin_password_hash(conn, user_row, raw_password):
+    if password_is_hashed(user_row['password']):
+        return
+    conn.execute(
+        "UPDATE admin_users SET password=? WHERE id=?",
+        (hash_password(raw_password), user_row['id'])
+    )
+    conn.commit()
 
 def login_required(f):
     @wraps(f)
@@ -469,13 +495,16 @@ def admin_login():
     error=None
     if request.method=='POST':
         conn=get_db()
-        u=conn.execute("SELECT * FROM admin_users WHERE username=? AND password=?",
-            (request.form.get('username','').strip(),request.form.get('password',''))).fetchone()
-        conn.close()
-        if u:
+        username = request.form.get('username','').strip()
+        password = request.form.get('password','')
+        u=conn.execute("SELECT * FROM admin_users WHERE username=?",(username,)).fetchone()
+        if u and verify_password(u['password'], password):
+            ensure_admin_password_hash(conn, u, password)
+            conn.close()
             session.permanent=True; session['admin_logged_in']=True
             session['admin_user']=u['username']; session['admin_role']=u['role']
             return redirect(url_for('admin_dashboard'))
+        conn.close()
         error='Invalid username or password.'
     return render_template('admin/login.html',error=error)
 
@@ -802,7 +831,7 @@ def admin_user_new():
         else:
             conn=get_db()
             try:
-                conn.execute("INSERT INTO admin_users (username,password,role) VALUES (?,?,?)",(uname,pw,role))
+                conn.execute("INSERT INTO admin_users (username,password,role) VALUES (?,?,?)",(uname,hash_password(pw),role))
                 conn.commit(); flash('User created!','success')
             except sqlite3.IntegrityError: flash('Username already taken.','info')
             conn.close()
@@ -825,7 +854,7 @@ def admin_password():
         pw=request.form.get('new_password','').strip()
         if len(pw)<6: flash('Min 6 characters.','info')
         else:
-            conn=get_db(); conn.execute("UPDATE admin_users SET password=? WHERE username=?",(pw,session['admin_user'])); conn.commit(); conn.close()
+            conn=get_db(); conn.execute("UPDATE admin_users SET password=? WHERE username=?",(hash_password(pw),session['admin_user'])); conn.commit(); conn.close()
             flash('Password updated!','success')
     return render_template('admin/password.html')
 
@@ -843,6 +872,7 @@ def server_error(e):
         </body></html>""", 500
     return redirect(url_for('hub'))
 
+init_db()
+
 if __name__=='__main__':
-    init_db()
     app.run(debug=False,host='0.0.0.0',port=5500)

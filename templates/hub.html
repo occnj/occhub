@@ -393,9 +393,9 @@
         <i class="bi bi-telephone-fill"></i>
         <span>732-499-0040</span>
       </a>
-      <a href="/cdn-cgi/l/email-protection#abe4cad8c2d8ebe4cad8c2d8e5e185c5cedf" class="contact-btn ghost-btn">
+      <a href="mailto:Oasis@OasisNJ.net" class="contact-btn ghost-btn">
         <i class="bi bi-envelope-fill"></i>
-        <span><span class="__cf_email__" data-cfemail="3c735d4f554f7c735d4f554f727612525948">[email&#160;protected]</span></span>
+        <span>Oasis@OasisNJ.net</span>
       </a>
       <a href="/contact" class="contact-btn orange-btn">
         <i class="bi bi-chat-dots-fill"></i>
@@ -474,5 +474,12 @@
   border: 1px solid #e5e5ea;
 }
 </style>
-
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>

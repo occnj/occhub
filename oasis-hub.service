@@ -1,0 +1,25 @@
+[Unit]
+Description=Oasis Hub Flask App (occnj)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/occ_hub
+Environment="PATH=/home/pi/occ_hub/venv/bin"
+Environment="SECRET_KEY=change-this-to-a-long-random-string"
+Environment="MAIL_USERNAME=media@oasisnj.net"
+Environment="MAIL_PASSWORD=Oasis2052"
+ExecStart=/home/pi/occ_hub/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 0.0.0.0:5500 \
+    --timeout 60 \
+    --access-logfile /home/pi/occ_hub/access.log \
+    --error-logfile /home/pi/occ_hub/error.log \
+    member:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

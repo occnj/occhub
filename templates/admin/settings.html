@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Site Settings{% endblock %}
+{% block page_sub %}All links, emails, and content you can customize{% endblock %}
+{% block content %}
+{% with msgs = get_flashed_messages(with_categories=true) %}{% if msgs %}{% for cat,msg in msgs %}<div class="alert alert-{{cat}}">{{msg}}</div>{% endfor %}{% endif %}{% endwith %}
+
+<form method="POST" enctype="multipart/form-data">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+  <!-- Left column -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-image"></i> Logo</div></div>
+      <div class="card-body">
+        {% if settings.logo_path %}<img src="/static/{{ settings.logo_path }}" style="height:48px;margin-bottom:12px;display:block;" alt="Logo">{% endif %}
+        <label class="form-label">Upload New Logo</label>
+        <input type="file" name="logo_file" class="form-control" accept="image/*">
+        <div style="font-size:0.72rem;color:#6e6e73;margin-top:5px;">PNG with transparent background recommended</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-building"></i> Church Info</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Site Name</label><input type="text" name="site_name" class="form-control" value="{{ settings.site_name }}"></div>
+        <div class="form-group"><label class="form-label">Tagline</label><input type="text" name="tagline" class="form-control" value="{{ settings.tagline }}"></div>
+        <div class="form-group"><label class="form-label">Phone Number</label><input type="text" name="phone" class="form-control" value="{{ settings.phone }}"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-envelope-fill"></i> Email Destinations</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Connect Card Email</label><input type="email" name="connect_email" class="form-control" value="{{ settings.connect_email }}"><div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Where connect card submissions are sent</div></div>
+        <div class="form-group"><label class="form-label">Contact Form Email</label><input type="email" name="contact_email" class="form-control" value="{{ settings.contact_email }}"></div>
+        <div class="form-group"><label class="form-label">Prayer Request Email</label><input type="email" name="prayer_email" class="form-control" value="{{ settings.prayer_email }}"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-share-fill"></i> Social Media</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Social Page Title</label><input type="text" name="social_page_title" class="form-control" value="{{ settings.social_page_title }}"></div>
+        <div class="form-group"><label class="form-label">Instagram URL</label><input type="url" name="instagram_url" class="form-control" value="{{ settings.instagram_url }}"></div>
+        <div class="form-group"><label class="form-label">Facebook URL</label><input type="url" name="facebook_url" class="form-control" value="{{ settings.facebook_url }}"></div>
+        <div class="form-group"><label class="form-label">YouTube URL</label><input type="url" name="social_youtube_url" class="form-control" value="{{ settings.social_youtube_url }}"></div>
+        <div class="form-group"><label class="form-label">TikTok URL (optional)</label><input type="url" name="social_tiktok_url" class="form-control" value="{{ settings.social_tiktok_url }}"></div>
+        <div class="form-group"><label class="form-label">X / Twitter URL (optional)</label><input type="url" name="social_twitter_url" class="form-control" value="{{ settings.social_twitter_url }}"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right column -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-link-45deg"></i> Action Links</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Give / Donate URL</label><input type="url" name="give_url" class="form-control" value="{{ settings.give_url }}"></div>
+        <div class="form-group"><label class="form-label">Sermon URL</label><input type="url" name="sermon_url" class="form-control" value="{{ settings.sermon_url }}"></div>
+        <div class="form-group"><label class="form-label">You Said Yes PDF URL</label><input type="url" name="yousaidyes_url" class="form-control" value="{{ settings.yousaidyes_url }}"></div>
+        <div class="form-group"><label class="form-label">Serve / Volunteer Form URL</label><input type="url" name="serve_form_url" class="form-control" value="{{ settings.serve_form_url }}"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-info-circle-fill"></i> About Page</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Page Title</label><input type="text" name="about_title" class="form-control" value="{{ settings.about_title }}"></div>
+        <div class="form-group">
+          <label class="form-label">Hero / Header Image</label>
+          {% if settings.about_hero %}<img src="/static/{{ settings.about_hero }}" style="height:80px;border-radius:8px;margin-bottom:8px;display:block;object-fit:cover;" alt="">{% endif %}
+          <input type="file" name="about_hero_file" class="form-control" accept="image/*">
+        </div>
+        <div class="form-group"><label class="form-label">Body Text</label><textarea name="about_body" class="form-control" style="min-height:140px;">{{ settings.about_body }}</textarea></div>
+      </div>
+    </div>
+
+    <div style="position:sticky;bottom:16px;">
+      <button type="submit" class="btn btn-primary" style="width:100%;padding:16px;font-size:1rem;">Save All Settings</button>
+    </div>
+
+  </div>
+</div>
+</form>
+{% endblock %}

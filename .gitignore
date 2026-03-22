@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Database (lives on Pi, not in git)
+oasis.db
+*.db-shm
+*.db-wal
+
+# Uploaded files (live on Pi, not in git)
+static/uploads/
+
+# Logs
+*.log
+error.log
+access.log
+
+# Environment variables
+.env
+.env.local
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

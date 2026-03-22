@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Prayer Request — Oasis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#13677A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Oasis Hub">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:#13677A;--orange:#F2541B;--bg:#F5F5F7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;--line:#d2d2d7;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
+.shell{width:100%;max-width:390px;}
+.hero{background:var(--teal);padding:56px 24px 28px;position:relative;}
+.back-btn{position:absolute;top:56px;left:20px;color:rgba(255,255,255,0.8);text-decoration:none;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;}
+.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;padding-left:36px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:white;padding-left:36px;}
+.hero-sub{font-size:0.8rem;color:rgba(255,255,255,0.6);padding-left:36px;margin-top:6px;}
+.body{padding:20px 16px;}
+.intro-card{background:var(--card);border-radius:18px;padding:18px 18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.intro-text{font-size:0.86rem;line-height:1.7;color:#3a3a3c;}
+.form-card{background:var(--card);border-radius:20px;padding:22px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+label{display:block;font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--sub);margin-bottom:7px;margin-top:16px;}
+label:first-child{margin-top:0;}
+input,select,textarea{width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:12px;padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--text);outline:none;transition:border-color 0.2s,background 0.2s;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);background:white;}
+textarea{min-height:130px;resize:vertical;}
+.check-row{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:12px;padding:14px;margin-top:8px;}
+.check-row input[type=checkbox]{width:18px;height:18px;flex-shrink:0;accent-color:var(--teal);}
+.check-label{font-size:0.83rem;color:var(--sub);}
+.btn-submit{display:block;width:100%;background:var(--teal);color:white;border:none;border-radius:14px;padding:17px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;margin-top:22px;box-shadow:0 8px 25px rgba(19,103,122,0.25);transition:transform 0.15s,opacity 0.15s;}
+.btn-submit:active{transform:scale(0.98);opacity:0.9;}
+.success-card{background:var(--card);border-radius:20px;padding:40px 24px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.success-icon{width:64px;height:64px;border-radius:50%;background:rgba(19,103,122,0.08);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 18px;}
+.success-title{font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:8px;}
+.success-sub{font-size:0.88rem;color:var(--sub);line-height:1.65;}
+.back-hub{display:inline-flex;align-items:center;gap:6px;margin-top:20px;color:var(--teal);text-decoration:none;font-size:0.84rem;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="/hub" class="back-btn"><i class="bi bi-chevron-left"></i></a>
+    <div class="hero-tag">Oasis Christian Centre</div>
+    <div class="hero-title">Prayer Request</div>
+    <div class="hero-sub">We believe in the power of prayer</div>
+  </div>
+  <div class="body">
+
+  {% if sent %}
+  <div class="success-card">
+    <div class="success-icon"><i class="bi bi-check-lg"></i></div>
+    <div class="success-title">Prayer Received</div>
+    <div class="success-sub">Thank you for trusting us with your prayer request. Our team will be praying for you.</div>
+    <a href="/hub" class="back-hub"><i class="bi bi-house"></i> Back to Hub</a>
+  </div>
+  {% else %}
+  <div class="intro-card">
+    <div class="intro-text">"Cast all your anxiety on him because he cares for you." — 1 Peter 5:7<br><br>
+    Share what's on your heart. Our pastoral team reads every request and prays over them.</div>
+  </div>
+  <div class="form-card">
+    <form method="POST">
+      <div class="row2">
+        <div>
+          <label>First Name</label>
+          <input type="text" name="full_name" placeholder="Your name">
+        </div>
+        <div>
+          <label>Phone</label>
+          <input type="tel" name="phone" placeholder="Optional">
+        </div>
+      </div>
+      <label>Email</label>
+      <input type="email" name="email" placeholder="Optional — for follow-up">
+
+      <label>Request Type</label>
+      <select name="request_type">
+        <option value="Personal">Personal</option>
+        <option value="Family">Family</option>
+        <option value="Health">Health</option>
+        <option value="Relationships">Relationships</option>
+        <option value="Financial">Financial</option>
+        <option value="Salvation">Salvation of a Loved One</option>
+        <option value="Guidance">Guidance / Direction</option>
+        <option value="Grief">Grief / Loss</option>
+        <option value="Other">Other</option>
+      </select>
+
+      <label>Your Prayer Request</label>
+      <textarea name="message" required placeholder="Share what's on your heart…"></textarea>
+
+      <div class="check-row">
+        <input type="checkbox" name="is_private" id="priv">
+        <label for="priv" class="check-label" style="margin:0;text-transform:none;letter-spacing:0;font-size:0.83rem;font-weight:400;color:var(--sub);">
+          Keep this request private (pastoral team only)
+        </label>
+      </div>
+
+      <button type="submit" class="btn-submit">Submit Prayer Request →</button>
+    </form>
+  </div>
+  {% endif %}
+  </div>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body></html>

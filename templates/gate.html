@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome — Oasis Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #0d1117;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Sans', sans-serif;
+            overflow: hidden;
+        }
+
+        .bg-image {
+            position: fixed;
+            inset: 0;
+            background: url('/static/gate.jpg') center/cover no-repeat;
+            opacity: 0.25;
+        }
+
+        .gradient-overlay {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(to top, rgba(13,17,23,1) 30%, rgba(13,17,23,0.5) 100%);
+        }
+
+        .card {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 380px;
+            padding: 48px 32px 40px;
+            text-align: center;
+            animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2rem;
+            color: #fff;
+            line-height: 1.2;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            font-size: 0.78rem;
+            letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            margin-bottom: 48px;
+            line-height: 1.6;
+        }
+
+        .label {
+            font-size: 0.7rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 16px 20px;
+            border-radius: 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-decoration: none;
+            margin-bottom: 10px;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-primary {
+            background: #F2541B;
+            color: #fff;
+            box-shadow: 0 8px 30px rgba(242,84,27,0.35);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.85);
+            border: 1px solid rgba(255,255,255,0.12);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .divider { margin: 28px 0; position: relative; }
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%; left: 0; right: 0;
+            height: 1px;
+            background: rgba(255,255,255,0.08);
+        }
+    </style>
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#13677A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Oasis Hub">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+</head>
+<body>
+    <div class="bg-image"></div>
+    <div class="gradient-overlay"></div>
+
+    <div class="card">
+        <h1>Welcome to<br>Oasis Hub</h1>
+        <p class="tagline">Know God · Find Hope · Make a Difference</p>
+
+        <span class="label">First time here?</span>
+        <a href="/connect" class="btn btn-primary">Fill out a Connect Card</a>
+
+        <div class="divider"></div>
+
+        <span class="label">Already part of the family?</span>
+        <a href="/hub" class="btn btn-secondary">Continue to the Hub →</a>
+    </div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>

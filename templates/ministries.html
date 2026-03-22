@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ministries — Oasis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#13677A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Oasis Hub">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root { --teal: #13677A; --orange: #F2541B; --bg: #F5F5F7; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 40px; }
+        .shell { width: 100%; max-width: 390px; }
+
+        .hero { background: var(--teal); padding: 56px 24px 28px; position: relative; }
+        .back-btn { position: absolute; top: 56px; left: 20px; color: rgba(255,255,255,0.8); font-size: 1.2rem; text-decoration: none; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+        .hero-tag { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 6px; padding-left: 36px; }
+        .hero-title { font-family: 'DM Serif Display', serif; font-size: 2rem; color: white; padding-left: 36px; }
+
+        .list { padding: 20px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+        .row {
+            background: var(--card); border-radius: 16px; padding: 18px 16px;
+            display: flex; align-items: center; justify-content: space-between;
+            cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            transition: transform 0.15s; border: none; width: 100%; text-align: left;
+        }
+        .row:active { transform: scale(0.98); }
+        .row-left { display: flex; align-items: center; gap: 14px; }
+        .row-icon {
+            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; background: rgba(19,103,122,0.08); color: var(--teal);
+        }
+        .row-icon.alt { background: rgba(242,84,27,0.08); color: var(--orange); }
+        .row-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+        .row-chevron { color: #c7c7cc; font-size: 0.75rem; }
+
+        /* Bottom sheet */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .overlay.open { opacity: 1; pointer-events: all; }
+        .sheet { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: 100%; max-width: 390px; background: var(--card); border-radius: 24px 24px 0 0; z-index: 101; padding: 0 0 48px; max-height: 85vh; overflow-y: auto; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .sheet.open { transform: translateX(-50%) translateY(0); }
+        .sheet-handle { width: 36px; height: 4px; background: #e0e0e5; border-radius: 4px; margin: 12px auto 20px; }
+        .sheet-header { padding: 0 22px 16px; border-bottom: 1px solid #f0f0f5; }
+        .sheet-tag { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--orange); font-weight: 600; margin-bottom: 4px; }
+        .sheet-name { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--text); }
+        .sheet-body { padding: 20px 22px 0; font-size: 0.9rem; line-height: 1.75; color: #3a3a3c; }
+        .sheet-link {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 20px; background: var(--teal); color: white;
+            padding: 12px 20px; border-radius: 12px; text-decoration: none;
+            font-size: 0.84rem; font-weight: 600; transition: opacity 0.15s;
+        }
+        .sheet-link:active { opacity: 0.85; }
+        .sheet-close { position: absolute; top: 14px; right: 18px; background: #f0f0f5; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; color: var(--sub); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="hero">
+        <a href="{{ url_for('hub') }}" class="back-btn"><i class="bi bi-chevron-left"></i></a>
+        <div class="hero-tag">Oasis Christian Centre</div>
+        <div class="hero-title">Ministries</div>
+    </div>
+
+    <div class="list">
+        {% for m in ministries %}
+        <button class="row" onclick="openSheet({{ loop.index0 }})">
+            <div class="row-left">
+                <div class="row-icon {% if loop.index is even %}alt{% endif %}">
+                    <i class="bi {{ m.icon }}"></i>
+                </div>
+                <div class="row-label">{{ m.name }}</div>
+            </div>
+            <i class="bi bi-chevron-right row-chevron"></i>
+        </button>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+    <button class="sheet-close" onclick="closeSheet()"><i class="bi bi-x"></i></button>
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+        <div class="sheet-tag">Ministry</div>
+        <div class="sheet-name" id="sheet-name"></div>
+    </div>
+    <div class="sheet-body">
+        <div id="sheet-desc"></div>
+        <a id="sheet-link" href="#" target="_blank" class="sheet-link">
+            Learn More <i class="bi bi-arrow-up-right"></i>
+        </a>
+    </div>
+</div>
+
+<script>
+const ministries = [
+    {% for m in ministries %}
+    { name: {{ m.name|tojson }}, desc: {{ (m.description or '')|tojson }}, url: {{ (m.url or '#')|tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+function openSheet(i) {
+    const m = ministries[i];
+    document.getElementById('sheet-name').textContent = m.name;
+    document.getElementById('sheet-desc').textContent = m.desc;
+    const link = document.getElementById('sheet-link');
+    link.href = m.url || '#';
+    link.style.display = m.url ? 'inline-flex' : 'none';
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('sheet').classList.add('open');
+}
+function closeSheet() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('sheet').classList.remove('open');
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>

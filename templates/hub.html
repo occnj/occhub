@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oasis Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#13677A">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Oasis Hub">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root {
+            --teal: #13677A;
+            --orange: #F2541B;
+            --bg: #F5F5F7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #6e6e73;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding-bottom: 100px;
+            min-height: 100vh;
+        }
+
+        .shell {
+            width: 100%;
+            max-width: 390px;
+            padding: 0 16px 20px;
+        }
+
+        /* Top bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 58px 0 20px;
+        }
+
+        .greeting-block {}
+        .greeting-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--sub);
+            margin-bottom: 2px;
+        }
+        .greeting-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.6rem;
+            color: var(--text);
+            line-height: 1.1;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+
+        /* Sermon hero card */
+        .sermon-card {
+            background: var(--teal);
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            text-decoration: none;
+            position: relative;
+            min-height: 100px;
+            transition: transform 0.18s ease;
+        }
+        .sermon-card:active { transform: scale(0.98); }
+
+        .sermon-text {
+            padding: 20px 18px;
+            flex: 1;
+            z-index: 2;
+        }
+        .sermon-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.85);
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 20px;
+            margin-bottom: 8px;
+        }
+        .sermon-title {
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+        .sermon-date {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.78rem;
+        }
+
+        .sermon-img {
+            width: 90px;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+
+        .sermon-chevron {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.5);
+            font-size: 1rem;
+        }
+
+        /* Section */
+        .section-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--sub);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tile {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 18px 16px 16px;
+            text-decoration: none;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-height: 90px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile:active { transform: scale(0.97); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+
+        .tile-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        .tile-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+        .tile-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+
+        .tile-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .tile-sub {
+            font-size: 0.68rem;
+            color: var(--sub);
+            margin-top: 2px;
+        }
+
+        .tile-chevron {
+            position: absolute;
+            right: 13px;
+            bottom: 14px;
+            color: #c7c7cc;
+            font-size: 0.75rem;
+        }
+
+        /* Tab bar */
+        .tabbar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 390px;
+            height: 82px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 8px 16px;
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            text-decoration: none;
+            color: #8e8e93;
+            font-size: 0.58rem;
+            letter-spacing: 0.04em;
+            min-width: 48px;
+            padding-top: 8px;
+        }
+        .tab-item i { font-size: 1.3rem; }
+        .tab-item.danger i { color: #ff3b30; }
+
+        .fab {
+            width: 58px;
+            height: 58px;
+            background: var(--orange);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1.7rem;
+            margin-top: -26px;
+            transition: transform 0.15s;
+        }
+        .fab:active { transform: scale(0.93); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="topbar">
+        <div class="greeting-block">
+            <div class="greeting-label">{{ date }}</div>
+            <div class="greeting-name">{{ greeting }}</div>
+        </div>
+        <img src="/static/{{ settings.logo_path if settings.logo_path else 'logo.png' }}" class="logo-icon" alt="Oasis">
+    </div>
+
+    <a href="{{ settings.sermon_url }}" class="sermon-card">
+        <div class="sermon-text">
+            <div class="sermon-badge">Today's Message</div>
+            <div class="sermon-title">Click for Sermon Notes</div>
+            <div class="sermon-date">Tap to follow along →</div>
+        </div>
+        <img src="/static/sermon.png" class="sermon-img" alt="">
+    </a>
+
+    <div class="section-label">Quick Access</div>
+    <div class="grid">
+
+        <a href="{{ settings.yousaidyes_url }}" target="_blank" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-cloud-arrow-down"></i></div>
+            <div class="tile-label">You Said Yes</div>
+            <div class="tile-sub">Download PDF</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/ministries" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-people"></i></div>
+            <div class="tile-label">Ministries</div>
+            <div class="tile-sub">Get involved</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/calendar" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-calendar3"></i></div>
+            <div class="tile-label">Upcoming Events</div>
+            <div class="tile-sub">What's happening</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/prayer" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-hand-index-thumb"></i></div>
+            <div class="tile-label">Prayer Request</div>
+            <div class="tile-sub">We're here for you</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="https://www.oasisnj.net/helpdesk" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-headset"></i></div>
+            <div class="tile-label">Help Desk</div>
+            <div class="tile-sub">Get support</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/beliefs" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-book"></i></div>
+            <div class="tile-label">Our Beliefs</div>
+            <div class="tile-sub">What we stand on</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/leadership" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-person-badge"></i></div>
+            <div class="tile-label">Leadership</div>
+            <div class="tile-sub">Meet the team</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+
+    </div>
+</div>
+
+<nav class="tabbar">
+    <a href="/about" class="tab-item">
+        <i class="bi bi-info-circle-fill"></i>
+        <span>About</span>
+    </a>
+    <a href="/social" class="tab-item">
+        <i class="bi bi-share-fill"></i>
+        <span>Social</span>
+    </a>
+    <a href="/serve" class="fab" title="Serve">
+        <i class="bi bi-person-raised-hand"></i>
+    </a>
+    <a href="{{ settings.give_url }}" target="_blank" class="tab-item danger">
+        <i class="bi bi-heart-fill"></i>
+        <span>Give</span>
+    </a>
+    <a href="/contact" class="tab-item">
+        <i class="bi bi-telephone-fill"></i>
+        <span>Call</span>
+    </a>
+</nav>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  });
+}
+</script>
+</body>
+</html>

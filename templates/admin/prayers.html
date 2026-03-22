@@ -1,0 +1,26 @@
+{% extends "admin/base.html" %}
+{% block title %}Prayer Requests{% endblock %}
+{% block page_title %}Prayer Requests{% endblock %}
+{% block page_sub %}Submitted prayer requests{% endblock %}
+{% block content %}
+<div class="card">
+  {% if prayers %}
+  <table>
+    <thead><tr><th>Date</th><th>Name</th><th>Type</th><th>Preview</th><th>Private</th></tr></thead>
+    <tbody>
+    {% for p in prayers %}
+    <tr>
+      <td style="color:#6e6e73;font-size:0.78rem;white-space:nowrap;">{{ p.submitted_at }}</td>
+      <td><b>{{ p.full_name or 'Anonymous' }}</b><br><span style="color:#6e6e73;font-size:0.75rem;">{{ p.email or '' }}</span></td>
+      <td><span class="tag">{{ p.request_type }}</span></td>
+      <td style="font-size:0.8rem;color:#3a3a3c;max-width:200px;">{{ (p.message or '')[:80] }}{% if p.message and p.message|length>80 %}…{% endif %}</td>
+      <td>{% if p.is_private %}<span style="color:#c0392b;font-size:0.75rem;font-weight:700;">PRIVATE</span>{% else %}<span style="color:#6e6e73;font-size:0.75rem;">—</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No prayer requests yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

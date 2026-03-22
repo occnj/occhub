@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login — Oasis Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root { --teal: #13677A; --orange: #F2541B; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #F5F5F7;
+            min-height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 40px 36px;
+            width: 100%; max-width: 380px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+        }
+        .logo {
+            width: 48px; height: 48px; object-fit: contain;
+            margin-bottom: 20px; display: block;
+        }
+        h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+        .sub { font-size: 0.82rem; color: #6e6e73; margin-bottom: 28px; }
+        label { display: block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #6e6e73; margin-bottom: 7px; }
+        input {
+            width: 100%; background: #F5F5F7; border: 1.5px solid transparent;
+            border-radius: 10px; padding: 13px 14px;
+            font-family: 'DM Sans', sans-serif; font-size: 0.9rem;
+            outline: none; transition: border-color 0.2s;
+            margin-bottom: 16px;
+        }
+        input:focus { border-color: var(--teal); background: #fff; }
+        .btn {
+            width: 100%; background: var(--teal); color: #fff;
+            border: none; border-radius: 12px; padding: 15px;
+            font-family: 'DM Sans', sans-serif; font-size: 0.92rem; font-weight: 600;
+            cursor: pointer; transition: opacity 0.15s;
+        }
+        .btn:hover { opacity: 0.9; }
+        .error {
+            background: rgba(255,59,48,0.1); color: #c0392b;
+            padding: 11px 14px; border-radius: 10px;
+            font-size: 0.82rem; margin-bottom: 18px;
+            display: flex; align-items: center; gap: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <img src="/static/logo.png" class="logo" alt="Oasis" onerror="this.style.display='none'">
+    <h1>Admin Login</h1>
+    <p class="sub">Oasis Hub Management</p>
+    {% if error %}
+    <div class="error"><i class="bi bi-exclamation-circle-fill"></i> {{ error }}</div>
+    {% endif %}
+    <form method="POST">
+        <label>Username</label>
+        <input type="text" name="username" autocomplete="username" placeholder="admin" required>
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" placeholder="••••••••" required>
+        <button type="submit" class="btn">Sign In →</button>
+    </form>
+</div>
+</body>
+</html>

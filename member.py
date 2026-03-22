@@ -216,15 +216,23 @@ def track(page):
         # Never track admin sessions
         if session.get('admin_logged_in'):
             return
-        sid=session.get('sid')
-        if not sid: sid=str(uuid.uuid4())[:16]; session['sid']=sid
-        conn=get_db()
+        sid = session.get('sid')
+        if not sid:
+            sid = str(uuid.uuid4())[:16]
+            session['sid'] = sid
+        # Store timestamp as local date string for correct "today" queries
+        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        today = datetime.now().strftime('%Y-%m-%d')
+        session['today'] = today  # persist so queries can use it
+        conn = get_db()
         conn.execute("INSERT INTO analytics (ts,page,ip,ua,sid) VALUES (?,?,?,?,?)",
-            (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),page,
-             request.headers.get('X-Forwarded-For',request.remote_addr),
-             request.headers.get('User-Agent','')[:200],sid))
-        conn.commit(); conn.close()
-    except: pass
+            (ts, page,
+             request.headers.get('X-Forwarded-For', request.remote_addr),
+             request.headers.get('User-Agent','')[:200], sid))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        app.logger.warning(f"track() error: {e}")
 
 def send_email(subject, to, html, reply_to=None):
     try:
@@ -485,7 +493,8 @@ def admin_dashboard():
         'submissions':conn.execute("SELECT COUNT(*) FROM submissions").fetchone()[0],
         'prayers':conn.execute("SELECT COUNT(*) FROM prayer_requests").fetchone()[0],
         'events':conn.execute("SELECT COUNT(*) FROM events").fetchone()[0],
-        'views_today':conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=date('now')||' 00:00:00'").fetchone()[0],
+        'views_today':conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=?",
+            (datetime.now().strftime('%Y-%m-%d')+' 00:00:00',)).fetchone()[0],
         'views_total':conn.execute("SELECT COUNT(*) FROM analytics").fetchone()[0],
     }
     recent=conn.execute("SELECT * FROM submissions ORDER BY id DESC LIMIT 5").fetchall()
@@ -767,7 +776,8 @@ def admin_analytics_clear():
 def admin_analytics():
     conn=get_db()
     total=conn.execute("SELECT COUNT(*) FROM analytics").fetchone()[0]
-    today_ct=conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=date('now')||' 00:00:00'").fetchone()[0]
+    today_ct=conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=?",
+        (datetime.now().strftime('%Y-%m-%d')+' 00:00:00',)).fetchone()[0]
     week=conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=date('now','-7 days')||' 00:00:00'").fetchone()[0]
     by_page=conn.execute("SELECT page,COUNT(*) cnt FROM analytics GROUP BY page ORDER BY cnt DESC").fetchall()
     by_day=conn.execute("SELECT substr(ts,1,10) day,COUNT(*) cnt FROM analytics GROUP BY day ORDER BY day DESC LIMIT 30").fetchall()

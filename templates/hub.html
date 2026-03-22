@@ -344,17 +344,135 @@
         <i class="bi bi-heart-fill"></i>
         <span>Give</span>
     </a>
-    <a href="/contact" class="tab-item">
+    <button onclick="document.getElementById('contact-modal').classList.add('open')" class="tab-item" style="background:none;border:none;cursor:pointer;">
         <i class="bi bi-telephone-fill"></i>
         <span>Call</span>
-    </a>
+    </button>
 </nav>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
-  });
+
+<!-- Contact Modal -->
+<div id="contact-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Contact Us</div>
+      <button class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('open')">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-building"></i></div>
+        <div>
+          <div class="info-label">Main Building</div>
+          <div class="info-val">2052 St. Georges Ave<br>Rahway, NJ 07065</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon orange"><i class="bi bi-clock-fill"></i></div>
+        <div>
+          <div class="info-label">Sunday Services</div>
+          <div class="info-val">8:30am · 10:00am · 11:30am</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-briefcase-fill"></i></div>
+        <div>
+          <div class="info-label">Our Offices</div>
+          <div class="info-val">2096 St. Georges Ave<br>Rahway, NJ 07065</div>
+          <div class="info-sub">Mon–Fri: 9:00am – 4:30pm</div>
+        </div>
+      </div>
+
+      <div class="modal-divider"></div>
+
+      <a href="tel:7324990040" class="contact-btn teal-btn">
+        <i class="bi bi-telephone-fill"></i>
+        <span>732-499-0040</span>
+      </a>
+      <a href="/cdn-cgi/l/email-protection#abe4cad8c2d8ebe4cad8c2d8e5e185c5cedf" class="contact-btn ghost-btn">
+        <i class="bi bi-envelope-fill"></i>
+        <span><span class="__cf_email__" data-cfemail="3c735d4f554f7c735d4f554f727612525948">[email&#160;protected]</span></span>
+      </a>
+      <a href="/contact" class="contact-btn orange-btn">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span>Send a Message</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
 }
-</script>
-</body>
-</html>
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-sheet {
+  background: #fff; border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 390px;
+  padding: 12px 20px 40px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
+.modal-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: #d2d2d7; margin: 0 auto 16px;
+}
+.modal-header {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem; color: var(--text);
+}
+.modal-close {
+  background: #F5F5F7; border: none; border-radius: 50%;
+  width: 30px; height: 30px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sub); font-size: 0.8rem;
+}
+.modal-body { display: flex; flex-direction: column; gap: 14px; }
+.info-block {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.info-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.info-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+.info-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+.info-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: 3px;
+}
+.info-val { font-size: 0.88rem; font-weight: 500; color: var(--text); line-height: 1.5; }
+.info-sub { font-size: 0.78rem; color: var(--sub); margin-top: 2px; }
+.modal-divider {
+  height: 1px; background: #f0f0f0; margin: 4px 0;
+}
+.contact-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 15px 18px; border-radius: 14px;
+  text-decoration: none; font-size: 0.9rem; font-weight: 600;
+  transition: transform 0.15s;
+}
+.contact-btn:active { transform: scale(0.97); }
+.teal-btn { background: var(--teal); color: white; }
+.orange-btn { background: var(--orange); color: white; }
+.ghost-btn {
+  background: #F5F5F7; color: var(--text);
+  border: 1px solid #e5e5ea;
+}
+</style>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/

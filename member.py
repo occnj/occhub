@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, request, session, flash
 from flask_mail import Mail, Message
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -259,6 +259,22 @@ def send_email(subject, to, html, reply_to=None):
     except Exception as e:
         app.logger.warning(f"Email failed: {e}"); return False
 
+def analytics_window_start(days=0):
+    base_day = datetime.now().date() - timedelta(days=days)
+    return f"{base_day.isoformat()} 00:00:00"
+
+def get_analytics_snapshot(conn):
+    today_start = analytics_window_start(0)
+    week_start = analytics_window_start(6)
+    return {
+        'total_views': conn.execute("SELECT COUNT(*) FROM analytics").fetchone()[0],
+        'views_today': conn.execute("SELECT COUNT(*) FROM analytics WHERE ts >= ?", (today_start,)).fetchone()[0],
+        'views_week': conn.execute("SELECT COUNT(*) FROM analytics WHERE ts >= ?", (week_start,)).fetchone()[0],
+        'sessions_total': conn.execute("SELECT COUNT(DISTINCT sid) FROM analytics").fetchone()[0],
+        'sessions_today': conn.execute("SELECT COUNT(DISTINCT sid) FROM analytics WHERE ts >= ?", (today_start,)).fetchone()[0],
+        'sessions_week': conn.execute("SELECT COUNT(DISTINCT sid) FROM analytics WHERE ts >= ?", (week_start,)).fetchone()[0],
+    }
+
 def ensure_admin_password_hash(conn, user_row, raw_password):
     if password_is_hashed(user_row['password']):
         return
@@ -477,18 +493,6 @@ def social(): track('social'); return render_template('social.html',settings=all
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
 
-@app.route('/sw.js')
-def service_worker():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(BASE_DIR,'static'), 'sw.js',
-                               mimetype='application/javascript')
-
-@app.route('/manifest.json')
-def manifest():
-    from flask import send_from_directory
-    return send_from_directory(os.path.join(BASE_DIR,'static'), 'manifest.json',
-                               mimetype='application/manifest+json')
-
 @app.route('/admin/login',methods=['GET','POST'])
 def admin_login():
     if session.get('admin_logged_in'): return redirect(url_for('admin_dashboard'))
@@ -515,6 +519,7 @@ def admin_logout(): session.clear(); return redirect(url_for('admin_login'))
 @login_required
 def admin_dashboard():
     conn=get_db()
+    analytics = get_analytics_snapshot(conn)
     st={
         'leaders':conn.execute("SELECT COUNT(*) FROM leaders").fetchone()[0],
         'beliefs':conn.execute("SELECT COUNT(*) FROM beliefs").fetchone()[0],
@@ -522,9 +527,9 @@ def admin_dashboard():
         'submissions':conn.execute("SELECT COUNT(*) FROM submissions").fetchone()[0],
         'prayers':conn.execute("SELECT COUNT(*) FROM prayer_requests").fetchone()[0],
         'events':conn.execute("SELECT COUNT(*) FROM events").fetchone()[0],
-        'views_today':conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=?",
-            (datetime.now().strftime('%Y-%m-%d')+' 00:00:00',)).fetchone()[0],
-        'views_total':conn.execute("SELECT COUNT(*) FROM analytics").fetchone()[0],
+        'views_today': analytics['views_today'],
+        'views_total': analytics['total_views'],
+        'sessions_today': analytics['sessions_today'],
     }
     recent=conn.execute("SELECT * FROM submissions ORDER BY id DESC LIMIT 5").fetchall()
     top_pages=conn.execute("SELECT page,COUNT(*) cnt FROM analytics GROUP BY page ORDER BY cnt DESC LIMIT 8").fetchall()
@@ -804,15 +809,21 @@ def admin_analytics_clear():
 @login_required
 def admin_analytics():
     conn=get_db()
-    total=conn.execute("SELECT COUNT(*) FROM analytics").fetchone()[0]
-    today_ct=conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=?",
-        (datetime.now().strftime('%Y-%m-%d')+' 00:00:00',)).fetchone()[0]
-    week=conn.execute("SELECT COUNT(*) FROM analytics WHERE ts>=date('now','-7 days')||' 00:00:00'").fetchone()[0]
+    snapshot = get_analytics_snapshot(conn)
     by_page=conn.execute("SELECT page,COUNT(*) cnt FROM analytics GROUP BY page ORDER BY cnt DESC").fetchall()
     by_day=conn.execute("SELECT substr(ts,1,10) day,COUNT(*) cnt FROM analytics GROUP BY day ORDER BY day DESC LIMIT 30").fetchall()
-    sessions=conn.execute("SELECT COUNT(DISTINCT sid) FROM analytics").fetchone()[0]
     conn.close()
-    return render_template('admin/analytics.html',total=total,today=today_ct,week=week,by_page=by_page,by_day=by_day,sessions=sessions)
+    return render_template(
+        'admin/analytics.html',
+        total=snapshot['total_views'],
+        today=snapshot['views_today'],
+        week=snapshot['views_week'],
+        sessions=snapshot['sessions_total'],
+        sessions_today=snapshot['sessions_today'],
+        sessions_week=snapshot['sessions_week'],
+        by_page=by_page,
+        by_day=by_day,
+    )
 
 # Users
 @app.route('/admin/users')

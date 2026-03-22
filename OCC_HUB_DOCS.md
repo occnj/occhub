@@ -136,23 +136,37 @@ occ_hub/
 
 ---
 
-## Deploying Updates
+## First-Time Install on Pi
 
-Copy updated files from USB drive `GEJG`:
 ```bash
-sudo bash /media/pi/GEJG/OCC_Hub/setup_pi.sh
+# SSH into the Pi
+ssh occnj@192.168.1.32
+
+# Clone the repo
+git clone https://github.com/occnj/occhub.git /home/occnj/occ_hub
+
+# Run setup (creates venv, installs packages, starts service)
+cd /home/occnj/occ_hub
+sudo bash setup_pi.sh
 ```
 
-Or after SSH:
+## Deploying Updates
+
 ```bash
-cp /media/pi/GEJG/OCC_Hub/member.py /home/pi/occ_hub/
-sudo systemctl restart oasis-hub
+# On your Mac — push changes
+git add .
+git commit -m "describe change"
+git push
+
+# On the Pi — pull and restart (takes ~2 seconds)
+ssh occnj@192.168.1.32
+cd /home/occnj/occ_hub && git pull && sudo systemctl restart oasis-hub
 ```
 
 **Check logs:**
 ```bash
 sudo journalctl -u oasis-hub -f
-cat /home/pi/occ_hub/error.log
+cat /home/occnj/occ_hub/error.log
 ```
 
 ---

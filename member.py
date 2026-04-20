@@ -116,6 +116,38 @@ def init_db():
         sort_order INTEGER DEFAULT 0,
         FOREIGN KEY(scene_id) REFERENCES behind_scenes(id) ON DELETE CASCADE
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS behind_scene_people (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        bio TEXT DEFAULT '',
+        photo TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS behind_scene_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        person_id INTEGER NOT NULL,
+        scene_id INTEGER NOT NULL,
+        role TEXT DEFAULT '',
+        slot_order INTEGER DEFAULT 0,
+        UNIQUE(person_id, scene_id),
+        FOREIGN KEY(person_id) REFERENCES behind_scene_people(id) ON DELETE CASCADE,
+        FOREIGN KEY(scene_id) REFERENCES behind_scenes(id) ON DELETE CASCADE
+    )''')
+    legacy_member_count = c.execute("SELECT COUNT(*) FROM behind_scene_members").fetchone()[0]
+    people_count = c.execute("SELECT COUNT(*) FROM behind_scene_people").fetchone()[0]
+    assignment_count = c.execute("SELECT COUNT(*) FROM behind_scene_assignments").fetchone()[0]
+    if legacy_member_count > 0 and people_count == 0 and assignment_count == 0:
+        legacy_members = c.execute("SELECT * FROM behind_scene_members ORDER BY id").fetchall()
+        for member in legacy_members:
+            c.execute(
+                "INSERT INTO behind_scene_people (name,bio,photo,sort_order) VALUES (?,?,?,?)",
+                (member['name'], member['bio'], member['photo'], member['sort_order'])
+            )
+            person_id = c.lastrowid
+            c.execute(
+                "INSERT INTO behind_scene_assignments (person_id,scene_id,role,slot_order) VALUES (?,?,?,?)",
+                (person_id, member['scene_id'], member['role'], 1)
+            )
 
     c.execute('''CREATE TABLE IF NOT EXISTS beliefs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
@@ -277,6 +309,75 @@ def send_email(subject, to, html, reply_to=None):
     except Exception as e:
         app.logger.warning(f"Email failed: {e}"); return False
 
+def assignment_slots_from_form(form):
+    slots = []
+    seen_scene_ids = set()
+    for slot_order in range(1, 4):
+        raw_scene_id = (form.get(f'assignment_{slot_order}_scene_id') or '').strip()
+        if not raw_scene_id:
+            continue
+        try:
+            scene_id = int(raw_scene_id)
+        except ValueError:
+            continue
+        if scene_id in seen_scene_ids:
+            continue
+        seen_scene_ids.add(scene_id)
+        slots.append({
+            'scene_id': scene_id,
+            'role': form.get(f'assignment_{slot_order}_role', '').strip(),
+            'slot_order': slot_order,
+        })
+    return slots
+
+def get_scene_choices(conn):
+    return conn.execute("SELECT id,name FROM behind_scenes ORDER BY sort_order, name").fetchall()
+
+def get_people_count_by_scene(conn):
+    return {
+        row['scene_id']: row['person_count']
+        for row in conn.execute(
+            "SELECT scene_id, COUNT(*) AS person_count FROM behind_scene_assignments GROUP BY scene_id"
+        ).fetchall()
+    }
+
+def get_people_for_scene(conn, scene_id):
+    return conn.execute(
+        """
+        SELECT
+            p.id,
+            p.name,
+            p.bio,
+            p.photo,
+            p.sort_order,
+            a.role,
+            a.slot_order
+        FROM behind_scene_assignments a
+        JOIN behind_scene_people p ON p.id = a.person_id
+        WHERE a.scene_id=?
+        ORDER BY p.sort_order, p.name
+        """,
+        (scene_id,)
+    ).fetchall()
+
+def get_person_with_assignments(conn, person_id):
+    person = conn.execute("SELECT * FROM behind_scene_people WHERE id=?", (person_id,)).fetchone()
+    if not person:
+        return None, []
+    assignments = conn.execute(
+        "SELECT * FROM behind_scene_assignments WHERE person_id=? ORDER BY slot_order, id",
+        (person_id,)
+    ).fetchall()
+    return person, assignments
+
+def replace_person_assignments(conn, person_id, slots):
+    conn.execute("DELETE FROM behind_scene_assignments WHERE person_id=?", (person_id,))
+    for slot in slots:
+        conn.execute(
+            "INSERT INTO behind_scene_assignments (person_id,scene_id,role,slot_order) VALUES (?,?,?,?)",
+            (person_id, slot['scene_id'], slot['role'], slot['slot_order'])
+        )
+
 def analytics_window_start(days=0):
     base_day = datetime.now().date() - timedelta(days=days)
     return f"{base_day.isoformat()} 00:00:00"
@@ -353,12 +454,7 @@ def behind_scene():
     track('behind_the_scene')
     conn = get_db()
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
-    counts = {
-        row['scene_id']: row['member_count']
-        for row in conn.execute(
-            "SELECT scene_id, COUNT(*) AS member_count FROM behind_scene_members GROUP BY scene_id"
-        ).fetchall()
-    }
+    counts = get_people_count_by_scene(conn)
     conn.close()
     return render_template('behind_scene.html', scenes=scenes, member_counts=counts)
 
@@ -370,10 +466,7 @@ def behind_scene_detail(sid):
     if not scene:
         conn.close()
         return redirect(url_for('behind_scene'))
-    members = conn.execute(
-        "SELECT * FROM behind_scene_members WHERE scene_id=? ORDER BY sort_order, name",
-        (sid,)
-    ).fetchall()
+    members = get_people_for_scene(conn, sid)
     conn.close()
     return render_template('behind_scene_detail.html', scene=scene, members=members)
 
@@ -657,12 +750,7 @@ def admin_leader_delete(lid):
 def admin_behind_scenes():
     conn = get_db()
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
-    counts = {
-        row['scene_id']: row['member_count']
-        for row in conn.execute(
-            "SELECT scene_id, COUNT(*) AS member_count FROM behind_scene_members GROUP BY scene_id"
-        ).fetchall()
-    }
+    counts = get_people_count_by_scene(conn)
     conn.close()
     return render_template('admin/behind_scenes.html', scenes=scenes, member_counts=counts)
 
@@ -683,7 +771,7 @@ def admin_behind_scene_new():
         )
         conn.commit()
         conn.close()
-        flash('Behind the Scene group added!', 'success')
+        flash('Oasis Experience Team ministry added!', 'success')
         return redirect(url_for('admin_behind_scenes'))
     return render_template('admin/behind_scene_form.html', scene=None, members=[])
 
@@ -710,12 +798,9 @@ def admin_behind_scene_edit(sid):
             )
         )
         conn.commit()
-        flash('Behind the Scene group updated!', 'success')
+        flash('Oasis Experience Team ministry updated!', 'success')
         scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
-    members = conn.execute(
-        "SELECT * FROM behind_scene_members WHERE scene_id=? ORDER BY sort_order, name",
-        (sid,)
-    ).fetchall()
+    members = get_people_for_scene(conn, sid)
     conn.close()
     return render_template('admin/behind_scene_form.html', scene=scene, members=members)
 
@@ -726,7 +811,7 @@ def admin_behind_scene_delete(sid):
     conn.execute("DELETE FROM behind_scenes WHERE id=?", (sid,))
     conn.commit()
     conn.close()
-    flash('Behind the Scene group removed.', 'info')
+    flash('Oasis Experience Team ministry removed.', 'info')
     return redirect(url_for('admin_behind_scenes'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])
@@ -737,36 +822,46 @@ def admin_behind_scene_member_new(sid):
     if not scene:
         conn.close()
         return redirect(url_for('admin_behind_scenes'))
+    scene_choices = get_scene_choices(conn)
     if request.method == 'POST':
         photo = save_upload('photo') or ''
         conn.execute(
-            "INSERT INTO behind_scene_members (scene_id,name,role,bio,photo,sort_order) VALUES (?,?,?,?,?,?)",
+            "INSERT INTO behind_scene_people (name,bio,photo,sort_order) VALUES (?,?,?,?)",
             (
-                sid,
                 request.form['name'].strip(),
-                request.form.get('role', '').strip(),
                 request.form.get('bio', '').strip(),
                 photo,
                 int(request.form.get('sort_order') or 99),
             )
         )
+        person_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        slots = assignment_slots_from_form(request.form)
+        if not slots:
+            slots = [{'scene_id': sid, 'role': request.form.get('assignment_1_role', '').strip(), 'slot_order': 1}]
+        replace_person_assignments(conn, person_id, slots)
         conn.commit()
         conn.close()
         flash('Team member added!', 'success')
         return redirect(url_for('admin_behind_scene_edit', sid=sid))
+    default_assignments = [{'scene_id': sid, 'role': '', 'slot_order': 1}]
     conn.close()
-    return render_template('admin/behind_scene_member_form.html', scene=scene, member=None)
+    return render_template(
+        'admin/behind_scene_member_form.html',
+        scene=scene,
+        member=None,
+        scene_choices=scene_choices,
+        assignments=default_assignments,
+    )
 
 @app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_member_edit(sid, mid):
     conn = get_db()
     scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
-    member = conn.execute(
-        "SELECT * FROM behind_scene_members WHERE id=? AND scene_id=?",
-        (mid, sid)
-    ).fetchone()
-    if not scene or not member:
+    scene_choices = get_scene_choices(conn)
+    member, assignments = get_person_with_assignments(conn, mid)
+    assigned_scene_ids = {assignment['scene_id'] for assignment in assignments}
+    if not scene or not member or sid not in assigned_scene_ids:
         conn.close()
         return redirect(url_for('admin_behind_scenes'))
     if request.method == 'POST':
@@ -774,29 +869,37 @@ def admin_behind_scene_member_edit(sid, mid):
         if photo is None:
             photo = member['photo']
         conn.execute(
-            "UPDATE behind_scene_members SET name=?,role=?,bio=?,photo=?,sort_order=? WHERE id=? AND scene_id=?",
+            "UPDATE behind_scene_people SET name=?,bio=?,photo=?,sort_order=? WHERE id=?",
             (
                 request.form['name'].strip(),
-                request.form.get('role', '').strip(),
                 request.form.get('bio', '').strip(),
                 photo,
                 int(request.form.get('sort_order') or 99),
                 mid,
-                sid,
             )
         )
+        slots = assignment_slots_from_form(request.form)
+        if not slots:
+            slots = [{'scene_id': sid, 'role': request.form.get('assignment_1_role', '').strip(), 'slot_order': 1}]
+        replace_person_assignments(conn, mid, slots)
         conn.commit()
         conn.close()
         flash('Team member updated!', 'success')
         return redirect(url_for('admin_behind_scene_edit', sid=sid))
     conn.close()
-    return render_template('admin/behind_scene_member_form.html', scene=scene, member=member)
+    return render_template(
+        'admin/behind_scene_member_form.html',
+        scene=scene,
+        member=member,
+        scene_choices=scene_choices,
+        assignments=assignments,
+    )
 
 @app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/delete', methods=['POST'])
 @login_required
 def admin_behind_scene_member_delete(sid, mid):
     conn = get_db()
-    conn.execute("DELETE FROM behind_scene_members WHERE id=? AND scene_id=?", (mid, sid))
+    conn.execute("DELETE FROM behind_scene_people WHERE id=?", (mid,))
     conn.commit()
     conn.close()
     flash('Team member removed.', 'info')

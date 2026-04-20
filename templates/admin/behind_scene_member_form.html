@@ -3,7 +3,7 @@
 {% block page_title %}{{ 'Edit Person' if member else 'Add Person' }}{% endblock %}
 {% block page_sub %}{{ scene.name }}{% endblock %}
 {% block topbar_actions %}
-    <a href="{{ url_for('admin_behind_scene_edit', sid=scene.id) }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back to Group</a>
+    <a href="{{ url_for('admin_behind_scene_edit', sid=scene.id) }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back to Ministry</a>
 {% endblock %}
 
 {% block content %}
@@ -14,10 +14,6 @@
             <div class="form-group">
                 <label class="form-label">Full Name</label>
                 <input type="text" name="name" class="form-control" value="{{ member.name if member else '' }}" required placeholder="e.g. Sarah Johnson">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Role</label>
-                <input type="text" name="role" class="form-control" value="{{ member.role if member else '' }}" placeholder="e.g. Camera Operator">
             </div>
             <div class="form-group">
                 <label class="form-label">Bio</label>
@@ -36,6 +32,30 @@
             <div class="form-group">
                 <label class="form-label">Display Order</label>
                 <input type="number" name="sort_order" class="form-control" value="{{ member.sort_order if member else 99 }}" style="width:120px;">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Ministry Assignments</label>
+                <div style="display:grid;gap:14px;">
+                    {% for slot in range(1, 4) %}
+                        {% set slot_assignment = assignments|selectattr('slot_order', 'equalto', slot)|list|first %}
+                        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:14px;border:1px solid #ececf1;border-radius:14px;background:#fafafa;">
+                            <div>
+                                <label class="form-label" style="margin-top:0;">Ministry {{ slot }}</label>
+                                <select name="assignment_{{ slot }}_scene_id" class="form-control">
+                                    <option value="">Select a ministry</option>
+                                    {% for choice in scene_choices %}
+                                    <option value="{{ choice.id }}" {% if slot_assignment and slot_assignment.scene_id == choice.id %}selected{% endif %}>{{ choice.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label" style="margin-top:0;">Title {{ slot }}</label>
+                                <input type="text" name="assignment_{{ slot }}_role" class="form-control" value="{{ slot_assignment.role if slot_assignment else '' }}" placeholder="e.g. Camera Operator">
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div style="font-size:0.75rem;color:#6e6e73;margin-top:8px;">Each person can appear in up to three ministries. Remove a ministry selection to remove them from that page.</div>
             </div>
             <div style="display:flex; gap:10px;">
                 <button type="submit" class="btn btn-primary">{{ 'Save Changes' if member else 'Add Person' }}</button>

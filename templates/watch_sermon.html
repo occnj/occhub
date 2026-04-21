@@ -22,9 +22,14 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 .body{padding:22px 16px 0;}
 .section-label{font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--sub);margin:0 4px 12px;}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.video-card,.video-card-empty{border-radius:22px;min-height:150px;padding:18px 16px;text-decoration:none;position:relative;overflow:hidden;}
+.video-card,.video-card-empty{border-radius:22px;min-height:196px;text-decoration:none;position:relative;overflow:hidden;}
 .video-card{background:linear-gradient(160deg,#ffffff 0%,#fff6f2 100%);color:var(--text);box-shadow:0 6px 18px rgba(0,0,0,0.07);}
 .video-card-empty{background:#efeff2;color:#a0a0a8;border:1px dashed #d4d4da;}
+.video-thumb{height:102px;background:linear-gradient(145deg,#f9e0d5 0%,#ffd8c8 100%);position:relative;overflow:hidden;}
+.video-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.video-thumb-overlay{position:absolute;inset:auto 10px 10px auto;width:34px;height:34px;border-radius:12px;background:rgba(0,0,0,0.58);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+.live-pill{position:absolute;top:10px;left:10px;background:#ff3b30;color:#fff;font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:5px 8px;border-radius:999px;box-shadow:0 8px 18px rgba(255,59,48,0.28);}
+.video-info{padding:15px 16px 18px;position:relative;min-height:94px;}
 .video-badge{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:rgba(240,81,35,0.12);color:var(--orange);font-size:1.2rem;margin-bottom:14px;}
 .video-slot{font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--sub);margin-bottom:6px;}
 .video-title{font-size:0.95rem;font-weight:700;line-height:1.35;max-width:140px;}
@@ -41,7 +46,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="hero-content">
       <div class="hero-tag">Oasis Media</div>
       <div class="hero-title">Watch Sermons</div>
-      <div class="hero-copy">Tap any message below to open YouTube. We’ve left room for up to ten featured sermons here.</div>
+      <div class="hero-copy">Newest videos sync from your YouTube channel automatically. The latest message stays on top and older ones move down.</div>
     </div>
   </div>
 
@@ -51,18 +56,30 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
       {% for video in videos %}
         {% if video.is_active %}
         <a href="{{ video.url }}" target="_blank" rel="noopener noreferrer" class="video-card">
-          <div class="video-badge"><i class="bi bi-youtube"></i></div>
-          <div class="video-slot">Slot {{ video.slot }}</div>
-          <div class="video-title">{{ video.title }}</div>
-          <div class="video-hint">Open on YouTube</div>
-          <i class="bi bi-arrow-up-right video-arrow"></i>
+          <div class="video-thumb">
+            {% if video.thumbnail %}
+            <img src="{{ video.thumbnail }}" alt="{{ video.title }}">
+            {% endif %}
+            {% if video.is_live %}
+            <div class="live-pill">Live Now</div>
+            {% endif %}
+            <div class="video-thumb-overlay"><i class="bi bi-play-fill"></i></div>
+          </div>
+          <div class="video-info">
+            <div class="video-slot">{% if video.is_live %}Live Priority{% elif video.source == 'youtube' %}Newest {{ video.slot }}{% else %}Slot {{ video.slot }}{% endif %}</div>
+            <div class="video-title">{{ video.title }}</div>
+            <div class="video-hint">Open on YouTube</div>
+            <i class="bi bi-arrow-up-right video-arrow"></i>
+          </div>
         </a>
         {% else %}
         <div class="video-card-empty">
-          <div class="video-badge"><i class="bi bi-play-btn"></i></div>
-          <div class="video-slot">Slot {{ video.slot }}</div>
-          <div class="video-title">Coming Soon</div>
-          <div class="video-hint">Add this in admin settings</div>
+          <div class="video-info" style="padding-top:20px;">
+            <div class="video-badge"><i class="bi bi-play-btn"></i></div>
+            <div class="video-slot">Slot {{ video.slot }}</div>
+            <div class="video-title">Coming Soon</div>
+            <div class="video-hint">Add this in admin content</div>
+          </div>
         </div>
         {% endif %}
       {% endfor %}

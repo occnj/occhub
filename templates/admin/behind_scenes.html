@@ -1,16 +1,19 @@
 {% extends "admin/base.html" %}
 {% block title %}Oasis Experience Team{% endblock %}
 {% block page_title %}Oasis Experience Team{% endblock %}
-{% block page_sub %}Manage group photos and team members{% endblock %}
+{% block page_sub %}Manage ministry covers and volunteer assignments{% endblock %}
 {% block topbar_actions %}
-    <a href="{{ url_for('admin_behind_scene_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Group</a>
+    <a href="{{ url_for('admin_ministries') }}" class="btn btn-primary"><i class="bi bi-gear"></i> Manage Ministries</a>
 {% endblock %}
 
 {% block content %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle-fill"></i> Ministry names come from <b>Admin → Ministries</b>. Add, rename, or delete ministries there and Oasis Experience Team will update automatically.
+</div>
 <div class="card">
     {% if scenes %}
     <table>
-        <thead><tr><th>Group Photo</th><th>Name</th><th>Members</th><th>Order</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Cover</th><th>Ministry</th><th>Volunteers</th><th>Order</th><th>Actions</th></tr></thead>
         <tbody>
         {% for scene in scenes %}
         <tr>
@@ -31,16 +34,13 @@
             <td style="color:#6e6e73;">{{ scene.sort_order }}</td>
             <td>
                 <a href="{{ url_for('admin_behind_scene_edit', sid=scene.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
-                <form method="POST" action="{{ url_for('admin_behind_scene_delete', sid=scene.id) }}" style="display:inline;" onsubmit="return confirm('Remove {{ scene.name }}?')">
-                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
-                </form>
             </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <div class="card-body" style="color:#6e6e73; font-size:0.85rem;">No groups yet. <a href="{{ url_for('admin_behind_scene_new') }}">Add the first one →</a></div>
+    <div class="card-body" style="color:#6e6e73; font-size:0.85rem;">No ministries yet. <a href="{{ url_for('admin_ministries') }}">Add your first ministry →</a></div>
     {% endif %}
 </div>
 {% endblock %}

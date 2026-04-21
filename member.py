@@ -48,6 +48,27 @@ def get_db():
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
+def sync_behind_scenes_with_ministries(conn):
+    ministries = conn.execute(
+        "SELECT id, name, description, sort_order FROM ministries ORDER BY id"
+    ).fetchall()
+    ministry_ids = []
+    for ministry in ministries:
+        ministry_ids.append(ministry['id'])
+        conn.execute(
+            "INSERT OR IGNORE INTO behind_scenes (id,name,description,photo,sort_order) VALUES (?,?,?,?,?)",
+            (ministry['id'], ministry['name'], ministry['description'], '', ministry['sort_order'])
+        )
+        conn.execute(
+            "UPDATE behind_scenes SET name=?,description=?,sort_order=? WHERE id=?",
+            (ministry['name'], ministry['description'], ministry['sort_order'], ministry['id'])
+        )
+    if ministry_ids:
+        placeholders = ",".join("?" for _ in ministry_ids)
+        conn.execute(f"DELETE FROM behind_scenes WHERE id NOT IN ({placeholders})", ministry_ids)
+    else:
+        conn.execute("DELETE FROM behind_scenes")
+
 def init_db():
     conn = get_db(); c = conn.cursor()
 
@@ -185,6 +206,7 @@ def init_db():
             ('The Journey',"For everyone dealing with hurts, habits and hangups, willing to seek God's wisdom to overcome challenges.",'https://www.oasisnj.net/thejourney','bi-compass-fill',8),
             ('The Collective','Our young adults group for ages 18-30.','https://www.oasisnj.net/the-collective','bi-collection-fill',9),
         ])
+    sync_behind_scenes_with_ministries(conn)
 
     c.execute('''CREATE TABLE IF NOT EXISTS serve_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -331,7 +353,8 @@ def assignment_slots_from_form(form):
     return slots
 
 def get_scene_choices(conn):
-    return conn.execute("SELECT id,name FROM behind_scenes ORDER BY sort_order, name").fetchall()
+    sync_behind_scenes_with_ministries(conn)
+    return conn.execute("SELECT id,name FROM ministries ORDER BY sort_order, name").fetchall()
 
 def get_people_count_by_scene(conn):
     return {
@@ -453,6 +476,7 @@ def leadership():
 def behind_scene():
     track('behind_the_scene')
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
     counts = get_people_count_by_scene(conn)
     conn.close()
@@ -462,6 +486,7 @@ def behind_scene():
 def behind_scene_detail(sid):
     track('behind_the_scene_detail')
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     if not scene:
         conn.close()
@@ -749,6 +774,7 @@ def admin_leader_delete(lid):
 @login_required
 def admin_behind_scenes():
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
     counts = get_people_count_by_scene(conn)
     conn.close()
@@ -757,28 +783,14 @@ def admin_behind_scenes():
 @app.route('/admin/behind-the-scene/new', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_new():
-    if request.method == 'POST':
-        photo = save_upload('photo') or ''
-        conn = get_db()
-        conn.execute(
-            "INSERT INTO behind_scenes (name,description,photo,sort_order) VALUES (?,?,?,?)",
-            (
-                request.form['name'].strip(),
-                request.form.get('description', '').strip(),
-                photo,
-                int(request.form.get('sort_order') or 99),
-            )
-        )
-        conn.commit()
-        conn.close()
-        flash('Oasis Experience Team ministry added!', 'success')
-        return redirect(url_for('admin_behind_scenes'))
-    return render_template('admin/behind_scene_form.html', scene=None, members=[])
+    flash('Add and rename ministries from the Ministries admin section. Oasis Experience Team uses that list automatically.', 'info')
+    return redirect(url_for('admin_ministries'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_edit(sid):
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     if not scene:
         conn.close()
@@ -788,12 +800,9 @@ def admin_behind_scene_edit(sid):
         if photo is None:
             photo = scene['photo']
         conn.execute(
-            "UPDATE behind_scenes SET name=?,description=?,photo=?,sort_order=? WHERE id=?",
+            "UPDATE behind_scenes SET photo=? WHERE id=?",
             (
-                request.form['name'].strip(),
-                request.form.get('description', '').strip(),
                 photo,
-                int(request.form.get('sort_order') or 99),
                 sid,
             )
         )
@@ -807,17 +816,14 @@ def admin_behind_scene_edit(sid):
 @app.route('/admin/behind-the-scene/<int:sid>/delete', methods=['POST'])
 @login_required
 def admin_behind_scene_delete(sid):
-    conn = get_db()
-    conn.execute("DELETE FROM behind_scenes WHERE id=?", (sid,))
-    conn.commit()
-    conn.close()
-    flash('Oasis Experience Team ministry removed.', 'info')
-    return redirect(url_for('admin_behind_scenes'))
+    flash('Delete ministries from the Ministries admin section. Oasis Experience Team mirrors that list automatically.', 'info')
+    return redirect(url_for('admin_ministries'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_member_new(sid):
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     if not scene:
         conn.close()
@@ -857,6 +863,7 @@ def admin_behind_scene_member_new(sid):
 @login_required
 def admin_behind_scene_member_edit(sid, mid):
     conn = get_db()
+    sync_behind_scenes_with_ministries(conn)
     scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     scene_choices = get_scene_choices(conn)
     member, assignments = get_person_with_assignments(conn, mid)

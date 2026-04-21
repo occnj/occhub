@@ -1028,7 +1028,7 @@ def admin_behind_scenes():
 @app.route('/admin/behind-the-scene/new', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_new():
-    flash("Add and rename ministries from the Ministries admin section. Oasis' Team uses that list automatically.", 'info')
+    flash("Add and rename ministries from the Ministries admin section. Oasis Crew uses that list automatically.", 'info')
     return redirect(url_for('admin_ministries'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/edit', methods=['GET', 'POST'])
@@ -1052,7 +1052,7 @@ def admin_behind_scene_edit(sid):
             )
         )
         conn.commit()
-        flash("Oasis' Team ministry updated!", 'success')
+        flash("Oasis Crew ministry updated!", 'success')
         scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     members = get_people_for_scene(conn, sid)
     conn.close()
@@ -1061,7 +1061,7 @@ def admin_behind_scene_edit(sid):
 @app.route('/admin/behind-the-scene/<int:sid>/delete', methods=['POST'])
 @login_required
 def admin_behind_scene_delete(sid):
-    flash("Delete ministries from the Ministries admin section. Oasis' Team mirrors that list automatically.", 'info')
+    flash("Delete ministries from the Ministries admin section. Oasis Crew mirrors that list automatically.", 'info')
     return redirect(url_for('admin_ministries'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])

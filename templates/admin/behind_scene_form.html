@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ 'Edit' if scene else 'New' }} Ministry{% endblock %}
 {% block page_title %}{{ 'Edit Ministry' if scene else 'Add Ministry' }}{% endblock %}
-{% block page_sub %}Oasis Experience Team{% endblock %}
+{% block page_sub %}Oasis Crew{% endblock %}
 {% block topbar_actions %}
     <a href="{{ url_for('admin_behind_scenes') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
     {% if scene %}
@@ -15,7 +15,7 @@
         <div class="card-header"><div class="card-title">{{ 'Edit' if scene else 'New' }} Ministry</div></div>
         <div class="card-body">
             <div class="alert alert-info">
-                <i class="bi bi-info-circle-fill"></i> Ministry name and description are managed in <b>Admin → Ministries</b>. This page controls the Oasis Experience Team cover image and people assigned to this ministry.
+                <i class="bi bi-info-circle-fill"></i> Ministry name and description are managed in <b>Admin → Ministries</b>. This page controls the Oasis Crew cover image and people assigned to this ministry.
             </div>
             <form method="POST" enctype="multipart/form-data">
                 <div class="form-group">

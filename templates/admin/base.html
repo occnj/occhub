@@ -237,7 +237,10 @@
             <i class="bi bi-person-badge-fill"></i> Leadership
         </a>
         <a href="{{ url_for('admin_behind_scenes') }}" class="nav-item {% if 'behind_scene' in request.endpoint %}active{% endif %}">
-            <i class="bi bi-people-fill"></i> Oasis Experience Team
+            <i class="bi bi-people-fill"></i> Oasis Crew
+        </a>
+        <a href="{{ url_for('admin_watch_sermons') }}" class="nav-item {% if request.endpoint == 'admin_watch_sermons' %}active{% endif %}">
+            <i class="bi bi-youtube"></i> Watch the Latest
         </a>
         <a href="{{ url_for('admin_ministries') }}" class="nav-item {% if 'ministr' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Ministries

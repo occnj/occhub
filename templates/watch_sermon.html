@@ -46,7 +46,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="hero-content">
       <div class="hero-tag">Oasis Media</div>
       <div class="hero-title">Watch the Latest</div>
-      <div class="hero-copy">Newest videos sync from your YouTube channel automatically. The latest message stays on top and older ones move down.</div>
+      <div class="hero-copy">Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.</div>
     </div>
   </div>
 
@@ -68,7 +68,6 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
           <div class="video-info">
             <div class="video-slot">{% if video.is_live %}Live Priority{% elif video.source == 'youtube' %}Newest {{ video.slot }}{% else %}Slot {{ video.slot }}{% endif %}</div>
             <div class="video-title">{{ video.title }}</div>
-            <div class="video-hint">Open on YouTube</div>
             <i class="bi bi-arrow-up-right video-arrow"></i>
           </div>
         </a>

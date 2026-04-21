@@ -108,6 +108,15 @@ def init_db():
         ('social_tiktok_url',''),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
+    for slot in range(1, 11):
+        c.execute(
+            "INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
+            (f'sermon_video_{slot}_title', '')
+        )
+        c.execute(
+            "INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
+            (f'sermon_video_{slot}_url', '')
+        )
 
     c.execute('''CREATE TABLE IF NOT EXISTS leaders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -279,6 +288,20 @@ def all_settings():
         conn=get_db(); rows=conn.execute("SELECT key,value FROM settings").fetchall(); conn.close()
         return {r['key']:r['value'] for r in rows}
     except: return {}
+
+def get_sermon_videos(settings=None):
+    settings = settings or all_settings()
+    videos = []
+    for slot in range(1, 11):
+        title = (settings.get(f'sermon_video_{slot}_title') or '').strip()
+        url = (settings.get(f'sermon_video_{slot}_url') or '').strip()
+        videos.append({
+            'slot': slot,
+            'title': title or f'Sermon {slot}',
+            'url': url,
+            'is_active': bool(url),
+        })
+    return videos
 
 def allowed_file(f): return '.'in f and f.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -456,6 +479,12 @@ def hub():
     hour=datetime.now().hour
     greeting="Good Morning" if hour<12 else "Good Afternoon" if hour<17 else "Good Evening"
     return render_template('hub.html',greeting=greeting,date=datetime.now().strftime("%b %d, %Y").upper(),settings=all_settings())
+
+@app.route('/watch-sermon')
+def watch_sermon():
+    track('watch_sermon')
+    settings = all_settings()
+    return render_template('watch_sermon.html', settings=settings, videos=get_sermon_videos(settings))
 
 @app.route('/beliefs')
 def beliefs():

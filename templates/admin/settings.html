@@ -67,6 +67,20 @@
     </div>
 
     <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-youtube"></i> Watch Sermons</div></div>
+      <div class="card-body">
+        <div style="font-size:0.78rem;color:#6e6e73;margin-bottom:14px;">Add up to 10 YouTube links for the Watch Sermons page. Leave any slot blank to hide that link.</div>
+        {% for slot in range(1, 11) %}
+        <div style="padding:14px;border:1px solid #ececf0;border-radius:14px;margin-bottom:12px;">
+          <div style="font-size:0.76rem;font-weight:700;color:#13677A;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">Slot {{ slot }}</div>
+          <div class="form-group"><label class="form-label">Title</label><input type="text" name="sermon_video_{{ slot }}_title" class="form-control" value="{{ settings.get('sermon_video_' ~ slot ~ '_title', '') }}" placeholder="Sunday Message {{ slot }}"></div>
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">YouTube URL</label><input type="url" name="sermon_video_{{ slot }}_url" class="form-control" value="{{ settings.get('sermon_video_' ~ slot ~ '_url', '') }}" placeholder="https://www.youtube.com/watch?v="></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-header"><div class="card-title"><i class="bi bi-info-circle-fill"></i> About Page</div></div>
       <div class="card-body">
         <div class="form-group"><label class="form-label">Page Title</label><input type="text" name="about_title" class="form-control" value="{{ settings.about_title }}"></div>

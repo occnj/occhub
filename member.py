@@ -947,6 +947,35 @@ def admin_settings():
         return redirect(url_for('admin_settings'))
     return render_template('admin/settings.html',settings=all_settings())
 
+@app.route('/admin/page-headers', methods=['GET', 'POST'])
+@login_required
+def admin_page_headers():
+    if request.method == 'POST':
+        conn = get_db()
+        for key in [
+            'about_page_description',
+            'beliefs_page_description',
+            'calendar_page_description',
+            'connect_page_description',
+            'contact_page_description',
+            'leadership_page_description',
+            'ministries_page_description',
+            'prayer_page_description',
+            'serve_page_description',
+            'social_page_description',
+            'watch_page_description',
+            'crew_page_description',
+        ]:
+            conn.execute(
+                "INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)",
+                (key, request.form.get(key, '').strip())
+            )
+        conn.commit()
+        conn.close()
+        flash('Page header descriptions saved!', 'success')
+        return redirect(url_for('admin_page_headers'))
+    return render_template('admin/page_headers.html', settings=all_settings())
+
 @app.route('/admin/watch-sermons', methods=['GET', 'POST'])
 @login_required
 def admin_watch_sermons():

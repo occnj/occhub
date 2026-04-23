@@ -256,6 +256,9 @@
         <a href="{{ url_for('admin_settings') }}" class="nav-item {% if request.endpoint == 'admin_settings' %}active{% endif %}">
             <i class="bi bi-gear-fill"></i> Site Settings
         </a>
+        <a href="{{ url_for('admin_page_headers') }}" class="nav-item {% if request.endpoint == 'admin_page_headers' %}active{% endif %}">
+            <i class="bi bi-type"></i> Page Headers
+        </a>
         {% if session.get('admin_role') == 'superadmin' %}
         <a href="{{ url_for('admin_users') }}" class="nav-item {% if 'user' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Users

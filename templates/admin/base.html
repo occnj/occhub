@@ -149,6 +149,26 @@
         }
         .form-control:focus { border-color: var(--teal); background: #fff; }
         textarea.form-control { min-height: 100px; resize: vertical; }
+        input[type="color"].form-control {
+            appearance: none;
+            -webkit-appearance: none;
+            padding: 4px;
+            overflow: hidden;
+            border-radius: 12px;
+            background: var(--card);
+            cursor: pointer;
+        }
+        input[type="color"].form-control::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"].form-control::-webkit-color-swatch {
+            border: none;
+            border-radius: 8px;
+        }
+        input[type="color"].form-control::-moz-color-swatch {
+            border: none;
+            border-radius: 8px;
+        }
 
         /* Alerts */
         .alert {

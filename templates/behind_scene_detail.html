@@ -11,7 +11,7 @@
     <style>
         :root { --teal: {{ site_settings.get('theme_primary', '#13677A') }}; --orange: {{ site_settings.get('theme_accent', '#F2541B') }}; --bg: {{ site_settings.get('theme_background', '#F5F5F7') }}; --card: {{ site_settings.get('theme_card', '#ffffff') }}; --text: {{ site_settings.get('theme_text', '#1d1d1f') }}; --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }}; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); {% if site_settings.get('ui_background_image') %}background-image: linear-gradient(rgba(245,245,247,0.86), rgba(245,245,247,0.92)), url('/static/{{ site_settings.get('ui_background_image') }}'); background-size: cover; background-position: center; background-attachment: fixed;{% endif %} font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 40px; }
+        body { background: var(--bg); {% if site_settings.get('ui_background_image') %}background-image: url('/static/{{ site_settings.get('ui_background_image') }}'); background-size: cover; background-position: center; background-attachment: fixed;{% endif %} font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 40px; }
         .shell { width: 100%; max-width: 390px; }
         .hero { position: relative; background: var(--teal); min-height: 220px; overflow: hidden; }
         .hero img { width: 100%; height: 220px; object-fit: cover; display: block; opacity: 0.92; }

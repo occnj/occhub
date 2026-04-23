@@ -22,7 +22,7 @@
         body {
             background: var(--bg);
             {% if site_settings.get('ui_background_image') %}
-            background-image: linear-gradient(rgba(245,245,247,0.86), rgba(245,245,247,0.92)), url('/static/{{ site_settings.get('ui_background_image') }}');
+            background-image: url('/static/{{ site_settings.get('ui_background_image') }}');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;

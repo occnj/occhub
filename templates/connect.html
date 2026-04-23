@@ -35,7 +35,7 @@
         }
 
         /* Hero header */
-        .back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
+        .back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);z-index:2;}
         .hero {
             background: linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);
             padding: 60px 24px 30px;
@@ -51,6 +51,7 @@
             border-radius: 50%;
             background: rgba(255,255,255,0.08);
             filter: blur(2px);
+            pointer-events: none;
         }
 
         .hero-tag {

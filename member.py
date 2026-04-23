@@ -103,13 +103,25 @@ def init_db():
         ('prayer_email','Oasis@OasisNJ.net'),
         ('logo_path',''),
         ('about_title','About Oasis'),
+        ('about_page_description','Get to know the heart, story, and vision behind Oasis.'),
         ('about_hero',''),
         ('about_body','Oasis Christian Centre is a multicultural, non-denominational church in Rahway, NJ. We exist to help people Know God, Find Hope, and Make a Difference.'),
+        ('beliefs_page_description','The heart, truth, and biblical foundation that shape who we are as a church.'),
+        ('calendar_page_description','See what is coming up at Oasis and make room for the moments that matter.'),
+        ('connect_page_description','Tell us a little about yourself so we can help you take your next step.'),
+        ('contact_page_description','We would love to hear from you and help you get connected.'),
+        ('leadership_page_description','Meet the pastors and leaders helping guide the vision of Oasis.'),
+        ('ministries_page_description','Explore the ministries where people of every age can belong, grow, and serve.'),
+        ('prayer_page_description','Share what is on your heart and let us stand with you in prayer.'),
+        ('serve_page_description','Find your place, use your gifts, and make a difference with us.'),
         ('social_page_title','Follow Along'),
+        ('social_page_description','Stay connected with Oasis through every platform and every message.'),
         ('social_youtube_url','https://www.youtube.com/channel/UCR4FqPSfjQAGy6jZB7OJ76w'),
         ('social_twitter_url',''),
         ('social_tiktok_url',''),
         ('sermon_channel_url',''),
+        ('watch_page_description','Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.'),
+        ('crew_page_description','Meet the teams who make the experience happen long before and after the lights come on.'),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
     for slot in range(1, 11):
@@ -693,12 +705,13 @@ def leadership():
 @app.route('/behind-the-scene')
 def behind_scene():
     track('behind_the_scene')
+    settings = all_settings()
     conn = get_db()
     sync_behind_scenes_with_ministries(conn)
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
     counts = get_people_count_by_scene(conn)
     conn.close()
-    return render_template('behind_scene.html', scenes=scenes, member_counts=counts)
+    return render_template('behind_scene.html', scenes=scenes, member_counts=counts, settings=settings)
 
 @app.route('/behind-the-scene/<int:sid>')
 def behind_scene_detail(sid):

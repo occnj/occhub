@@ -70,12 +70,30 @@
       <div class="card-header"><div class="card-title"><i class="bi bi-info-circle-fill"></i> About Page</div></div>
       <div class="card-body">
         <div class="form-group"><label class="form-label">Page Title</label><input type="text" name="about_title" class="form-control" value="{{ settings.about_title }}"></div>
+        <div class="form-group"><label class="form-label">Header Description</label><textarea name="about_page_description" class="form-control" style="min-height:90px;">{{ settings.get('about_page_description', '') }}</textarea></div>
         <div class="form-group">
           <label class="form-label">Hero / Header Image</label>
           {% if settings.about_hero %}<img src="/static/{{ settings.about_hero }}" style="height:80px;border-radius:8px;margin-bottom:8px;display:block;object-fit:cover;" alt="">{% endif %}
           <input type="file" name="about_hero_file" class="form-control" accept="image/*">
         </div>
         <div class="form-group"><label class="form-label">Body Text</label><textarea name="about_body" class="form-control" style="min-height:140px;">{{ settings.about_body }}</textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-type"></i> Page Header Descriptions</div></div>
+      <div class="card-body">
+        <div class="form-group"><label class="form-label">Beliefs</label><textarea name="beliefs_page_description" class="form-control" style="min-height:72px;">{{ settings.get('beliefs_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Events</label><textarea name="calendar_page_description" class="form-control" style="min-height:72px;">{{ settings.get('calendar_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Connect</label><textarea name="connect_page_description" class="form-control" style="min-height:72px;">{{ settings.get('connect_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Contact</label><textarea name="contact_page_description" class="form-control" style="min-height:72px;">{{ settings.get('contact_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Leadership</label><textarea name="leadership_page_description" class="form-control" style="min-height:72px;">{{ settings.get('leadership_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Ministries</label><textarea name="ministries_page_description" class="form-control" style="min-height:72px;">{{ settings.get('ministries_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Prayer</label><textarea name="prayer_page_description" class="form-control" style="min-height:72px;">{{ settings.get('prayer_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Serve</label><textarea name="serve_page_description" class="form-control" style="min-height:72px;">{{ settings.get('serve_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Social</label><textarea name="social_page_description" class="form-control" style="min-height:72px;">{{ settings.get('social_page_description', '') }}</textarea></div>
+        <div class="form-group"><label class="form-label">Watch The Latest</label><textarea name="watch_page_description" class="form-control" style="min-height:72px;">{{ settings.get('watch_page_description', '') }}</textarea></div>
+        <div class="form-group" style="margin-bottom:0;"><label class="form-label">Oasis Crew</label><textarea name="crew_page_description" class="form-control" style="min-height:72px;">{{ settings.get('crew_page_description', '') }}</textarea></div>
       </div>
     </div>
 

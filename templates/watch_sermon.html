@@ -46,7 +46,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="hero-content">
       <div class="hero-tag">Oasis Media</div>
       <div class="hero-title">Watch the Latest</div>
-      <div class="hero-copy">Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.</div>
+      <div class="hero-copy">{{ settings.get('watch_page_description') or 'Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.' }}</div>
     </div>
   </div>
 

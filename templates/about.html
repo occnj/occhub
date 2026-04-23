@@ -13,11 +13,13 @@
 body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
 .shell{width:100%;max-width:390px;}
 .back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
-.hero{position:relative;background:var(--teal);min-height:220px;overflow:hidden;}
+.hero{position:relative;min-height:220px;overflow:hidden;background:linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);}
+.hero::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.08);filter:blur(2px);}
 .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;}
-.hero-content{position:relative;z-index:1;padding:56px 24px 28px 60px;}
+.hero-content{position:relative;z-index:1;padding:56px 24px 28px 78px;}
 .hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:6px;}
 .hero-title{font-family:'DM Serif Display',serif;font-size:2.2rem;color:white;line-height:1.2;}
+.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:250px;margin-top:10px;}
 .body{padding:24px 16px;}
 .card{background:var(--card);border-radius:20px;padding:24px 20px;box-shadow:0 1px 5px rgba(0,0,0,0.06);}
 .card-body{font-size:0.9rem;line-height:1.8;color:#3a3a3c;white-space:pre-line;}
@@ -33,6 +35,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="hero-content">
       <div class="hero-tag">Oasis Christian Centre</div>
       <div class="hero-title">{{ settings.about_title or 'About Oasis' }}</div>
+      <div class="hero-copy">{{ settings.get('about_page_description') or 'Get to know the heart, story, and vision behind Oasis.' }}</div>
     </div>
   </div>
   <div class="body">

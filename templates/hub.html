@@ -250,6 +250,84 @@
             transition: transform 0.15s;
         }
         .fab:active { transform: scale(0.93); }
+
+        .notice-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 16, 24, 0.46);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 3000;
+        }
+        .notice-overlay.open { display: flex; }
+        .notice-card {
+            width: 100%;
+            max-width: 360px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(249,249,251,0.98) 100%);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 22px 42px rgba(0,0,0,0.18);
+        }
+        .notice-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .notice-body {
+            padding: 22px 20px 20px;
+        }
+        .notice-kicker {
+            font-size: 0.68rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--orange);
+            margin-bottom: 8px;
+        }
+        .notice-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.8rem;
+            line-height: 1.1;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+        .notice-copy {
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: var(--sub);
+        }
+        .notice-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .notice-btn,
+        .notice-close {
+            flex: 1;
+            border: none;
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .notice-btn {
+            background: var(--orange);
+            color: white;
+        }
+        .notice-close {
+            background: rgba(19,103,122,0.08);
+            color: var(--teal);
+        }
     </style>
 </head>
 <body>
@@ -285,6 +363,13 @@
             <div class="tile-icon teal"><i class="bi bi-youtube"></i></div>
             <div class="tile-label">Watch the Latest</div>
             <div class="tile-sub">Latest messages</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/mission" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-globe-americas"></i></div>
+            <div class="tile-label">Mission</div>
+            <div class="tile-sub">Stories from the field</div>
             <i class="bi bi-chevron-right tile-chevron"></i>
         </a>
 
@@ -332,6 +417,29 @@
 
     </div>
 </div>
+
+{% if hub_notice.enabled and (hub_notice.title or hub_notice.body or hub_notice.image) %}
+<div id="hub-notice" class="notice-overlay" data-notice-key="{{ (hub_notice.title ~ '|' ~ hub_notice.body ~ '|' ~ hub_notice.image ~ '|' ~ hub_notice.link)|e }}" onclick="if(event.target===this)closeHubNotice()">
+  <div class="notice-card">
+    {% if hub_notice.image %}
+    <img src="/static/{{ hub_notice.image }}" alt="{{ hub_notice.title or 'Hub Notice' }}" class="notice-image">
+    {% endif %}
+    <div class="notice-body">
+      <div class="notice-kicker">Oasis Update</div>
+      <div class="notice-title">{{ hub_notice.title or 'Notice' }}</div>
+      {% if hub_notice.body %}
+      <div class="notice-copy">{{ hub_notice.body|replace('\n','<br>')|safe }}</div>
+      {% endif %}
+      <div class="notice-actions">
+        {% if hub_notice.link %}
+        <a href="{{ hub_notice.link }}" class="notice-btn" {% if hub_notice.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ hub_notice.link_label }}</a>
+        {% endif %}
+        <button type="button" class="notice-close" onclick="closeHubNotice()">{{ 'Close' if hub_notice.link else 'Got it' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <nav class="tabbar">
     <a href="/about" class="tab-item">
@@ -486,6 +594,20 @@ if ('serviceWorker' in navigator) {
     await Promise.all(registrations.map(registration => registration.unregister()));
   });
 }
+function closeHubNotice() {
+  const modal = document.getElementById('hub-notice');
+  if (!modal) return;
+  const noticeKey = `oasis-hub-notice-dismissed:${modal.dataset.noticeKey || 'default'}`;
+  sessionStorage.setItem(noticeKey, '1');
+  modal.classList.remove('open');
+}
+window.addEventListener('load', () => {
+  const modal = document.getElementById('hub-notice');
+  const noticeKey = modal ? `oasis-hub-notice-dismissed:${modal.dataset.noticeKey || 'default'}` : '';
+  if (modal && sessionStorage.getItem(noticeKey) !== '1') {
+    modal.classList.add('open');
+  }
+});
 </script>
 </body>
 </html>

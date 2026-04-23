@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% block title %}Hub Notice{% endblock %}
+{% block page_title %}Hub Notice{% endblock %}
+{% block page_sub %}Create the popup announcement shown when people enter the Hub{% endblock %}
+
+{% block content %}
+<form method="POST" enctype="multipart/form-data">
+  <div style="display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:24px;align-items:start;">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-bell-fill"></i> Notice Content</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
+            <input type="checkbox" name="hub_notice_enabled" value="1" {% if settings.get('hub_notice_enabled') == '1' %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
+            Show popup notice on Hub entry
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" name="hub_notice_title" class="form-control" value="{{ settings.get('hub_notice_title', '') }}" placeholder="Special Notice">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message</label>
+          <textarea name="hub_notice_body" class="form-control" style="min-height:180px;" placeholder="Write the notice, event, or important update here.">{{ settings.get('hub_notice_body', '') }}</textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Button Link</label>
+            <input type="url" name="hub_notice_link" class="form-control" value="{{ settings.get('hub_notice_link', '') }}" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Button Label</label>
+            <input type="text" name="hub_notice_link_label" class="form-control" value="{{ settings.get('hub_notice_link_label', 'Learn More') }}" placeholder="Learn More">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-image-fill"></i> Notice Image</div></div>
+      <div class="card-body">
+        {% if settings.get('hub_notice_image') %}
+        <img src="/static/{{ settings.get('hub_notice_image') }}" alt="Hub notice" style="width:100%;border-radius:18px;display:block;margin-bottom:14px;">
+        {% endif %}
+        <div class="form-group">
+          <label class="form-label">Upload Image</label>
+          <input type="file" name="hub_notice_image_file" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </div>
+        <div style="font-size:0.8rem;color:#6e6e73;line-height:1.7;">
+          Use this for event flyers, urgent notices, reminders, or feature announcements right when people open the Hub.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:sticky;bottom:16px;margin-top:20px;">
+    <button type="submit" class="btn btn-primary" style="width:100%;padding:16px;font-size:1rem;">Save Hub Notice</button>
+  </div>
+</form>
+{% endblock %}

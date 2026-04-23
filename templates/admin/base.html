@@ -241,7 +241,7 @@
 
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="/static/{{ site_settings.logo_path if site_settings.get('logo_path') else 'logo.png' }}" alt="Oasis" onerror="this.style.display='none'">
+        <img src="/static/{{ site_settings.get('logo_path') or 'logo.png' }}" alt="Oasis" onerror="this.style.display='none'">
         <div>
             <div class="sidebar-logo-text">Oasis Hub</div>
             <div class="sidebar-logo-sub">Admin Panel</div>
@@ -278,6 +278,9 @@
         <a href="{{ url_for('admin_watch_sermons') }}" class="nav-item {% if request.endpoint == 'admin_watch_sermons' %}active{% endif %}">
             <i class="bi bi-youtube"></i> Watch the Latest
         </a>
+        <a href="{{ url_for('admin_missions') }}" class="nav-item {% if 'mission' in request.endpoint and request.endpoint != 'admin_page_headers' %}active{% endif %}">
+            <i class="bi bi-globe-americas"></i> Mission
+        </a>
         <a href="{{ url_for('admin_ministries') }}" class="nav-item {% if 'ministr' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Ministries
         </a>
@@ -294,6 +297,9 @@
         </a>
         <a href="{{ url_for('admin_page_headers') }}" class="nav-item {% if request.endpoint == 'admin_page_headers' %}active{% endif %}">
             <i class="bi bi-type"></i> Page Headers
+        </a>
+        <a href="{{ url_for('admin_hub_notice') }}" class="nav-item {% if request.endpoint == 'admin_hub_notice' %}active{% endif %}">
+            <i class="bi bi-bell-fill"></i> Hub Notice
         </a>
         {% if session.get('admin_role') == 'superadmin' %}
         <a href="{{ url_for('admin_users') }}" class="nav-item {% if 'user' in request.endpoint %}active{% endif %}">

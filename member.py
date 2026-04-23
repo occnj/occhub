@@ -129,6 +129,13 @@ def init_db():
         ('sermon_channel_url',''),
         ('watch_page_description','Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.'),
         ('crew_page_description','Meet the teams who make the experience happen long before and after the lights come on.'),
+        ('mission_page_description','Stories from the field, moments that matter, and the lives being touched through every mission.'),
+        ('hub_notice_enabled','0'),
+        ('hub_notice_title',''),
+        ('hub_notice_body',''),
+        ('hub_notice_link',''),
+        ('hub_notice_link_label','Learn More'),
+        ('hub_notice_image',''),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
     for slot in range(1, 11):
@@ -201,6 +208,23 @@ def init_db():
                 "INSERT INTO behind_scene_assignments (person_id,scene_id,role,slot_order) VALUES (?,?,?,?)",
                 (person_id, member['scene_id'], member['role'], 1)
             )
+
+    c.execute('''CREATE TABLE IF NOT EXISTS missions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        body TEXT DEFAULT '',
+        cover_photo TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS mission_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mission_id INTEGER NOT NULL,
+        photo TEXT NOT NULL,
+        caption TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(mission_id) REFERENCES missions(id) ON DELETE CASCADE
+    )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS beliefs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
@@ -636,6 +660,43 @@ def replace_person_assignments(conn, person_id, slots):
             (person_id, slot['scene_id'], slot['role'], slot['slot_order'])
         )
 
+def get_mission_cover(conn, mission_id):
+    cover = conn.execute("SELECT cover_photo FROM missions WHERE id=?", (mission_id,)).fetchone()
+    if cover and cover['cover_photo']:
+        return cover['cover_photo']
+    first_image = conn.execute(
+        "SELECT photo FROM mission_images WHERE mission_id=? ORDER BY sort_order, id LIMIT 1",
+        (mission_id,)
+    ).fetchone()
+    return first_image['photo'] if first_image else ''
+
+def get_mission_cards(conn):
+    missions = conn.execute("SELECT * FROM missions ORDER BY sort_order, id DESC").fetchall()
+    cards = []
+    for mission in missions:
+        cards.append({
+            'id': mission['id'],
+            'title': mission['title'],
+            'summary': mission['summary'],
+            'cover_photo': get_mission_cover(conn, mission['id']),
+            'image_count': conn.execute(
+                "SELECT COUNT(*) FROM mission_images WHERE mission_id=?",
+                (mission['id'],)
+            ).fetchone()[0],
+        })
+    return cards
+
+def get_hub_notice(settings=None):
+    settings = settings or all_settings()
+    return {
+        'enabled': (settings.get('hub_notice_enabled') or '0') == '1',
+        'title': (settings.get('hub_notice_title') or '').strip(),
+        'body': (settings.get('hub_notice_body') or '').strip(),
+        'link': (settings.get('hub_notice_link') or '').strip(),
+        'link_label': (settings.get('hub_notice_link_label') or 'Learn More').strip() or 'Learn More',
+        'image': (settings.get('hub_notice_image') or '').strip(),
+    }
+
 def analytics_window_start(days=0):
     base_day = datetime.now().date() - timedelta(days=days)
     return f"{base_day.isoformat()} 00:00:00"
@@ -690,7 +751,14 @@ def hub():
     track('hub')
     hour=datetime.now().hour
     greeting="Good Morning" if hour<12 else "Good Afternoon" if hour<17 else "Good Evening"
-    return render_template('hub.html',greeting=greeting,date=datetime.now().strftime("%b %d, %Y").upper(),settings=all_settings())
+    settings = all_settings()
+    return render_template(
+        'hub.html',
+        greeting=greeting,
+        date=datetime.now().strftime("%b %d, %Y").upper(),
+        settings=settings,
+        hub_notice=get_hub_notice(settings),
+    )
 
 @app.route('/watch-sermon')
 def watch_sermon():
@@ -736,6 +804,29 @@ def behind_scene_detail(sid):
     members = get_people_for_scene(conn, sid)
     conn.close()
     return render_template('behind_scene_detail.html', scene=scene, members=members)
+
+@app.route('/mission')
+def missions():
+    track('missions')
+    conn = get_db()
+    cards = get_mission_cards(conn)
+    conn.close()
+    return render_template('missions.html', missions=cards, settings=all_settings())
+
+@app.route('/mission/<int:mid>')
+def mission_detail(mid):
+    track('mission_detail')
+    conn = get_db()
+    mission = conn.execute("SELECT * FROM missions WHERE id=?", (mid,)).fetchone()
+    if not mission:
+        conn.close()
+        return redirect(url_for('missions'))
+    images = conn.execute(
+        "SELECT * FROM mission_images WHERE mission_id=? ORDER BY sort_order, id",
+        (mid,)
+    ).fetchall()
+    conn.close()
+    return render_template('mission_detail.html', mission=mission, images=images, settings=all_settings())
 
 @app.route('/serve')
 def serve():
@@ -972,6 +1063,7 @@ def admin_page_headers():
             'connect_page_description',
             'contact_page_description',
             'leadership_page_description',
+            'mission_page_description',
             'ministries_page_description',
             'prayer_page_description',
             'serve_page_description',
@@ -1015,6 +1107,145 @@ def admin_watch_sermons():
         flash('Watch sermons updated!', 'success')
         return redirect(url_for('admin_watch_sermons'))
     return render_template('admin/watch_sermons.html', settings=all_settings(), videos=get_sermon_videos())
+
+@app.route('/admin/hub-notice', methods=['GET', 'POST'])
+@login_required
+def admin_hub_notice():
+    if request.method == 'POST':
+        conn = get_db()
+        values = {
+            'hub_notice_enabled': '1' if request.form.get('hub_notice_enabled') else '0',
+            'hub_notice_title': request.form.get('hub_notice_title', '').strip(),
+            'hub_notice_body': request.form.get('hub_notice_body', '').strip(),
+            'hub_notice_link': request.form.get('hub_notice_link', '').strip(),
+            'hub_notice_link_label': request.form.get('hub_notice_link_label', '').strip() or 'Learn More',
+        }
+        for key, value in values.items():
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", (key, value))
+        image = save_upload('hub_notice_image_file')
+        if image:
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('hub_notice_image',?)", (image,))
+        conn.commit()
+        conn.close()
+        flash('Hub notice updated!', 'success')
+        return redirect(url_for('admin_hub_notice'))
+    return render_template('admin/hub_notice.html', settings=all_settings())
+
+@app.route('/admin/missions')
+@login_required
+def admin_missions():
+    conn = get_db()
+    missions = get_mission_cards(conn)
+    conn.close()
+    return render_template('admin/missions.html', missions=missions)
+
+@app.route('/admin/missions/new', methods=['GET', 'POST'])
+@login_required
+def admin_mission_new():
+    if request.method == 'POST':
+        cover = save_upload('cover_photo') or ''
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO missions (title,summary,body,cover_photo,sort_order) VALUES (?,?,?,?,?)",
+            (
+                request.form.get('title', '').strip(),
+                request.form.get('summary', '').strip(),
+                request.form.get('body', '').strip(),
+                cover,
+                int(request.form.get('sort_order') or 99),
+            )
+        )
+        conn.commit()
+        mid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.close()
+        flash('Mission created! Add images below.', 'success')
+        return redirect(url_for('admin_mission_edit', mid=mid))
+    return render_template('admin/mission_form.html', mission=None, images=[])
+
+@app.route('/admin/missions/<int:mid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_mission_edit(mid):
+    conn = get_db()
+    mission = conn.execute("SELECT * FROM missions WHERE id=?", (mid,)).fetchone()
+    if not mission:
+        conn.close()
+        return redirect(url_for('admin_missions'))
+    if request.method == 'POST':
+        cover = save_upload('cover_photo')
+        if cover is None:
+            cover = mission['cover_photo']
+        conn.execute(
+            "UPDATE missions SET title=?,summary=?,body=?,cover_photo=?,sort_order=? WHERE id=?",
+            (
+                request.form.get('title', '').strip(),
+                request.form.get('summary', '').strip(),
+                request.form.get('body', '').strip(),
+                cover,
+                int(request.form.get('sort_order') or 99),
+                mid,
+            )
+        )
+        conn.commit()
+        flash('Mission updated!', 'success')
+        mission = conn.execute("SELECT * FROM missions WHERE id=?", (mid,)).fetchone()
+    images = conn.execute(
+        "SELECT * FROM mission_images WHERE mission_id=? ORDER BY sort_order, id",
+        (mid,)
+    ).fetchall()
+    conn.close()
+    return render_template('admin/mission_form.html', mission=mission, images=images)
+
+@app.route('/admin/missions/<int:mid>/delete', methods=['POST'])
+@login_required
+def admin_mission_delete(mid):
+    conn = get_db()
+    conn.execute("DELETE FROM missions WHERE id=?", (mid,))
+    conn.commit()
+    conn.close()
+    flash('Mission removed.', 'info')
+    return redirect(url_for('admin_missions'))
+
+@app.route('/admin/missions/<int:mid>/images/new', methods=['POST'])
+@login_required
+def admin_mission_image_new(mid):
+    conn = get_db()
+    mission = conn.execute("SELECT id FROM missions WHERE id=?", (mid,)).fetchone()
+    image_count = conn.execute("SELECT COUNT(*) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0]
+    if not mission:
+        conn.close()
+        return redirect(url_for('admin_missions'))
+    if image_count >= 10:
+        conn.close()
+        flash('Each mission can have up to 10 images.', 'info')
+        return redirect(url_for('admin_mission_edit', mid=mid))
+    photo = save_upload('photo')
+    if not photo:
+        conn.close()
+        flash('Please choose an image first.', 'info')
+        return redirect(url_for('admin_mission_edit', mid=mid))
+    conn.execute(
+        "INSERT INTO mission_images (mission_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+        (
+            mid,
+            photo,
+            request.form.get('caption', '').strip(),
+            int(request.form.get('sort_order') or 99),
+        )
+    )
+    conn.commit()
+    conn.close()
+    flash('Mission image added!', 'success')
+    return redirect(url_for('admin_mission_edit', mid=mid))
+
+@app.route('/admin/missions/<int:mid>/images/<int:iid>/delete', methods=['POST'])
+@login_required
+def admin_mission_image_delete(mid, iid):
+    conn = get_db()
+    conn.execute("DELETE FROM mission_images WHERE id=? AND mission_id=?", (iid, mid))
+    conn.commit()
+    conn.close()
+    flash('Mission image removed.', 'info')
+    return redirect(url_for('admin_mission_edit', mid=mid))
 
 # Leaders
 @app.route('/admin/leaders')

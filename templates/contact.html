@@ -1,134 +1,23 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Contact — Oasis</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-<link rel="icon" type="image/png" href="/static/icon-192x192.png">
-<style>
-:root{--teal:#13677A;--orange:#F2541B;--bg:#F5F5F7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
-.shell{width:100%;max-width:390px;}
-.hero{background:var(--teal);padding:56px 24px 28px;position:relative;}
-.back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
-.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;padding-left:56px;}
-.hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:white;padding-left:56px;}
-.body{padding:20px 16px;display:flex;flex-direction:column;gap:14px;}
-.info-card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-.info-row{display:flex;gap:14px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f5f5f7;}
-.info-row:last-child{border-bottom:none;}
-.info-icon{width:36px;height:36px;border-radius:10px;background:rgba(19,103,122,0.08);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
-.info-label{font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--sub);margin-bottom:3px;}
-.info-text{font-size:0.88rem;color:var(--text);line-height:1.55;}
-.info-text a{color:var(--teal);text-decoration:none;}
-.form-card{background:var(--card);border-radius:20px;padding:22px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-.form-title{font-family:'DM Serif Display',serif;font-size:1.2rem;margin-bottom:16px;}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-label{display:block;font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--sub);margin-bottom:6px;margin-top:14px;}
-label:first-child{margin-top:0;}
-input,textarea{width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:12px;padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--text);outline:none;transition:border-color 0.2s;-webkit-appearance:none;}
-input:focus,textarea:focus{border-color:var(--teal);background:white;}
-textarea{min-height:110px;resize:vertical;}
-.btn-submit{display:block;width:100%;background:var(--teal);color:white;border:none;border-radius:14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;margin-top:20px;}
-.success-card{background:var(--card);border-radius:20px;padding:40px 24px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
-.success-icon{width:64px;height:64px;border-radius:50%;background:rgba(19,103,122,0.08);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 18px;}
-.success-title{font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:8px;}
-.success-sub{font-size:0.88rem;color:var(--sub);line-height:1.65;}
-.back-hub{display:inline-flex;align-items:center;gap:6px;margin-top:20px;color:var(--teal);text-decoration:none;font-size:0.84rem;font-weight:600;}
-</style>
-</head>
-<body>
-<div class="shell">
-  <div class="hero">
-    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
-    <div class="hero-tag">Oasis Christian Centre</div>
-    <div class="hero-title">Contact Us</div>
-  </div>
-  <div class="body">
-
-    <!-- Church Info -->
-    <div class="info-card">
-      <div class="info-row">
-        <div class="info-icon"><i class="bi bi-building"></i></div>
-        <div>
-          <div class="info-label">Main Building</div>
-          <div class="info-text">2052 St. Georges Ave<br>Rahway, NJ 07065</div>
-        </div>
-      </div>
-      <div class="info-row">
-        <div class="info-icon"><i class="bi bi-clock-fill"></i></div>
-        <div>
-          <div class="info-label">Sunday Services</div>
-          <div class="info-text">8:30am &nbsp;·&nbsp; 10:00am &nbsp;·&nbsp; 11:30am</div>
-        </div>
-      </div>
-      <div class="info-row">
-        <div class="info-icon"><i class="bi bi-briefcase-fill"></i></div>
-        <div>
-          <div class="info-label">Our Offices</div>
-          <div class="info-text">2096 St. Georges Ave<br>Rahway, NJ 07065<br><span style="color:var(--sub);font-size:0.8rem;">Mon–Fri: 9:00am – 4:30pm</span></div>
-        </div>
-      </div>
-      <div class="info-row">
-        <div class="info-icon"><i class="bi bi-telephone-fill"></i></div>
-        <div>
-          <div class="info-label">Phone</div>
-          <div class="info-text"><a href="tel:7324990040">732-499-0040</a></div>
-        </div>
-      </div>
-      <div class="info-row">
-        <div class="info-icon"><i class="bi bi-envelope-fill"></i></div>
-        <div>
-          <div class="info-label">Email</div>
-          <div class="info-text"><a href="mailto:Oasis@OasisNJ.net">Oasis@OasisNJ.net</a></div>
-        </div>
-      </div>
-    </div>
-
-    {% if sent %}
-    <div class="success-card">
-      <div class="success-icon"><i class="bi bi-check-lg"></i></div>
-      <div class="success-title">Message Sent!</div>
-      <div class="success-sub">We'll get back to you soon. God bless!</div>
-      <a href="/hub" class="back-hub"><i class="bi bi-house"></i> Back to Hub</a>
-    </div>
-    {% else %}
-    <div class="form-card">
-      <div class="form-title">Send a Message</div>
-      <form method="POST">
-        <div class="row2">
-          <div>
-            <label>First Name</label>
-            <input type="text" name="first_name" required placeholder="First">
-          </div>
-          <div>
-            <label>Last Name</label>
-            <input type="text" name="last_name" placeholder="Last">
-          </div>
-        </div>
-        <label>Email</label>
-        <input type="email" name="email" placeholder="you@email.com">
-        <label>Phone</label>
-        <input type="tel" name="phone" placeholder="(000) 000-0000">
-        <label>Message</label>
-        <textarea name="message" required placeholder="Share anything on your heart…"></textarea>
-        <button type="submit" class="btn-submit">Send Message →</button>
-      </form>
-    </div>
-    {% endif %}
-
-  </div>
+{% extends "base.html" %}
+{% block title %}Contact{% endblock %}
+{% block head %}<style>.info-card{background:var(--card);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;}.ir{display:flex;gap:14px;align-items:flex-start;padding:16px 18px;border-bottom:0.5px solid var(--line);}.ir:last-child{border-bottom:none;}.ii{width:36px;height:36px;border-radius:10px;background:var(--teal-light);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}.il{font-size:0.66rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--sub);margin-bottom:4px;}.it{font-size:0.88rem;color:var(--text);line-height:1.55;}.it a{color:var(--teal);}.ft{font-family:'DM Serif Display',serif;font-size:1.2rem;margin-bottom:18px;}</style>{% endblock %}
+{% block content %}
+<div class="hero"><a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Oasis Christian Centre</div><div class="hero-title">Contact Us</div></div></div>
+<div class="body" style="display:flex;flex-direction:column;gap:14px;">
+<div class="info-card">
+  <div class="ir"><div class="ii"><i class="bi bi-building"></i></div><div><div class="il">Main Building</div><div class="it">2052 St. Georges Ave<br>Rahway, NJ 07065</div></div></div>
+  <div class="ir"><div class="ii"><i class="bi bi-clock-fill"></i></div><div><div class="il">Sunday Services</div><div class="it">8:30am · 10:00am · 11:30am</div></div></div>
+  <div class="ir"><div class="ii"><i class="bi bi-briefcase-fill"></i></div><div><div class="il">Our Offices</div><div class="it">2096 St. Georges Ave<br>Rahway, NJ 07065<br><span style="color:var(--sub);font-size:0.8rem">Mon–Fri: 9:00am – 4:30pm</span></div></div></div>
+  <div class="ir"><div class="ii"><i class="bi bi-telephone-fill"></i></div><div><div class="il">Phone</div><div class="it"><a href="tel:7324990040">732-499-0040</a></div></div></div>
+  <div class="ir"><div class="ii"><i class="bi bi-envelope-fill"></i></div><div><div class="il">Email</div><div class="it"><a href="mailto:Oasis@OasisNJ.net">Oasis@OasisNJ.net</a></div></div></div>
 </div>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(registration => registration.unregister()));
-  });
-}
-</script>
-</body>
-</html>
+{% if sent %}<div class="success-card"><div class="success-icon"><i class="bi bi-check-lg"></i></div><div class="success-title">Message Sent!</div><div class="success-sub">We'll get back to you soon. God bless!</div><a href="/hub" class="back-hub"><i class="bi bi-house"></i> Back to Hub</a></div>
+{% else %}<div class="card"><div class="card-body"><div class="ft">Send a Message</div><form method="POST">
+  <div class="row2"><div class="field" style="margin-top:0"><label class="field-label">First Name</label><input type="text" name="first_name" required placeholder="First"></div><div class="field" style="margin-top:0"><label class="field-label">Last Name</label><input type="text" name="last_name" placeholder="Last"></div></div>
+  <div class="field"><label class="field-label">Email</label><input type="email" name="email" placeholder="you@email.com"></div>
+  <div class="field"><label class="field-label">Phone</label><input type="tel" name="phone" placeholder="(000) 000-0000"></div>
+  <div class="field"><label class="field-label">Message</label><textarea name="message" rows="5" required placeholder="Share anything on your heart…"></textarea></div>
+  <button type="submit" class="btn btn-teal btn-block" style="margin-top:22px">Send Message →</button>
+</form></div></div>{% endif %}
+</div>
+{% endblock %}

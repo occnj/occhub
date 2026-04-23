@@ -1,52 +1,11 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>About — Oasis</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
-<style>
-:root{--teal:#13677A;--orange:#F2541B;--bg:#F5F5F7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
-.shell{width:100%;max-width:390px;}
-.back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
-.hero{position:relative;background:var(--teal);min-height:220px;overflow:hidden;}
-.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;}
-.hero-content{position:relative;z-index:1;padding:56px 24px 28px 60px;}
-.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:6px;}
-.hero-title{font-family:'DM Serif Display',serif;font-size:2.2rem;color:white;line-height:1.2;}
-.body{padding:24px 16px;}
-.card{background:var(--card);border-radius:20px;padding:24px 20px;box-shadow:0 1px 5px rgba(0,0,0,0.06);}
-.card-body{font-size:0.9rem;line-height:1.8;color:#3a3a3c;white-space:pre-line;}
-</style>
-</head>
-<body>
-<div class="shell">
-  <div class="hero">
-    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
-    {% if settings.about_hero %}
-    <img src="/static/{{ settings.about_hero }}" alt="" class="hero-img">
-    {% endif %}
-    <div class="hero-content">
-      <div class="hero-tag">Oasis Christian Centre</div>
-      <div class="hero-title">{{ settings.about_title or 'About Oasis' }}</div>
-    </div>
-  </div>
-  <div class="body">
-    <div class="card">
-      <div class="card-body">{{ settings.about_body or '' }}</div>
-    </div>
-  </div>
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block head %}<style>.about-body{font-size:0.9rem;line-height:1.85;color:var(--text2);white-space:pre-line;}</style>{% endblock %}
+{% block content %}
+<div class="hero">
+  <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+  {% if settings.about_hero %}<img src="/static/{{ settings.about_hero }}" alt="" class="hero-img"><div class="hero-overlay"></div>{% endif %}
+  <div class="hero-content indent"><div class="hero-tag">Oasis Christian Centre</div><div class="hero-title">{{ settings.about_title or 'About Oasis' }}</div></div>
 </div>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(registration => registration.unregister()));
-  });
-}
-</script>
-</body></html>
+<div class="body"><div class="card"><div class="card-body"><div class="about-body">{{ settings.about_body or '' }}</div></div></div></div>
+{% endblock %}

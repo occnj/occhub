@@ -1,104 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oasis Hub</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-            font-family: 'DM Sans', sans-serif;
-        }
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            animation: drift 8s ease-in-out infinite alternate;
-        }
-        .orb1 { width: 400px; height: 400px; background: rgba(19,103,122,0.4); top: -100px; right: -100px; }
-        .orb2 { width: 300px; height: 300px; background: rgba(242,84,27,0.3); bottom: -80px; left: -80px; animation-delay: -3s; }
-        .orb3 { width: 200px; height: 200px; background: rgba(19,103,122,0.2); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -5s; }
-        @keyframes drift {
-            from { transform: translate(0, 0) scale(1); }
-            to { transform: translate(20px, -20px) scale(1.05); }
-        }
-        .center {
-            position: relative;
-            z-index: 10;
-            text-align: center;
-            animation: fadeIn 0.8s ease forwards;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .logo {
-            width: 90px;
-            height: 90px;
-            object-fit: contain;
-            filter: brightness(0) invert(1);
-            margin-bottom: 20px;
-        }
-        .wordmark {
-            color: rgba(255,255,255,0.85);
-            font-size: 0.7rem;
-            letter-spacing: 0.35em;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-        .bar-container {
-            position: absolute;
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 3px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .bar-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #13677A, #F2541B);
-            border-radius: 3px;
-            animation: load 1.8s ease forwards;
-        }
-        @keyframes load {
-            0% { width: 0%; }
-            100% { width: 100%; }
-        }
-    </style>
-    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
-    <script>
-        setTimeout(function(){ window.location.href = "/gate"; }, 2200);
-    </script>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Oasis Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#08111a;display:flex;align-items:center;justify-content:center;height:100vh;overflow:hidden;font-family:'DM Sans',sans-serif;}
+.orb{position:absolute;border-radius:50%;pointer-events:none;}
+.orb1{width:420px;height:420px;top:-120px;right:-100px;background:radial-gradient(circle,rgba(19,103,122,0.28) 0%,transparent 70%);animation:drift 9s ease-in-out infinite alternate;}
+.orb2{width:320px;height:320px;bottom:-100px;left:-80px;background:radial-gradient(circle,rgba(242,84,27,0.22) 0%,transparent 70%);animation:drift 7s ease-in-out infinite alternate-reverse;}
+@keyframes drift{from{transform:translate(0,0);}to{transform:translate(18px,-18px);}}
+.center{position:relative;z-index:10;text-align:center;animation:fadeUp 0.7s ease forwards;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.logo{width:84px;height:84px;filter:brightness(0) invert(1);margin:0 auto 18px;display:block;}
+.wordmark{color:rgba(255,255,255,0.5);font-size:0.68rem;letter-spacing:0.38em;text-transform:uppercase;}
+.bar-wrap{position:absolute;bottom:52px;left:50%;transform:translateX(-50%);width:100px;height:2px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#13677A,#F2541B);animation:load 1.9s ease forwards;}
+@keyframes load{to{width:100%;}}
+</style>
+<script>setTimeout(function(){window.location.href="/gate";},2300);</script>
 </head>
 <body>
-    <div class="orb orb1"></div>
-    <div class="orb orb2"></div>
-    <div class="orb orb3"></div>
-    <div class="center">
-        <img src="/static/logo.png" class="logo" alt="Oasis">
-        <div class="wordmark">Oasis Hub</div>
-    </div>
-    <div class="bar-container">
-        <div class="bar-fill"></div>
-    </div>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(registration => registration.unregister()));
-  });
-}
-</script>
-</body>
-</html>
+<div class="orb orb1"></div><div class="orb orb2"></div>
+<div class="center"><img src="/static/logo.png" class="logo" alt="Oasis"><div class="wordmark">Oasis Hub</div></div>
+<div class="bar-wrap"><div class="bar-fill"></div></div>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(sw){sw.unregister();});});</script>
+</body></html>

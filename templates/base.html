@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{% block title %}Oasis{% endblock %} — Oasis Christian Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<meta name="theme-color" content="#13677A">
+<style>
+:root{--teal:#13677A;--teal-dark:#0d4f5e;--teal-light:rgba(19,103,122,0.10);--orange:#F2541B;--orange-dark:#c43b0a;--orange-light:rgba(242,84,27,0.10);--bg:#F2F2F7;--bg2:#E8E8EF;--card:#FFFFFF;--text:#1C1C1E;--text2:#3A3A3C;--sub:#6E6E73;--line:#E5E5EA;--shadow-sm:0 1px 3px rgba(0,0,0,0.07),0 1px 2px rgba(0,0,0,0.04);--shadow-md:0 4px 12px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.05);--radius-sm:12px;--radius-md:18px;--radius-lg:24px;--radius-xl:28px;}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);font-family:'DM Sans',-apple-system,sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:52px;}
+img{display:block;max-width:100%;} a{text-decoration:none;color:inherit;} button{font-family:inherit;cursor:pointer;border:none;background:none;}
+.shell{width:100%;max-width:390px;position:relative;}
+.hero{position:relative;background:var(--teal);min-height:200px;overflow:hidden;}
+.hero::after{content:'';position:absolute;width:260px;height:260px;border-radius:50%;border:1px solid rgba(255,255,255,0.08);top:-60px;right:-60px;pointer-events:none;z-index:0;}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.28;z-index:0;}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(7,27,32,0.80) 0%,rgba(7,27,32,0.15) 60%);z-index:1;}
+.hero-content{position:relative;z-index:2;padding:64px 24px 28px;}
+.hero-content.indent{padding-left:72px;}
+.hero-tag{font-size:0.62rem;font-weight:600;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.50);margin-bottom:8px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2.3rem;line-height:1.08;color:#fff;}
+.hero-sub{font-size:0.82rem;color:rgba(255,255,255,0.62);margin-top:8px;line-height:1.6;max-width:260px;}
+.back-btn{position:absolute;top:52px;left:18px;z-index:10;width:36px;height:36px;border-radius:var(--radius-sm);background:var(--orange);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 6px 20px rgba(242,84,27,0.35);}
+.body{padding:20px 16px;}
+.section-label{font-size:0.62rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--sub);margin:4px 4px 12px;display:block;}
+.card{background:var(--card);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;}
+.card-body{padding:22px 20px;}
+.list-row{background:var(--card);border-radius:var(--radius-md);padding:16px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-sm);transition:transform 0.15s;border:none;width:100%;text-align:left;color:var(--text);}
+.list-row:active{transform:scale(0.98);} .list-row-left{display:flex;align-items:center;gap:14px;} .row-chevron{color:var(--line);font-size:0.75rem;}
+.icon-pill{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.icon-pill.teal{background:var(--teal-light);color:var(--teal);} .icon-pill.orange{background:var(--orange-light);color:var(--orange);}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.48);backdrop-filter:blur(6px);z-index:100;opacity:0;pointer-events:none;transition:opacity 0.28s;}
+.overlay.open{opacity:1;pointer-events:all;}
+.sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:390px;background:var(--card);border-radius:var(--radius-xl) var(--radius-xl) 0 0;z-index:101;padding-bottom:44px;max-height:88vh;overflow-y:auto;transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);}
+.sheet.open{transform:translateX(-50%) translateY(0);}
+.sheet-handle{width:38px;height:4px;background:var(--line);border-radius:4px;margin:14px auto 20px;}
+.sheet-close{position:absolute;top:14px;right:16px;width:28px;height:28px;border-radius:50%;background:var(--bg);color:var(--sub);display:flex;align-items:center;justify-content:center;font-size:0.8rem;border:none;cursor:pointer;}
+.avatar{width:88px;height:88px;border-radius:50%;overflow:hidden;border:3px solid rgba(19,103,122,0.15);background:var(--bg);}
+.avatar img{width:100%;height:100%;object-fit:cover;} .avatar-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--teal);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:var(--radius-md);padding:15px 20px;font-family:'DM Sans',sans-serif;font-size:0.92rem;font-weight:600;border:none;cursor:pointer;transition:transform 0.15s;text-decoration:none;}
+.btn-block{display:flex;width:100%;} .btn-primary{background:var(--orange);color:#fff;box-shadow:0 8px 24px rgba(242,84,27,0.32);} .btn-teal{background:var(--teal);color:#fff;}
+.field{margin-top:16px;} .field:first-child{margin-top:0;}
+.field-label{display:block;font-size:0.68rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--sub);margin-bottom:7px;}
+input[type="text"],input[type="email"],input[type="tel"],select,textarea{width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:var(--radius-sm);padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--text);outline:none;transition:border-color 0.2s;-webkit-appearance:none;appearance:none;}
+input:focus,select:focus,textarea:focus{border-color:var(--teal);background:#fff;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.success-card{background:var(--card);border-radius:var(--radius-xl);padding:44px 24px;text-align:center;box-shadow:var(--shadow-sm);}
+.success-icon{width:68px;height:68px;border-radius:50%;background:var(--teal-light);color:var(--teal);display:flex;align-items:center;justify-content:center;font-size:1.9rem;margin:0 auto 20px;}
+.success-title{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:8px;}
+.success-sub{font-size:0.88rem;color:var(--sub);line-height:1.65;}
+.back-hub{display:inline-flex;align-items:center;gap:6px;margin-top:22px;color:var(--teal);font-size:0.84rem;font-weight:600;}
+.empty-state{text-align:center;padding:52px 24px;color:var(--sub);}
+.empty-icon{font-size:2.6rem;color:var(--line);display:block;margin-bottom:14px;}
+.empty-title{font-family:'DM Serif Display',serif;font-size:1.25rem;color:var(--text);margin-bottom:6px;}
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;height:80px;background:rgba(255,255,255,0.90);backdrop-filter:blur(24px);border-top:0.5px solid rgba(0,0,0,0.09);display:flex;align-items:center;justify-content:space-around;padding:0 8px 14px;z-index:1000;}
+.tab-item{display:flex;flex-direction:column;align-items:center;gap:3px;color:#8E8E93;font-size:0.58rem;min-width:48px;padding-top:8px;text-decoration:none;border:none;background:none;cursor:pointer;}
+.tab-item i{font-size:1.25rem;} .tab-item.danger i{color:#FF3B30;}
+.fab{width:56px;height:56px;background:var(--orange);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.6rem;margin-top:-22px;text-decoration:none;box-shadow:0 4px 18px rgba(242,84,27,0.40);}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<div class="shell">{% block content %}{% endblock %}</div>
+{% block modals %}{% endblock %}
+<script>
+if('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(r=>r.forEach(sw=>sw.unregister()));
+function openSheet(id,oid){id=id||'sheet';oid=oid||'overlay';document.getElementById(oid).classList.add('open');document.getElementById(id).classList.add('open');}
+function closeSheet(id,oid){id=id||'sheet';oid=oid||'overlay';document.getElementById(oid).classList.remove('open');document.getElementById(id).classList.remove('open');}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

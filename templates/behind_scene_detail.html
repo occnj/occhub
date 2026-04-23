@@ -1,137 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ scene.name }} — Oasis Crew</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
-    <style>
-        :root { --teal: #13677A; --orange: #F2541B; --bg: #F5F5F7; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 40px; }
-        .shell { width: 100%; max-width: 390px; }
-        .hero { position: relative; background: var(--teal); min-height: 220px; overflow: hidden; }
-        .hero img { width: 100%; height: 220px; object-fit: cover; display: block; opacity: 0.92; }
-        .hero-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(7,27,31,0.88), rgba(7,27,31,0.2)); }
-        .hero-content { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px; padding-top: 76px; }
-        .back-btn { position: absolute; top: 24px; left: 20px; color: #fff; font-size: 1rem; text-decoration: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #f05123; z-index: 2; box-shadow: 0 10px 24px rgba(240,81,35,0.32); }
-        .hero-tag { font-size: 0.65rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(255,255,255,0.56); margin-bottom: 6px; }
-        .hero-title { font-family: 'DM Serif Display', serif; font-size: 1.9rem; color: white; margin-bottom: 0; max-width: 280px; line-height: 1.08; }
-        .intro-card { margin: 18px 16px 0; background: var(--card); border-radius: 20px; padding: 18px 18px 16px; box-shadow: 0 1px 5px rgba(0,0,0,0.06); }
-        .intro-label { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); margin-bottom: 8px; }
-        .intro-copy { color: #3a3a3c; line-height: 1.7; font-size: 0.88rem; white-space: pre-line; }
-        .members { padding: 18px 16px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .member-card { background: var(--card); border-radius: 20px; padding: 20px 14px 16px; text-align: center; cursor: pointer; border: none; width: 100%; box-shadow: 0 1px 5px rgba(0,0,0,0.06); }
-        .member-card:active { transform: scale(0.98); }
-        .avatar { width: 82px; height: 82px; border-radius: 50%; overflow: hidden; margin: 0 auto 12px; background: var(--bg); border: 3px solid rgba(19,103,122,0.12); }
-        .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.9rem; color: var(--teal); }
-        .member-name { font-size: 0.84rem; font-weight: 700; }
-        .empty { margin: 20px 16px; background: #fff; border-radius: 20px; padding: 28px 22px; color: var(--sub); line-height: 1.7; box-shadow: 0 1px 5px rgba(0,0,0,0.06); }
-        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
-        .overlay.open { opacity: 1; pointer-events: all; }
-        .sheet { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%); width: 100%; max-width: 390px; background: var(--card); border-radius: 24px 24px 0 0; z-index: 101; padding-bottom: 44px; max-height: 85vh; overflow-y: auto; transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-        .sheet.open { transform: translateX(-50%) translateY(0); }
-        .sheet-close { position: absolute; top: 14px; right: 18px; background: #f0f0f5; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--sub); }
-        .sheet-handle { width: 36px; height: 4px; background: #e0e0e5; border-radius: 4px; margin: 12px auto 24px; }
-        .sheet-content { padding: 0 24px; text-align: center; }
-        .sheet-avatar { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin: 0 auto 16px; border: 3px solid rgba(19,103,122,0.15); background: var(--bg); }
-        .sheet-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .sheet-avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.3rem; color: var(--teal); }
-        .sheet-name { font-family: 'DM Serif Display', serif; font-size: 1.35rem; margin-bottom: 4px; }
-        .sheet-role { font-size: 0.76rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
-        .sheet-divider { height: 1px; background: #f0f0f5; margin-bottom: 18px; }
-        .sheet-bio { font-size: 0.9rem; color: #3a3a3c; line-height: 1.75; text-align: left; }
-    </style>
-</head>
-<body>
-<div class="shell">
-    <div class="hero">
-        {% if scene.photo %}
-        <img src="/static/{{ scene.photo }}" alt="{{ scene.name }}">
-        {% endif %}
-        <div class="hero-overlay"></div>
-        <a href="{{ url_for('behind_scene') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a>
-        <div class="hero-content">
-            <div class="hero-tag">Oasis Crew</div>
-            <div class="hero-title">{{ scene.name }}</div>
-        </div>
-    </div>
-
-    <div class="intro-card">
-        <div class="intro-label">Ministry Info</div>
-        <div class="intro-copy">{{ scene.description or 'Tap a team member to learn more.' }}</div>
-    </div>
-
-    {% if members %}
-    <div class="members">
-        {% for member in members %}
-        <button class="member-card" onclick="openMember({{ loop.index0 }})">
-            <div class="avatar">
-                {% if member.photo %}
-                <img src="/static/{{ member.photo }}" alt="{{ member.name }}">
-                {% else %}
-                <div class="avatar-placeholder"><i class="bi bi-person"></i></div>
-                {% endif %}
-            </div>
-            <div class="member-name">{{ member.name }}</div>
-        </button>
-        {% endfor %}
-    </div>
-    {% else %}
-    <div class="empty">
-        No individual team members have been added for this group yet.
-    </div>
-    {% endif %}
-</div>
-
-<div class="overlay" id="overlay" onclick="closeMember()"></div>
-<div class="sheet" id="sheet">
-    <button class="sheet-close" onclick="closeMember()"><i class="bi bi-x"></i></button>
-    <div class="sheet-handle"></div>
-    <div class="sheet-content">
-        <div class="sheet-avatar" id="sheet-avatar-wrap"></div>
-        <div class="sheet-name" id="sheet-name"></div>
-        <div class="sheet-role" id="sheet-role"></div>
-        <div class="sheet-divider"></div>
-        <div class="sheet-bio" id="sheet-bio"></div>
-    </div>
-</div>
-
-<script>
-const sceneMembers = [
-    {% for member in members %}
-    {
-        name: {{ member.name | tojson }},
-        role: {{ (member.role or 'Team Member') | tojson }},
-        bio: {{ (member.bio or '') | tojson }},
-        photo: {{ ('/static/' ~ member.photo if member.photo else '') | tojson }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-];
-
-function openMember(index) {
-    const member = sceneMembers[index];
-    document.getElementById('sheet-name').textContent = member.name;
-    document.getElementById('sheet-role').textContent = member.role;
-    document.getElementById('sheet-bio').textContent = member.bio || 'No bio available.';
-    const avatarWrap = document.getElementById('sheet-avatar-wrap');
-    if (member.photo) {
-        avatarWrap.innerHTML = '<img src="' + member.photo + '" alt="' + member.name + '">';
-    } else {
-        avatarWrap.innerHTML = '<div class="sheet-avatar-placeholder"><i class="bi bi-person"></i></div>';
-    }
-    document.getElementById('overlay').classList.add('open');
-    document.getElementById('sheet').classList.add('open');
-}
-
-function closeMember() {
-    document.getElementById('overlay').classList.remove('open');
-    document.getElementById('sheet').classList.remove('open');
-}
-</script>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}{{ scene.name }} — Oasis Crew{% endblock %}
+{% block head %}<style>.ic{margin:18px 16px 0;background:var(--card);border-radius:var(--radius-lg);padding:18px;box-shadow:var(--shadow-sm);}.il{font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--sub);margin-bottom:8px;}.ico{color:var(--text2);line-height:1.75;font-size:0.88rem;white-space:pre-line;}.mg{padding:18px 16px 8px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}.mc{background:var(--card);border-radius:var(--radius-lg);padding:20px 14px 16px;text-align:center;cursor:pointer;box-shadow:var(--shadow-sm);transition:transform 0.18s;width:100%;}.mc:active{transform:scale(0.97);}.ma{width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 12px;background:var(--bg);border:3px solid rgba(19,103,122,0.12);}.ma img{width:100%;height:100%;object-fit:cover;}.map{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.9rem;color:var(--teal);}.mn{font-size:0.84rem;font-weight:700;}.sci{padding:0 24px;text-align:center;}.sal{width:100px;height:100px;border-radius:50%;overflow:hidden;margin:0 auto 16px;border:3px solid rgba(19,103,122,0.15);background:var(--bg);}.sal img{width:100%;height:100%;object-fit:cover;}.salp{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.3rem;color:var(--teal);}.spn{font-family:'DM Serif Display',serif;font-size:1.35rem;margin-bottom:4px;}.spr{font-size:0.75rem;color:var(--orange);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:20px;}.spd{height:0.5px;background:var(--line);margin-bottom:18px;}.spb{font-size:0.9rem;color:var(--text2);line-height:1.75;text-align:left;}</style>{% endblock %}
+{% block content %}
+<div class="hero">{% if scene.photo %}<img src="/static/{{ scene.photo }}" alt="{{ scene.name }}" class="hero-img" style="opacity:0.92">{% endif %}<div class="hero-overlay"></div><a href="{{ url_for('behind_scene') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content"><div class="hero-tag">Oasis Crew</div><div class="hero-title">{{ scene.name }}</div></div></div>
+<div class="ic"><div class="il">Ministry Info</div><div class="ico">{{ scene.description or 'Tap a team member to learn more.' }}</div></div>
+{% if members %}<div class="mg">{% for member in members %}<button class="mc" onclick="oM({{ loop.index0 }})"><div class="ma">{% if member.photo %}<img src="/static/{{ member.photo }}" alt="{{ member.name }}">{% else %}<div class="map"><i class="bi bi-person"></i></div>{% endif %}</div><div class="mn">{{ member.name }}</div></button>{% endfor %}</div>
+{% else %}<div class="body"><div class="empty-state"><i class="bi bi-person-plus empty-icon"></i><div class="empty-title">No Members Yet</div><div class="empty-sub">No team members added yet.</div></div></div>{% endif %}
+{% endblock %}
+{% block modals %}<div class="overlay" id="overlay" onclick="cM()"></div><div class="sheet" id="sheet"><button class="sheet-close" onclick="cM()"><i class="bi bi-x"></i></button><div class="sheet-handle"></div><div class="sci"><div class="sal" id="saw"></div><div class="spn" id="sn"></div><div class="spr" id="sr"></div><div class="spd"></div><div class="spb" id="sb"></div></div></div>{% endblock %}
+{% block scripts %}<script>
+var sm=[{% for member in members %}{n:{{ member.name|tojson }},r:{{ (member.role or 'Team Member')|tojson }},b:{{ (member.bio or '')|tojson }},p:{{ ('/static/'~member.photo if member.photo else '')|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+function oM(i){var m=sm[i];document.getElementById('sn').textContent=m.n;document.getElementById('sr').textContent=m.r;document.getElementById('sb').textContent=m.b||'No bio available.';var w=document.getElementById('saw');w.innerHTML=m.p?'<img src="'+m.p+'">':'<div class="salp"><i class="bi bi-person"></i></div>';openSheet();}
+function cM(){closeSheet();}
+</script>{% endblock %}

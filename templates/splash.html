@@ -8,7 +8,7 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            background: #0a0a0a;
+            background: {{ site_settings.get('theme_text', '#0a0a0a') }};
             display: flex;
             align-items: center;
             justify-content: center;
@@ -22,9 +22,9 @@
             filter: blur(80px);
             animation: drift 8s ease-in-out infinite alternate;
         }
-        .orb1 { width: 400px; height: 400px; background: rgba(19,103,122,0.4); top: -100px; right: -100px; }
-        .orb2 { width: 300px; height: 300px; background: rgba(242,84,27,0.3); bottom: -80px; left: -80px; animation-delay: -3s; }
-        .orb3 { width: 200px; height: 200px; background: rgba(19,103,122,0.2); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -5s; }
+        .orb1 { width: 400px; height: 400px; background: color-mix(in srgb, {{ site_settings.get('theme_primary', '#13677A') }} 40%, transparent); top: -100px; right: -100px; }
+        .orb2 { width: 300px; height: 300px; background: color-mix(in srgb, {{ site_settings.get('theme_accent', '#F2541B') }} 30%, transparent); bottom: -80px; left: -80px; animation-delay: -3s; }
+        .orb3 { width: 200px; height: 200px; background: color-mix(in srgb, {{ site_settings.get('theme_primary', '#13677A') }} 20%, transparent); top: 50%; left: 50%; transform: translate(-50%,-50%); animation-delay: -5s; }
         @keyframes drift {
             from { transform: translate(0, 0) scale(1); }
             to { transform: translate(20px, -20px) scale(1.05); }
@@ -67,7 +67,7 @@
         .bar-fill {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #13677A, #F2541B);
+            background: linear-gradient(90deg, {{ site_settings.get('theme_primary', '#13677A') }}, {{ site_settings.get('theme_accent', '#F2541B') }});
             border-radius: 3px;
             animation: load 1.8s ease forwards;
         }
@@ -86,7 +86,7 @@
     <div class="orb orb2"></div>
     <div class="orb orb3"></div>
     <div class="center">
-        <img src="/static/logo.png" class="logo" alt="Oasis">
+        <img src="/static/{{ site_settings.get('logo_path') or 'logo.png' }}" class="logo" alt="Oasis">
         <div class="wordmark">Oasis Hub</div>
     </div>
     <div class="bar-container">

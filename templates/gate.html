@@ -10,7 +10,7 @@
 
         body {
             min-height: 100vh;
-            background: #0d1117;
+            background: {{ site_settings.get('theme_text', '#0d1117') }};
             display: flex;
             align-items: center;
             justify-content: center;
@@ -21,7 +21,7 @@
         .bg-image {
             position: fixed;
             inset: 0;
-            background: url('/static/gate.jpg') center/cover no-repeat;
+            background: url('/static/{{ site_settings.get('ui_background_image') or 'gate.jpg' }}') center/cover no-repeat;
             opacity: 0.25;
         }
 
@@ -90,9 +90,16 @@
         .btn:active { transform: scale(0.97); }
 
         .btn-primary {
-            background: #F2541B;
+            background: {{ site_settings.get('theme_accent', '#F2541B') }};
             color: #fff;
             box-shadow: 0 8px 30px rgba(242,84,27,0.35);
+        }
+        .logo {
+            width: 76px;
+            height: 76px;
+            object-fit: contain;
+            margin: 0 auto 18px;
+            display: block;
         }
 
         .btn-secondary {
@@ -119,6 +126,7 @@
     <div class="gradient-overlay"></div>
 
     <div class="card">
+        <img src="/static/{{ site_settings.get('logo_path') or 'logo.png' }}" class="logo" alt="Oasis">
         <h1>Welcome to<br>Oasis Hub</h1>
         <p class="tagline">Know God · Find Hope · Make a Difference</p>
 

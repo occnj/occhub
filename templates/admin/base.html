@@ -9,20 +9,36 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --teal: #13677A; --teal-light: #e8f3f5;
-            --orange: #F2541B; --orange-light: #fef1ec;
-            --bg: #F5F5F7; --card: #fff;
-            --text: #1d1d1f; --sub: #6e6e73;
-            --line: #d2d2d7; --sidebar: 240px;
+            --teal: {{ site_settings.get('theme_primary', '#13677A') }};
+            --teal-light: color-mix(in srgb, var(--teal) 14%, white);
+            --orange: {{ site_settings.get('theme_accent', '#F2541B') }};
+            --orange-light: color-mix(in srgb, var(--orange) 12%, white);
+            --bg: {{ site_settings.get('theme_background', '#F5F5F7') }};
+            --card: {{ site_settings.get('theme_card', '#ffffff') }};
+            --text: {{ site_settings.get('theme_text', '#1d1d1f') }};
+            --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }};
+            --line: color-mix(in srgb, var(--text) 16%, white); --sidebar: 240px;
             --success: #34c759; --danger: #ff3b30; --info: #007aff;
         }
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); display:flex; min-height:100vh; }
+        body {
+            font-family:'DM Sans',sans-serif;
+            background:var(--bg);
+            color:var(--text);
+            display:flex;
+            min-height:100vh;
+            {% if site_settings.get('ui_background_image') %}
+            background-image: linear-gradient(rgba(245,245,247,0.88), rgba(245,245,247,0.94)), url('/static/{{ site_settings.get('ui_background_image') }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            {% endif %}
+        }
 
         /* Sidebar */
         .sidebar {
             width: var(--sidebar);
-            background: #fff;
+            background: rgba(255,255,255,0.92);
             border-right: 1px solid var(--line);
             display: flex;
             flex-direction: column;
@@ -205,7 +221,7 @@
 
 <aside class="sidebar">
     <div class="sidebar-logo">
-        <img src="/static/logo.png" alt="Oasis" onerror="this.style.display='none'">
+        <img src="/static/{{ site_settings.logo_path if site_settings.get('logo_path') else 'logo.png' }}" alt="Oasis" onerror="this.style.display='none'">
         <div>
             <div class="sidebar-logo-text">Oasis Hub</div>
             <div class="sidebar-logo-sub">Admin Panel</div>

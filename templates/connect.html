@@ -9,18 +9,24 @@
     <link rel="icon" type="image/png" href="/static/icon-192x192.png">
     <style>
         :root {
-            --teal: #13677A;
-            --orange: #F2541B;
-            --bg: #F5F5F7;
-            --card: #ffffff;
-            --text: #1d1d1f;
-            --sub: #6e6e73;
+            --teal: {{ site_settings.get('theme_primary', '#13677A') }};
+            --orange: {{ site_settings.get('theme_accent', '#F2541B') }};
+            --bg: {{ site_settings.get('theme_background', '#F5F5F7') }};
+            --card: {{ site_settings.get('theme_card', '#ffffff') }};
+            --text: {{ site_settings.get('theme_text', '#1d1d1f') }};
+            --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }};
             --line: #d2d2d7;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             background: var(--bg);
+            {% if site_settings.get('ui_background_image') %}
+            background-image: linear-gradient(rgba(245,245,247,0.86), rgba(245,245,247,0.92)), url('/static/{{ site_settings.get('ui_background_image') }}');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            {% endif %}
             font-family: 'DM Sans', sans-serif;
             color: var(--text);
             min-height: 100vh;

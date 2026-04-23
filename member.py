@@ -92,6 +92,13 @@ def init_db():
         ('site_name','Oasis Hub'),
         ('tagline','Know God · Find Hope · Make a Difference'),
         ('phone','7324990040'),
+        ('theme_primary','#13677A'),
+        ('theme_accent','#F2541B'),
+        ('theme_background','#F5F5F7'),
+        ('theme_card','#ffffff'),
+        ('theme_text','#1d1d1f'),
+        ('theme_subtext','#6e6e73'),
+        ('ui_background_image',''),
         ('instagram_url','https://www.instagram.com/occnj/'),
         ('facebook_url','https://www.facebook.com/occnj/'),
         ('give_url','https://thekingdomledger.com/donate?code=2335'),
@@ -304,6 +311,10 @@ def all_settings():
         conn=get_db(); rows=conn.execute("SELECT key,value FROM settings").fetchall(); conn.close()
         return {r['key']:r['value'] for r in rows}
     except: return {}
+
+@app.context_processor
+def inject_site_settings():
+    return {'site_settings': all_settings()}
 
 def extract_youtube_video_id(url):
     if not url:
@@ -943,6 +954,8 @@ def admin_settings():
         if logo: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('logo_path',?)",(logo,))
         hero=save_upload('about_hero_file')
         if hero: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('about_hero',?)",(hero,))
+        custom_bg=save_upload('custom_bg_file')
+        if custom_bg: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('ui_background_image',?)",(custom_bg,))
         conn.commit(); conn.close(); flash('Settings saved!','success')
         return redirect(url_for('admin_settings'))
     return render_template('admin/settings.html',settings=all_settings())

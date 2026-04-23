@@ -1,8 +1,75 @@
-{% extends "base.html" %}
-{% block title %}Serve{% endblock %}
-{% block head %}<style>body{padding-bottom:110px;}.sh{background:linear-gradient(135deg,var(--orange) 0%,var(--orange-dark) 100%);}.cat{background:var(--card);border-radius:var(--radius-lg);padding:20px 18px;box-shadow:var(--shadow-sm);}.ch{display:flex;align-items:center;gap:12px;margin-bottom:14px;}.cn{font-size:0.9rem;font-weight:700;}.tags{display:flex;flex-wrap:wrap;gap:7px;}.tag{background:var(--bg);color:var(--sub);font-size:0.72rem;font-weight:500;padding:5px 13px;border-radius:20px;}.cta{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:390px;padding:12px 16px 32px;background:rgba(245,245,247,0.92);backdrop-filter:blur(24px);border-top:0.5px solid rgba(0,0,0,0.08);}</style>{% endblock %}
-{% block content %}
-<div class="hero sh"><a href="{{ url_for('hub') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Get Involved</div><div class="hero-title">Serve</div><div class="hero-sub">Find your place in the family</div></div></div>
-<div class="body" style="display:flex;flex-direction:column;gap:12px;">{% for g in grouped %}<div class="cat"><div class="ch"><div class="icon-pill {{ g.cat.color }}"><i class="bi {{ g.cat.icon }}"></i></div><div class="cn">{{ g.cat.name }}</div></div><div class="tags">{% for r in g.roles %}<span class="tag">{{ r.label }}</span>{% else %}<span style="color:var(--sub);font-size:0.8rem">No roles yet</span>{% endfor %}</div></div>{% endfor %}</div>
-{% endblock %}
-{% block modals %}<div class="cta"><a href="{{ settings.serve_form_url }}" target="_blank" class="btn btn-primary btn-block">Sign up to Serve <i class="bi bi-arrow-right"></i></a></div>{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Serve — Oasis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root { --teal: #13677A; --orange: #F2541B; --bg: #F5F5F7; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 110px; }
+        .shell { width: 100%; max-width: 390px; }
+        .hero { background: linear-gradient(135deg, var(--orange) 0%, #c43b0a 100%); padding: 56px 24px 28px; position: relative; }
+        .back-btn { position: absolute; top: 56px; left: 20px; color: #fff; font-size: 1rem; text-decoration: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: #f05123; border-radius: 12px; box-shadow: 0 10px 24px rgba(240,81,35,0.28); }
+        .hero-tag { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.6); margin-bottom: 6px; padding-left: 56px; }
+        .hero-title { font-family: 'DM Serif Display', serif; font-size: 2rem; color: white; padding-left: 56px; }
+        .hero-sub { font-size: 0.82rem; color: rgba(255,255,255,0.7); padding-left: 56px; margin-top: 6px; }
+        .list { padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+        .category { background: var(--card); border-radius: 20px; padding: 20px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .cat-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .cat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+        .cat-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+        .cat-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+        .cat-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+        .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag { background: var(--bg); color: var(--sub); font-size: 0.72rem; font-weight: 500; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.02em; }
+        .cta-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; padding: 12px 16px 28px; background: rgba(245,245,247,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.07); }
+        .cta-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--orange); color: white; text-decoration: none; border-radius: 14px; padding: 17px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em; box-shadow: 0 8px 24px rgba(242,84,27,0.35); transition: transform 0.15s; }
+        .cta-btn:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="hero">
+        <a href="{{ url_for('hub') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+        <div class="hero-tag">Get involved</div>
+        <div class="hero-title">Serve</div>
+        <div class="hero-sub">Find your place in the family</div>
+    </div>
+    <div class="list">
+        {% for g in grouped %}
+        <div class="category">
+            <div class="cat-header">
+                <div class="cat-icon {{ g.cat.color }}"><i class="bi {{ g.cat.icon }}"></i></div>
+                <div class="cat-name">{{ g.cat.name }}</div>
+            </div>
+            <div class="tags">
+                {% for r in g.roles %}
+                <span class="tag">{{ r.label }}</span>
+                {% else %}
+                <span style="color:#6e6e73; font-size:0.8rem;">No roles yet</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<div class="cta-bar">
+    <a href="{{ settings.serve_form_url }}" target="_blank" class="cta-btn">
+        Sign up to Serve <i class="bi bi-arrow-right"></i>
+    </a>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body>
+</html>

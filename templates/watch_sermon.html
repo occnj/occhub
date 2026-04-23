@@ -1,7 +1,97 @@
-{% extends "base.html" %}
-{% block title %}Watch the Latest{% endblock %}
-{% block head %}<style>.wh{background:linear-gradient(150deg,#0f4250 0%,var(--teal) 55%,var(--orange) 100%);}.vg{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;}.vc{border-radius:var(--radius-xl);overflow:hidden;text-decoration:none;position:relative;background:var(--card);box-shadow:var(--shadow-md);min-height:196px;transition:transform 0.18s;}.vc:active{transform:scale(0.97);}.ve{border-radius:var(--radius-xl);min-height:196px;background:var(--bg2);border:0.5px dashed var(--line);}.vt{height:104px;position:relative;overflow:hidden;background:linear-gradient(145deg,#f9e0d5,#ffd8c8);}.vt img{width:100%;height:100%;object-fit:cover;}.po{position:absolute;right:10px;bottom:10px;width:34px;height:34px;border-radius:12px;background:rgba(0,0,0,0.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;}.lp{position:absolute;top:10px;left:10px;background:#FF3B30;color:#fff;font-size:0.62rem;font-weight:700;text-transform:uppercase;padding:4px 9px;border-radius:999px;}.vi{padding:14px 14px 16px;min-height:92px;position:relative;}.vs{font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--sub);margin-bottom:5px;}.vti{font-size:0.92rem;font-weight:700;line-height:1.3;color:var(--text);max-width:130px;}.va{position:absolute;right:14px;bottom:14px;color:var(--orange);font-size:1rem;}.vb{width:40px;height:40px;border-radius:12px;background:var(--orange-light);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:1.15rem;margin-bottom:12px;}</style>{% endblock %}
-{% block content %}
-<div class="hero wh"><a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Oasis Media</div><div class="hero-title">Watch the Latest</div><div class="hero-sub">Messages, moments &amp; live experiences.</div></div></div>
-<div class="body"><span class="section-label">Featured Messages</span><div class="vg">{% for video in videos %}{% if video.is_active %}<a href="{{ video.url }}" target="_blank" class="vc"><div class="vt">{% if video.thumbnail %}<img src="{{ video.thumbnail }}" alt="{{ video.title }}">{% endif %}{% if video.is_live %}<div class="lp">Live Now</div>{% endif %}<div class="po"><i class="bi bi-play-fill"></i></div></div><div class="vi"><div class="vs">{% if video.is_live %}Live{% elif video.source=='youtube' %}Newest {{ video.slot }}{% else %}Slot {{ video.slot }}{% endif %}</div><div class="vti">{{ video.title }}</div><i class="bi bi-arrow-up-right va"></i></div></a>{% else %}<div class="ve"><div class="vi" style="padding-top:20px"><div class="vb"><i class="bi bi-play-btn"></i></div><div class="vs">Slot {{ video.slot }}</div><div class="vti" style="color:var(--sub)">Coming Soon</div></div></div>{% endif %}{% endfor %}</div></div>
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Watch the Latest — Oasis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:#13677A;--orange:#f05123;--bg:#F5F5F7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:32px;}
+.shell{width:100%;max-width:390px;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:var(--orange);border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
+.hero{position:relative;min-height:220px;overflow:hidden;background:linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);}
+.hero::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.08);filter:blur(2px);}
+.hero-content{position:relative;z-index:1;padding:56px 24px 28px 78px;}
+.hero-tag{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.62);margin-bottom:8px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2.1rem;color:#fff;line-height:1.12;margin-bottom:10px;}
+.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:250px;}
+.body{padding:22px 16px 0;}
+.section-label{font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--sub);margin:0 4px 12px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.video-card,.video-card-empty{border-radius:22px;min-height:196px;text-decoration:none;position:relative;overflow:hidden;}
+.video-card{background:linear-gradient(160deg,#ffffff 0%,#fff6f2 100%);color:var(--text);box-shadow:0 6px 18px rgba(0,0,0,0.07);}
+.video-card-empty{background:#efeff2;color:#a0a0a8;border:1px dashed #d4d4da;}
+.video-thumb{height:102px;background:linear-gradient(145deg,#f9e0d5 0%,#ffd8c8 100%);position:relative;overflow:hidden;}
+.video-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.video-thumb-overlay{position:absolute;inset:auto 10px 10px auto;width:34px;height:34px;border-radius:12px;background:rgba(0,0,0,0.58);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1rem;}
+.live-pill{position:absolute;top:10px;left:10px;background:#ff3b30;color:#fff;font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:5px 8px;border-radius:999px;box-shadow:0 8px 18px rgba(255,59,48,0.28);}
+.video-info{padding:15px 16px 18px;position:relative;min-height:94px;}
+.video-badge{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:rgba(240,81,35,0.12);color:var(--orange);font-size:1.2rem;margin-bottom:14px;}
+.video-slot{font-size:0.7rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--sub);margin-bottom:6px;}
+.video-title{font-size:0.95rem;font-weight:700;line-height:1.35;max-width:140px;}
+.video-hint{position:absolute;left:16px;bottom:16px;font-size:0.76rem;color:#6d6d74;}
+.video-arrow{position:absolute;right:16px;bottom:14px;color:var(--orange);font-size:1rem;}
+.video-card-empty .video-badge{background:rgba(120,120,128,0.08);color:#a0a0a8;}
+.video-card-empty .video-hint{color:#9b9ba1;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+    <div class="hero-content">
+      <div class="hero-tag">Oasis Media</div>
+      <div class="hero-title">Watch the Latest</div>
+      <div class="hero-copy">Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="section-label">Featured Messages</div>
+    <div class="grid">
+      {% for video in videos %}
+        {% if video.is_active %}
+        <a href="{{ video.url }}" target="_blank" rel="noopener noreferrer" class="video-card">
+          <div class="video-thumb">
+            {% if video.thumbnail %}
+            <img src="{{ video.thumbnail }}" alt="{{ video.title }}">
+            {% endif %}
+            {% if video.is_live %}
+            <div class="live-pill">Live Now</div>
+            {% endif %}
+            <div class="video-thumb-overlay"><i class="bi bi-play-fill"></i></div>
+          </div>
+          <div class="video-info">
+            <div class="video-slot">{% if video.is_live %}Live Priority{% elif video.source == 'youtube' %}Newest {{ video.slot }}{% else %}Slot {{ video.slot }}{% endif %}</div>
+            <div class="video-title">{{ video.title }}</div>
+            <i class="bi bi-arrow-up-right video-arrow"></i>
+          </div>
+        </a>
+        {% else %}
+        <div class="video-card-empty">
+          <div class="video-info" style="padding-top:20px;">
+            <div class="video-badge"><i class="bi bi-play-btn"></i></div>
+            <div class="video-slot">Slot {{ video.slot }}</div>
+            <div class="video-title">Coming Soon</div>
+            <div class="video-hint">Add this in admin content</div>
+          </div>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body>
+</html>

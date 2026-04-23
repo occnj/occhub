@@ -1,8 +1,111 @@
-{% extends "base.html" %}
-{% block title %}Oasis Crew{% endblock %}
-{% block head %}<style>.gg{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 8px;}.gc{min-height:192px;display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--card);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm);border:0.5px solid rgba(0,0,0,0.04);transition:transform 0.18s;}.gc:active{transform:scale(0.97);}.gcov{height:110px;width:100%;background:linear-gradient(135deg,var(--teal-light),var(--orange-light));display:flex;align-items:center;justify-content:center;overflow:hidden;}.gcov img{width:100%;height:100%;object-fit:cover;}.gip{width:44px;height:44px;border-radius:14px;background:var(--orange-light);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:1.2rem;}.gb{padding:14px 14px 13px;display:flex;flex-direction:column;flex:1;}.gn{font-family:'DM Serif Display',serif;font-size:1.0rem;line-height:1.15;margin-top:2px;}.gm{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:10px;color:var(--sub);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;}.ga{color:var(--orange);}</style>{% endblock %}
-{% block content %}
-<div class="hero" style="background:linear-gradient(135deg,var(--teal) 0%,#0f5160 100%)"><a href="{{ url_for('hub') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Oasis Christian Centre</div><div class="hero-title">Oasis Crew</div><div class="hero-sub">Meet the teams who make the experience happen.</div></div></div>
-{% if scenes %}<span class="section-label" style="padding:20px 20px 0;display:block">Select a Ministry</span><div class="gg" style="margin-top:12px">{% for scene in scenes %}<a href="{{ url_for('behind_scene_detail', sid=scene.id) }}" class="gc"><div class="gcov">{% if scene.photo %}<img src="/static/{{ scene.photo }}" alt="{{ scene.name }}">{% else %}<div class="gip"><i class="bi bi-people-fill"></i></div>{% endif %}</div><div class="gb"><div class="gn">{{ scene.name }}</div><div class="gm"><span>{{ member_counts.get(scene.id, 0) }} People</span><span class="ga"><i class="bi bi-arrow-right"></i></span></div></div></a>{% endfor %}</div>
-{% else %}<div class="body"><div class="empty-state"><i class="bi bi-people empty-icon"></i><div class="empty-title">No Groups Yet</div><div class="empty-sub">No Oasis Crew groups have been added yet.</div></div></div>{% endif %}
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oasis Crew — Oasis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root { --teal: #13677A; --orange: #F2541B; --bg: #F5F5F7; --card: #fff; --text: #1d1d1f; --sub: #6e6e73; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 40px; }
+        .shell { width: 100%; max-width: 390px; }
+        .hero { background: linear-gradient(135deg, var(--teal) 0%, #0f5160 100%); padding: 56px 24px 28px; position: relative; }
+        .back-btn { position: absolute; top: 56px; left: 20px; color: #fff; font-size: 1rem; text-decoration: none; width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: #f05123; border-radius: 12px; box-shadow: 0 10px 24px rgba(240,81,35,0.28); }
+        .hero-tag { font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin-bottom: 6px; padding-left: 56px; }
+        .hero-title { font-family: 'DM Serif Display', serif; font-size: 2rem; color: white; padding-left: 56px; }
+        .hero-copy { color: rgba(255,255,255,0.78); font-size: 0.82rem; line-height: 1.6; padding-left: 56px; margin-top: 10px; max-width: 280px; }
+        .section-label { font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sub); margin: 22px 20px 12px; }
+        .groups { padding: 0 16px 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .group-card {
+            min-height: 188px;
+            display: flex;
+            flex-direction: column;
+            text-decoration: none;
+            color: inherit;
+            background: var(--card);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+        }
+        .group-card:active { transform: scale(0.98); }
+        .group-cover {
+            height: 108px;
+            width: 100%;
+            background: linear-gradient(135deg, rgba(19,103,122,0.16), rgba(240,81,35,0.14));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .group-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .group-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(240,81,35,0.12);
+            color: #f05123;
+            font-size: 1.2rem;
+        }
+        .group-body {
+            padding: 16px 16px 15px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        .group-name { font-family: 'DM Serif Display', serif; font-size: 1.02rem; line-height: 1.15; margin-top: 2px; }
+        .group-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 12px; color: var(--sub); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; }
+        .group-arrow { color: var(--orange); font-size: 0.95rem; }
+        .empty { margin: 20px 16px; background: #fff; border-radius: 20px; padding: 28px 22px; color: var(--sub); line-height: 1.7; box-shadow: 0 1px 5px rgba(0,0,0,0.06); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="hero">
+        <a href="{{ url_for('hub') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+        <div class="hero-tag">Oasis Christian Centre</div>
+        <div class="hero-title">Oasis Crew</div>
+        <div class="hero-copy">Meet the teams who make the experience happen long before and after the lights come on.</div>
+    </div>
+
+    {% if scenes %}
+    <div class="section-label">Select A Ministry</div>
+    <div class="groups">
+        {% for scene in scenes %}
+        <a href="{{ url_for('behind_scene_detail', sid=scene.id) }}" class="group-card">
+            <div class="group-cover">
+                {% if scene.photo %}
+                <img src="/static/{{ scene.photo }}" alt="{{ scene.name }}">
+                {% else %}
+                <div class="group-icon"><i class="bi bi-people-fill"></i></div>
+                {% endif %}
+            </div>
+            <div class="group-body">
+                <div class="group-name">{{ scene.name }}</div>
+                <div class="group-meta">
+                    <span>{{ member_counts.get(scene.id, 0) }} People</span>
+                    <span class="group-arrow"><i class="bi bi-arrow-right"></i></span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        No Oasis Crew groups have been added yet.
+    </div>
+    {% endif %}
+</div>
+</body>
+</html>

@@ -1,23 +1,322 @@
-{% extends "base.html" %}
-{% block title %}Connect Card{% endblock %}
-{% block head %}<style>.spr{display:flex;align-items:center;gap:10px;margin:28px 0 14px;}.sp{background:var(--orange);color:#fff;font-size:0.62rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;padding:4px 14px;border-radius:20px;}.sl{flex:1;height:0.5px;background:var(--line);}.cg{display:flex;flex-direction:column;gap:10px;}.cl{display:flex;align-items:flex-start;gap:12px;font-size:0.86rem;color:var(--text);cursor:pointer;}input[type="checkbox"]{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line);background:var(--bg);appearance:none;-webkit-appearance:none;flex-shrink:0;margin-top:1px;cursor:pointer;position:relative;}input[type="checkbox"]:checked{background:var(--teal);border-color:var(--teal);}input[type="checkbox"]:checked::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z'/%3E%3C/svg%3E") center/12px no-repeat;}</style>{% endblock %}
-{% block content %}
-<div class="hero"><a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Oasis Christian Centre</div><div class="hero-title">Connect Card</div></div></div>
-<div class="body">
-<div class="card"><div class="card-body"><form method="POST">
-  <div class="field"><label class="field-label">Full Name</label><input type="text" name="full_name" required placeholder="Your full name"></div>
-  <div class="row2" style="margin-top:16px"><div class="field" style="margin-top:0"><label class="field-label">Phone</label><input type="tel" name="phone" placeholder="(000) 000-0000"></div><div class="field" style="margin-top:0"><label class="field-label">Email</label><input type="email" name="email" placeholder="you@email.com"></div></div>
-  <div class="field"><label class="field-label">Address</label><input type="text" name="address" placeholder="Street, City, State"></div>
-  <div class="row2" style="margin-top:16px"><div class="field" style="margin-top:0"><label class="field-label">Gender</label><select name="gender"><option>Male</option><option>Female</option></select></div><div class="field" style="margin-top:0"><label class="field-label">Age Group</label><select name="age_group"><option>13-19</option><option>20-29</option><option>30-39</option><option>40-49</option><option>50-59</option><option>60+</option></select></div></div>
-  <div class="field"><label class="field-label">Marital Status</label><select name="marital"><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></div>
-  <div class="field"><label class="field-label">Member Status</label><select name="member_status"><option>This is my first time visiting</option><option>I've visited a few times</option><option>Oasis is my home church</option></select></div>
-  <div class="field"><label class="field-label">How did you hear about us?</label><input type="text" name="referral" placeholder="Friend, social media, etc."></div>
-</form></div></div>
-<div class="spr"><div class="sp">Know God</div><div class="sl"></div></div>
-<div class="card"><div class="card-body"><div class="cg"><label class="cl"><input type="checkbox" name="kg" value="Follow Jesus">I chose to follow Jesus for the first time today</label><label class="cl"><input type="checkbox" name="kg" value="Questions">I have questions about God and Church</label><label class="cl"><input type="checkbox" name="kg" value="Start Over">I used to believe and I'm looking to start over</label><label class="cl"><input type="checkbox" name="kg" value="Baptism">I want to be water baptized</label></div></div></div>
-<div class="spr"><div class="sp">Find Hope</div><div class="sl"></div></div>
-<div class="card"><div class="card-body"><div class="cg"><label class="cl"><input type="checkbox" name="fh" value="Pastoral Team">I'd like to speak with a pastoral team member</label><label class="cl"><input type="checkbox" name="fh" value="Circles">I'd like info on Circles small groups</label><label class="cl"><input type="checkbox" name="fh" value="Men/Women Ministry">I'd like info on men and women's ministries</label><label class="cl"><input type="checkbox" name="fh" value="Youth/Children">I'd like info on youth and children's ministries</label><label class="cl"><input type="checkbox" name="fh" value="Addiction Ministry">I'd like info on addiction and recovery ministries</label></div></div></div>
-<div class="spr"><div class="sp">Make a Difference</div><div class="sl"></div></div>
-<div class="card"><div class="card-body"><form method="POST"><div class="cg"><label class="cl"><input type="checkbox" name="md" value="Missions">I'd like info on Mission trips</label><label class="cl"><input type="checkbox" name="md" value="Community Outreach">I'd like to get involved with community outreach</label></div><div class="field"><label class="field-label">I'd like to serve at Oasis</label><select name="serve_area"><option value="">Select an area…</option><option>Pre K</option><option>Elementary</option><option>Youth</option><option>Guest Experience Team</option><option>Usher</option><option>Woman Ministry</option><option>Sound &amp; Lighting</option><option>Media Presentation</option><option>Broadcast</option><option>Media Production</option><option>Social Media</option><option>Parking</option></select></div><div class="field"><label class="field-label">Questions / Prayer Request</label><textarea name="message" rows="4" required placeholder="Share anything on your heart…"></textarea></div><button type="submit" class="btn btn-primary btn-block" style="margin-top:22px">Submit &amp; Enter the Hub →</button></form></div></div>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connect — Oasis Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root {
+            --teal: #13677A;
+            --orange: #F2541B;
+            --bg: #F5F5F7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #6e6e73;
+            --line: #d2d2d7;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .shell {
+            width: 100%;
+            max-width: 390px;
+            padding-bottom: 120px;
+        }
+
+        /* Hero header */
+        .back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
+        .hero {
+            background: var(--teal);
+            padding: 60px 24px 30px;
+            position: relative;
+        }
+
+        .hero-tag {
+            font-size: 0.65rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.55);
+            margin-bottom: 6px;
+            padding-left: 56px;
+        }
+
+        .hero-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 2rem;
+            color: white;
+            line-height: 1.15;
+            padding-left: 56px;
+        }
+
+        /* Body */
+        .body { padding: 24px 16px; }
+
+        /* Section header */
+        .section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 28px 0 14px;
+        }
+        .section-pill {
+            background: var(--orange);
+            color: white;
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 20px;
+        }
+        .section-line { flex: 1; height: 1px; background: var(--line); }
+
+        /* Form card */
+        .form-card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 22px 18px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+
+        label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--sub);
+            margin-bottom: 7px;
+            margin-top: 16px;
+        }
+        label:first-child { margin-top: 0; }
+
+        input[type="text"],
+        input[type="tel"],
+        input[type="email"],
+        select,
+        textarea {
+            width: 100%;
+            background: var(--bg);
+            border: 1.5px solid transparent;
+            border-radius: 12px;
+            padding: 13px 14px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.9rem;
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+            -webkit-appearance: none;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--teal);
+            background: white;
+        }
+
+        .row2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Checkboxes */
+        .check-group { display: flex; flex-direction: column; gap: 8px; }
+        .check-label {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            font-size: 0.86rem;
+            font-weight: 400;
+            text-transform: none;
+            letter-spacing: 0;
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            border-radius: 6px;
+            border: 1.5px solid var(--line);
+            background: var(--bg);
+            appearance: none;
+            -webkit-appearance: none;
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: background 0.15s, border-color 0.15s;
+            cursor: pointer;
+            position: relative;
+        }
+        input[type="checkbox"]:checked {
+            background: var(--teal);
+            border-color: var(--teal);
+        }
+        input[type="checkbox"]:checked::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath d='M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0z'/%3E%3C/svg%3E") center/12px no-repeat;
+        }
+
+        .btn-submit {
+            display: block;
+            width: 100%;
+            background: var(--orange);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 17px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            margin-top: 32px;
+            box-shadow: 0 8px 25px rgba(242,84,27,0.35);
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        .btn-submit:active { transform: scale(0.98); opacity: 0.9; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="hero">
+        <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+        <div class="hero-tag">Oasis Christian Centre</div>
+        <div class="hero-title">Connect Card</div>
+    </div>
+
+    <div class="body">
+        <div class="form-card">
+            <form method="POST">
+                <label>Full Name</label>
+                <input type="text" name="full_name" required placeholder="Your full name">
+
+                <div class="row2">
+                    <div>
+                        <label>Phone</label>
+                        <input type="tel" name="phone" placeholder="(000) 000-0000">
+                    </div>
+                    <div>
+                        <label>Email</label>
+                        <input type="email" name="email" placeholder="you@email.com">
+                    </div>
+                </div>
+
+                <label>Address</label>
+                <input type="text" name="address" placeholder="Street, City, State">
+
+                <div class="row2">
+                    <div>
+                        <label>Gender</label>
+                        <select name="gender">
+                            <option>Male</option>
+                            <option>Female</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Age Group</label>
+                        <select name="age_group">
+                            <option>13-19</option><option>20-29</option><option>30-39</option>
+                            <option>40-49</option><option>50-59</option><option>60+</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label>Marital Status</label>
+                <select name="marital">
+                    <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
+                </select>
+
+                <label>Member Status</label>
+                <select name="member_status">
+                    <option>This is my first time visiting</option>
+                    <option>I've visited a few times</option>
+                    <option>Oasis is my home church</option>
+                </select>
+
+                <label>How did you hear about us?</label>
+                <input type="text" name="referral" placeholder="Friend, social media, etc.">
+            </form>
+        </div>
+
+        <!-- Know God -->
+        <div class="section">
+            <div class="section-pill">Know God</div>
+            <div class="section-line"></div>
+        </div>
+        <div class="form-card">
+            <div class="check-group">
+                <label class="check-label"><input type="checkbox" name="kg" value="Follow Jesus">I chose to follow Jesus for the first time today</label>
+                <label class="check-label"><input type="checkbox" name="kg" value="Questions">I have questions about God and Church</label>
+                <label class="check-label"><input type="checkbox" name="kg" value="Start Over">I used to believe and I'm looking to start over</label>
+                <label class="check-label"><input type="checkbox" name="kg" value="Baptism">I want to be water baptized</label>
+            </div>
+        </div>
+
+        <!-- Find Hope -->
+        <div class="section">
+            <div class="section-pill">Find Hope</div>
+            <div class="section-line"></div>
+        </div>
+        <div class="form-card">
+            <div class="check-group">
+                <label class="check-label"><input type="checkbox" name="fh" value="Pastoral Team">I'd like to speak with a pastoral team member</label>
+                <label class="check-label"><input type="checkbox" name="fh" value="Circles">I'd like info on Circles small groups</label>
+                <label class="check-label"><input type="checkbox" name="fh" value="Men/Women Ministry">I'd like info on men and women's ministries</label>
+                <label class="check-label"><input type="checkbox" name="fh" value="Youth/Children">I'd like info on youth and children's ministries</label>
+                <label class="check-label"><input type="checkbox" name="fh" value="Addiction Ministry">I'd like info on addiction and recovery ministries</label>
+            </div>
+        </div>
+
+        <!-- Make a Difference -->
+        <div class="section">
+            <div class="section-pill">Make a Difference</div>
+            <div class="section-line"></div>
+        </div>
+        <div class="form-card">
+            <form method="POST">
+                <div class="check-group">
+                    <label class="check-label"><input type="checkbox" name="md" value="Missions">I'd like info on Mission trips</label>
+                    <label class="check-label"><input type="checkbox" name="md" value="Community Outreach">I'd like to get involved with community outreach</label>
+                </div>
+
+                <label>I'd like to serve at Oasis</label>
+                <select name="serve_area">
+                    <option value="">Select an area...</option>
+                    <option>Pre K</option><option>Elementary</option><option>Youth</option>
+                    <option>Guest Experience Team</option><option>Usher</option>
+                    <option>Woman Ministry</option><option>Sound & Lighting</option>
+                    <option>Media Presentation</option><option>Broadcast</option>
+                    <option>Media Production</option><option>Social Media</option>
+                    <option>Parking</option>
+                </select>
+
+                <label>Questions / Prayer Request</label>
+                <textarea name="message" rows="4" placeholder="Share anything on your heart..." required></textarea>
+
+                <button type="submit" class="btn-submit">Submit &amp; Enter the Hub →</button>
+            </form>
+        </div>
+    </div>
 </div>
-{% endblock %}
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body>
+</html>

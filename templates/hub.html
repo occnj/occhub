@@ -1,91 +1,484 @@
-{% extends "base.html" %}
-{% block title %}Hub{% endblock %}
-{% block head %}
-<style>
-.topbar{display:flex;align-items:center;justify-content:space-between;padding:58px 16px 18px;}
-.greeting-label{font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--sub);margin-bottom:3px;}
-.greeting-name{font-family:'DM Serif Display',serif;font-size:1.65rem;line-height:1.1;color:var(--text);}
-.logo-icon{width:54px;height:54px;object-fit:contain;}
-.sermon-card{background:linear-gradient(135deg,var(--teal-dark) 0%,var(--teal) 60%,#1a8a9e 100%);border-radius:var(--radius-xl);overflow:hidden;display:flex;align-items:stretch;margin:0 16px 22px;text-decoration:none;position:relative;min-height:108px;box-shadow:0 8px 28px rgba(19,103,122,0.30);transition:transform 0.18s;}
-.sermon-card:active{transform:scale(0.98);}
-.sermon-text{padding:22px 20px;flex:1;z-index:1;}
-.sermon-badge{display:inline-block;background:rgba(255,255,255,0.14);color:rgba(255,255,255,0.88);font-size:0.60rem;letter-spacing:0.14em;text-transform:uppercase;font-weight:600;padding:3px 10px;border-radius:20px;margin-bottom:9px;}
-.sermon-title{color:#fff;font-size:1.0rem;font-weight:600;line-height:1.3;margin-bottom:5px;}
-.sermon-cta{color:rgba(255,255,255,0.58);font-size:0.75rem;}
-.sermon-img{width:96px;height:100%;object-fit:cover;opacity:0.55;flex-shrink:0;}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px;}
-.tile{background:var(--card);border-radius:var(--radius-lg);padding:18px 16px 16px;text-decoration:none;color:var(--text);display:flex;flex-direction:column;align-items:flex-start;min-height:96px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:transform 0.18s;border:0.5px solid rgba(0,0,0,0.04);}
-.tile:active{transform:scale(0.97);}
-.tile-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:10px;}
-.tile-icon.teal{background:var(--teal-light);color:var(--teal);} .tile-icon.orange{background:var(--orange-light);color:var(--orange);}
-.tile-label{font-size:0.82rem;font-weight:600;line-height:1.3;}
-.tile-sub{font-size:0.67rem;color:var(--sub);margin-top:2px;}
-.tile-chevron{position:absolute;right:13px;bottom:14px;color:var(--line);font-size:0.75rem;}
-.modal-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.48);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s;}
-.modal-overlay.open{opacity:1;pointer-events:all;}
-.modal-sheet{background:var(--card);border-radius:var(--radius-xl) var(--radius-xl) 0 0;width:100%;max-width:390px;padding:14px 20px 44px;transform:translateY(100%);transition:transform 0.38s cubic-bezier(0.16,1,0.3,1);}
-.modal-overlay.open .modal-sheet{transform:translateY(0);}
-.modal-handle{width:38px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 16px;}
-.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
-.modal-title{font-family:'DM Serif Display',serif;font-size:1.3rem;}
-.modal-close{background:var(--bg);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--sub);}
-.modal-body{display:flex;flex-direction:column;gap:14px;}
-.info-block{display:flex;align-items:flex-start;gap:14px;}
-.info-icon{width:38px;height:38px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1rem;}
-.info-icon.teal{background:var(--teal-light);color:var(--teal);} .info-icon.orange{background:var(--orange-light);color:var(--orange);}
-.info-label{font-size:0.66rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--sub);margin-bottom:3px;}
-.info-val{font-size:0.88rem;font-weight:500;color:var(--text);line-height:1.5;}
-.info-sub{font-size:0.76rem;color:var(--sub);margin-top:2px;}
-.modal-divider{height:0.5px;background:var(--line);}
-.contact-btn{display:flex;align-items:center;gap:10px;padding:15px 18px;border-radius:var(--radius-md);text-decoration:none;font-size:0.9rem;font-weight:600;transition:transform 0.15s;}
-.teal-btn{background:var(--teal);color:#fff;} .orange-btn{background:var(--orange);color:#fff;} .ghost-btn{background:var(--bg);color:var(--text);border:0.5px solid var(--line);}
-</style>
-{% endblock %}
-{% block content %}
-<div class="topbar">
-  <div><div class="greeting-label">{{ date }}</div><div class="greeting-name">{{ greeting }}</div></div>
-  <img src="/static/{{ settings.logo_path or 'logo.png' }}" class="logo-icon" alt="Oasis">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oasis Hub</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+    <style>
+        :root {
+            --teal: #13677A;
+            --orange: #F2541B;
+            --bg: #F5F5F7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --sub: #6e6e73;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            padding-bottom: 100px;
+            min-height: 100vh;
+        }
+
+        .shell {
+            width: 100%;
+            max-width: 390px;
+            padding: 0 16px 20px;
+        }
+
+        /* Top bar */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 58px 0 20px;
+        }
+
+        .greeting-block {}
+        .greeting-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--sub);
+            margin-bottom: 2px;
+        }
+        .greeting-name {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.6rem;
+            color: var(--text);
+            line-height: 1.1;
+        }
+
+        .logo-icon {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+        }
+
+        /* Sermon hero card */
+        .sermon-card {
+            background: var(--teal);
+            border-radius: 20px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            text-decoration: none;
+            position: relative;
+            min-height: 100px;
+            transition: transform 0.18s ease;
+        }
+        .sermon-card:active { transform: scale(0.98); }
+
+        .sermon-text {
+            padding: 20px 18px;
+            flex: 1;
+            z-index: 2;
+        }
+        .sermon-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.85);
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 3px 9px;
+            border-radius: 20px;
+            margin-bottom: 8px;
+        }
+        .sermon-title {
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 4px;
+        }
+        .sermon-date {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.78rem;
+        }
+
+        .sermon-img {
+            width: 90px;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.7;
+            flex-shrink: 0;
+        }
+
+        .sermon-chevron {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255,255,255,0.5);
+            font-size: 1rem;
+        }
+
+        /* Section */
+        .section-label {
+            font-size: 0.65rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--sub);
+            margin-bottom: 12px;
+            padding-left: 4px;
+        }
+
+        /* Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .tile {
+            background: var(--card);
+            border-radius: 18px;
+            padding: 18px 16px 16px;
+            text-decoration: none;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            min-height: 90px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .tile:active { transform: scale(0.97); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+
+        .tile-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        .tile-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+        .tile-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+
+        .tile-label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.3;
+        }
+        .tile-sub {
+            font-size: 0.68rem;
+            color: var(--sub);
+            margin-top: 2px;
+        }
+
+        .tile-chevron {
+            position: absolute;
+            right: 13px;
+            bottom: 14px;
+            color: #c7c7cc;
+            font-size: 0.75rem;
+        }
+
+        /* Tab bar */
+        .tabbar {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            max-width: 390px;
+            height: 82px;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            padding: 0 8px 16px;
+            z-index: 1000;
+        }
+
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            text-decoration: none;
+            color: #8e8e93;
+            font-size: 0.58rem;
+            letter-spacing: 0.04em;
+            min-width: 48px;
+            padding-top: 8px;
+        }
+        .tab-item i { font-size: 1.3rem; }
+        .tab-item.danger i { color: #ff3b30; }
+
+        .fab {
+            width: 58px;
+            height: 58px;
+            background: var(--orange);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1.7rem;
+            margin-top: -26px;
+            transition: transform 0.15s;
+        }
+        .fab:active { transform: scale(0.93); }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="topbar">
+        <div class="greeting-block">
+            <div class="greeting-label">{{ date }}</div>
+            <div class="greeting-name">{{ greeting }}</div>
+        </div>
+        <img src="/static/{{ settings.logo_path if settings.logo_path else 'logo.png' }}" class="logo-icon" alt="Oasis">
+    </div>
+
+    <a href="{{ settings.sermon_url }}" class="sermon-card">
+        <div class="sermon-text">
+            <div class="sermon-badge">Today's Message</div>
+            <div class="sermon-title">Click for Sermon Notes</div>
+            <div class="sermon-date">Tap to follow along →</div>
+        </div>
+        <img src="/static/sermon.png" class="sermon-img" alt="">
+    </a>
+
+    <div class="section-label">Quick Access</div>
+    <div class="grid">
+
+        <a href="{{ settings.yousaidyes_url }}" target="_blank" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-cloud-arrow-down"></i></div>
+            <div class="tile-label">You Said Yes</div>
+            <div class="tile-sub">Download PDF</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/watch-sermon" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-youtube"></i></div>
+            <div class="tile-label">Watch the Latest</div>
+            <div class="tile-sub">Latest messages</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/calendar" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-calendar3"></i></div>
+            <div class="tile-label">Upcoming Events</div>
+            <div class="tile-sub">What's happening</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/prayer" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-hand-index-thumb"></i></div>
+            <div class="tile-label">Prayer Request</div>
+            <div class="tile-sub">We're here for you</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="https://www.oasisnj.net/helpdesk" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-headset"></i></div>
+            <div class="tile-label">Help Desk</div>
+            <div class="tile-sub">Get support</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/beliefs" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-book"></i></div>
+            <div class="tile-label">Our Beliefs</div>
+            <div class="tile-sub">What we stand on</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/leadership" class="tile">
+            <div class="tile-icon teal"><i class="bi bi-person-badge"></i></div>
+            <div class="tile-label">Leadership</div>
+            <div class="tile-sub">Meet the team</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+        <a href="/behind-the-scene" class="tile">
+            <div class="tile-icon orange"><i class="bi bi-people-fill"></i></div>
+            <div class="tile-label">Oasis Crew</div>
+            <div class="tile-sub">Meet the teams</div>
+            <i class="bi bi-chevron-right tile-chevron"></i>
+        </a>
+
+    </div>
 </div>
-<a href="{{ settings.sermon_url }}" class="sermon-card">
-  <div class="sermon-text">
-    <div class="sermon-badge">Today's Message</div>
-    <div class="sermon-title">Sermon Notes</div>
-    <div class="sermon-cta">Tap to follow along →</div>
-  </div>
-  <img src="/static/sermon.png" class="sermon-img" alt="">
-</a>
-<span class="section-label" style="padding:0 20px">Quick Access</span>
-<div class="grid" style="margin-top:10px;">
-  <a href="{{ settings.yousaidyes_url }}" target="_blank" class="tile"><div class="tile-icon orange"><i class="bi bi-cloud-arrow-down"></i></div><div class="tile-label">You Said Yes</div><div class="tile-sub">Download PDF</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/watch-sermon" class="tile"><div class="tile-icon teal"><i class="bi bi-play-circle"></i></div><div class="tile-label">Watch Latest</div><div class="tile-sub">Messages & sermons</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/calendar" class="tile"><div class="tile-icon orange"><i class="bi bi-calendar3"></i></div><div class="tile-label">Events</div><div class="tile-sub">What's happening</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/prayer" class="tile"><div class="tile-icon teal"><i class="bi bi-hand-index-thumb"></i></div><div class="tile-label">Prayer Request</div><div class="tile-sub">We're here for you</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="https://www.oasisnj.net/helpdesk" class="tile"><div class="tile-icon teal"><i class="bi bi-headset"></i></div><div class="tile-label">Help Desk</div><div class="tile-sub">Get support</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/beliefs" class="tile"><div class="tile-icon orange"><i class="bi bi-book"></i></div><div class="tile-label">Our Beliefs</div><div class="tile-sub">What we stand on</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/leadership" class="tile"><div class="tile-icon teal"><i class="bi bi-person-badge"></i></div><div class="tile-label">Leadership</div><div class="tile-sub">Meet the team</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-  <a href="/behind-the-scene" class="tile"><div class="tile-icon orange"><i class="bi bi-people-fill"></i></div><div class="tile-label">Oasis Crew</div><div class="tile-sub">Behind the scenes</div><i class="bi bi-chevron-right tile-chevron"></i></a>
-</div>
-{% endblock %}
-{% block modals %}
+
 <nav class="tabbar">
-  <a href="/about" class="tab-item"><i class="bi bi-info-circle-fill"></i><span>About</span></a>
-  <a href="/social" class="tab-item"><i class="bi bi-share-fill"></i><span>Social</span></a>
-  <a href="/serve" class="fab"><i class="bi bi-person-raised-hand"></i></a>
-  <a href="{{ settings.give_url }}" target="_blank" class="tab-item danger"><i class="bi bi-heart-fill"></i><span>Give</span></a>
-  <button onclick="document.getElementById('contact-modal').classList.add('open')" class="tab-item"><i class="bi bi-telephone-fill"></i><span>Call</span></button>
+    <a href="/about" class="tab-item">
+        <i class="bi bi-info-circle-fill"></i>
+        <span>About</span>
+    </a>
+    <a href="/social" class="tab-item">
+        <i class="bi bi-share-fill"></i>
+        <span>Social</span>
+    </a>
+    <a href="/serve" class="fab" title="Serve">
+        <i class="bi bi-person-raised-hand"></i>
+    </a>
+    <a href="{{ settings.give_url }}" target="_blank" class="tab-item danger">
+        <i class="bi bi-heart-fill"></i>
+        <span>Give</span>
+    </a>
+    <button onclick="document.getElementById('contact-modal').classList.add('open')" class="tab-item" style="background:none;border:none;cursor:pointer;">
+        <i class="bi bi-telephone-fill"></i>
+        <span>Call</span>
+    </button>
 </nav>
+
+<!-- Contact Modal -->
 <div id="contact-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-header"><div class="modal-title">Contact Us</div><button class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('open')"><i class="bi bi-x-lg"></i></button></div>
+    <div class="modal-header">
+      <div class="modal-title">Contact Us</div>
+      <button class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('open')">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
     <div class="modal-body">
-      <div class="info-block"><div class="info-icon teal"><i class="bi bi-building"></i></div><div><div class="info-label">Main Building</div><div class="info-val">2052 St. Georges Ave<br>Rahway, NJ 07065</div></div></div>
-      <div class="info-block"><div class="info-icon orange"><i class="bi bi-clock-fill"></i></div><div><div class="info-label">Sunday Services</div><div class="info-val">8:30am · 10:00am · 11:30am</div></div></div>
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-building"></i></div>
+        <div>
+          <div class="info-label">Main Building</div>
+          <div class="info-val">2052 St. Georges Ave<br>Rahway, NJ 07065</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon orange"><i class="bi bi-clock-fill"></i></div>
+        <div>
+          <div class="info-label">Sunday Services</div>
+          <div class="info-val">8:30am · 10:00am · 11:30am</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-briefcase-fill"></i></div>
+        <div>
+          <div class="info-label">Our Offices</div>
+          <div class="info-val">2096 St. Georges Ave<br>Rahway, NJ 07065</div>
+          <div class="info-sub">Mon–Fri: 9:00am – 4:30pm</div>
+        </div>
+      </div>
+
       <div class="modal-divider"></div>
-      <a href="tel:7324990040" class="contact-btn teal-btn"><i class="bi bi-telephone-fill"></i> 732-499-0040</a>
-      <a href="mailto:Oasis@OasisNJ.net" class="contact-btn ghost-btn"><i class="bi bi-envelope-fill"></i> Oasis@OasisNJ.net</a>
-      <a href="/contact" class="contact-btn orange-btn"><i class="bi bi-chat-dots-fill"></i> Send a Message</a>
+
+      <a href="tel:7324990040" class="contact-btn teal-btn">
+        <i class="bi bi-telephone-fill"></i>
+        <span>732-499-0040</span>
+      </a>
+      <a href="mailto:Oasis@OasisNJ.net" class="contact-btn ghost-btn">
+        <i class="bi bi-envelope-fill"></i>
+        <span>Oasis@OasisNJ.net</span>
+      </a>
+      <a href="/contact" class="contact-btn orange-btn">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span>Send a Message</span>
+      </a>
     </div>
   </div>
 </div>
-{% endblock %}
+
+<style>
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-sheet {
+  background: #fff; border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 390px;
+  padding: 12px 20px 40px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
+.modal-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: #d2d2d7; margin: 0 auto 16px;
+}
+.modal-header {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem; color: var(--text);
+}
+.modal-close {
+  background: #F5F5F7; border: none; border-radius: 50%;
+  width: 30px; height: 30px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sub); font-size: 0.8rem;
+}
+.modal-body { display: flex; flex-direction: column; gap: 14px; }
+.info-block {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.info-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.info-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+.info-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+.info-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: 3px;
+}
+.info-val { font-size: 0.88rem; font-weight: 500; color: var(--text); line-height: 1.5; }
+.info-sub { font-size: 0.78rem; color: var(--sub); margin-top: 2px; }
+.modal-divider {
+  height: 1px; background: #f0f0f0; margin: 4px 0;
+}
+.contact-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 15px 18px; border-radius: 14px;
+  text-decoration: none; font-size: 0.9rem; font-weight: 600;
+  transition: transform 0.15s;
+}
+.contact-btn:active { transform: scale(0.97); }
+.teal-btn { background: var(--teal); color: white; }
+.orange-btn { background: var(--orange); color: white; }
+.ghost-btn {
+  background: #F5F5F7; color: var(--text);
+  border: 1px solid #e5e5ea;
+}
+</style>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body>
+</html>

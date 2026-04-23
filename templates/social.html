@@ -1,13 +1,88 @@
-{% extends "base.html" %}
-{% block title %}Follow Us{% endblock %}
-{% block head %}<style>.soc-btn{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:var(--radius-lg);padding:18px 20px;text-decoration:none;color:var(--text);box-shadow:var(--shadow-sm);transition:transform 0.15s;border:0.5px solid rgba(0,0,0,0.04);}.soc-btn:active{transform:scale(0.97);}.soc-icon{width:46px;height:46px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;}.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:#fff;}.fb{background:#1877f2;color:#fff;}.yt{background:#ff0000;color:#fff;}.tk{background:#010101;color:#fff;}.tw{background:#1da1f2;color:#fff;}.soc-label{font-size:0.9rem;font-weight:600;}.soc-sub{font-size:0.74rem;color:var(--sub);margin-top:2px;}.soc-arrow{margin-left:auto;color:var(--line);}</style>{% endblock %}
-{% block content %}
-<div class="hero"><a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a><div class="hero-content indent"><div class="hero-tag">Oasis Christian Centre</div><div class="hero-title">{{ settings.social_page_title or 'Follow Along' }}</div><div class="hero-sub">Stay connected with Oasis</div></div></div>
-<div class="body" style="display:flex;flex-direction:column;gap:10px;">
-{% if settings.instagram_url %}<a href="{{ settings.instagram_url }}" target="_blank" class="soc-btn"><div class="soc-icon ig"><i class="bi bi-instagram"></i></div><div><div class="soc-label">Instagram</div><div class="soc-sub">@occnj</div></div><i class="bi bi-arrow-up-right soc-arrow"></i></a>{% endif %}
-{% if settings.facebook_url %}<a href="{{ settings.facebook_url }}" target="_blank" class="soc-btn"><div class="soc-icon fb"><i class="bi bi-facebook"></i></div><div><div class="soc-label">Facebook</div><div class="soc-sub">Oasis Christian Centre</div></div><i class="bi bi-arrow-up-right soc-arrow"></i></a>{% endif %}
-{% if settings.social_youtube_url %}<a href="{{ settings.social_youtube_url }}" target="_blank" class="soc-btn"><div class="soc-icon yt"><i class="bi bi-youtube"></i></div><div><div class="soc-label">YouTube</div><div class="soc-sub">Sermons & Messages</div></div><i class="bi bi-arrow-up-right soc-arrow"></i></a>{% endif %}
-{% if settings.social_tiktok_url %}<a href="{{ settings.social_tiktok_url }}" target="_blank" class="soc-btn"><div class="soc-icon tk"><i class="bi bi-tiktok"></i></div><div><div class="soc-label">TikTok</div><div class="soc-sub">@occnj</div></div><i class="bi bi-arrow-up-right soc-arrow"></i></a>{% endif %}
-{% if settings.social_twitter_url %}<a href="{{ settings.social_twitter_url }}" target="_blank" class="soc-btn"><div class="soc-icon tw"><i class="bi bi-twitter-x"></i></div><div><div class="soc-label">X / Twitter</div><div class="soc-sub">@occnj</div></div><i class="bi bi-arrow-up-right soc-arrow"></i></a>{% endif %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Follow Us — Oasis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:#13677A;--orange:#F2541B;--bg:#F5F5F7;--card:#fff;--text:#1d1d1f;--sub:#6e6e73;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:40px;}
+.shell{width:100%;max-width:390px;}
+.hero{background:var(--teal);padding:56px 24px 32px;position:relative;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
+.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;padding-left:56px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:white;padding-left:56px;}
+.hero-sub{font-size:0.82rem;color:rgba(255,255,255,0.6);padding-left:56px;margin-top:6px;}
+.body{padding:24px 16px;display:flex;flex-direction:column;gap:12px;}
+.soc-btn{display:flex;align-items:center;gap:16px;background:var(--card);border-radius:18px;padding:20px 20px;text-decoration:none;color:var(--text);box-shadow:0 1px 5px rgba(0,0,0,0.06);transition:transform 0.15s;}
+.soc-btn:active{transform:scale(0.97);}
+.soc-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;}
+.soc-icon.ig{background:linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);color:white;}
+.soc-icon.fb{background:#1877f2;color:white;}
+.soc-icon.yt{background:#ff0000;color:white;}
+.soc-icon.tw{background:#1da1f2;color:white;}
+.soc-icon.custom{background:var(--teal);color:white;}
+.soc-label{font-size:0.9rem;font-weight:600;}
+.soc-sub{font-size:0.74rem;color:var(--sub);margin-top:2px;}
+.soc-arrow{margin-left:auto;color:#c7c7cc;font-size:0.8rem;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+    <div class="hero-tag">Oasis Christian Centre</div>
+    <div class="hero-title">{{ settings.social_page_title or 'Follow Along' }}</div>
+    <div class="hero-sub">Stay connected with Oasis</div>
+  </div>
+  <div class="body">
+    {% if settings.instagram_url %}
+    <a href="{{ settings.instagram_url }}" target="_blank" class="soc-btn">
+      <div class="soc-icon ig"><i class="bi bi-instagram"></i></div>
+      <div><div class="soc-label">Instagram</div><div class="soc-sub">@occnj</div></div>
+      <i class="bi bi-arrow-up-right soc-arrow"></i>
+    </a>
+    {% endif %}
+    {% if settings.facebook_url %}
+    <a href="{{ settings.facebook_url }}" target="_blank" class="soc-btn">
+      <div class="soc-icon fb"><i class="bi bi-facebook"></i></div>
+      <div><div class="soc-label">Facebook</div><div class="soc-sub">Oasis Christian Centre</div></div>
+      <i class="bi bi-arrow-up-right soc-arrow"></i>
+    </a>
+    {% endif %}
+    {% if settings.social_youtube_url %}
+    <a href="{{ settings.social_youtube_url }}" target="_blank" class="soc-btn">
+      <div class="soc-icon yt"><i class="bi bi-youtube"></i></div>
+      <div><div class="soc-label">YouTube</div><div class="soc-sub">Sermons & Messages</div></div>
+      <i class="bi bi-arrow-up-right soc-arrow"></i>
+    </a>
+    {% endif %}
+    {% if settings.social_tiktok_url %}
+    <a href="{{ settings.social_tiktok_url }}" target="_blank" class="soc-btn">
+      <div class="soc-icon tk" style="background:#010101;color:white;"><i class="bi bi-tiktok"></i></div>
+      <div><div class="soc-label">TikTok</div><div class="soc-sub">@occnj</div></div>
+      <i class="bi bi-arrow-up-right soc-arrow"></i>
+    </a>
+    {% endif %}
+    {% if settings.social_twitter_url %}
+    <a href="{{ settings.social_twitter_url }}" target="_blank" class="soc-btn">
+      <div class="soc-icon tw"><i class="bi bi-twitter-x"></i></div>
+      <div><div class="soc-label">X / Twitter</div><div class="soc-sub">@occnj</div></div>
+      <i class="bi bi-arrow-up-right soc-arrow"></i>
+    </a>
+    {% endif %}
+  </div>
 </div>
-{% endblock %}
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body></html>

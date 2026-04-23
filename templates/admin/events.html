@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+{% block title %}Events{% endblock %}
+{% block page_title %}Upcoming Events{% endblock %}
+{% block page_sub %}Manage church events calendar{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_event_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Event</a>{% endblock %}
+{% block content %}
+<div class="card">
+  {% if events %}
+  <table>
+    <thead><tr><th>Date</th><th>Time</th><th>Title</th><th>Location</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+    <tr>
+      <td><b>{{ e.event_date }}</b></td>
+      <td style="color:#6e6e73;">{{ e.event_time or '—' }}</td>
+      <td>{{ e.title }}</td>
+      <td style="color:#6e6e73;font-size:0.8rem;">{{ e.location or '—' }}</td>
+      <td>
+        <a href="{{ url_for('admin_event_edit', eid=e.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{{ url_for('admin_event_delete', eid=e.id) }}" style="display:inline;" onsubmit="return confirm('Delete this event?')">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No events yet. <a href="{{ url_for('admin_event_new') }}" style="color:#13677A;">Add the first one →</a></div>
+  {% endif %}
+</div>
+{% endblock %}

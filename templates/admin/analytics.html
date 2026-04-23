@@ -1,0 +1,83 @@
+{% extends "admin/base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Usage Analytics{% endblock %}
+{% block page_sub %}Visitor behavior and page traffic{% endblock %}
+{% block topbar_actions %}
+  <form method="POST" action="{{ url_for('admin_analytics_clear') }}" onsubmit="return confirm('Clear ALL analytics data? This cannot be undone.')">
+    <button type="submit" class="btn btn-danger"><i class="bi bi-trash"></i> Clear All Data</button>
+  </form>
+{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ total }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Total Page Views</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ today }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Views Today</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ week }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Last 7 Days</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ sessions }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Unique Sessions Total</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ sessions_today }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Unique Sessions Today</div>
+  </div>
+  <div class="card" style="padding:20px;text-align:center;">
+    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ sessions_week }}</div>
+    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Unique Sessions Last 7 Days</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Top Pages</div></div>
+    <table>
+      <thead><tr><th>Page</th><th>Views</th><th style="width:120px;">Bar</th></tr></thead>
+      <tbody>
+      {% set max_cnt = by_page[0].cnt if by_page else 1 %}
+      {% for p in by_page %}
+      <tr>
+        <td><b>/{{ p.page }}</b></td>
+        <td style="font-weight:600;color:#13677A;">{{ p.cnt }}</td>
+        <td>
+          <div style="background:#F5F5F7;border-radius:4px;height:8px;overflow:hidden;">
+            <div style="background:#13677A;height:100%;width:{{ (p.cnt/max_cnt*100)|int }}%;border-radius:4px;"></div>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" style="color:#6e6e73;">No data yet</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Daily Views (Last 30 Days)</div></div>
+    <table>
+      <thead><tr><th>Date</th><th>Views</th></tr></thead>
+      <tbody>
+      {% for d in by_day %}
+      <tr>
+        <td style="font-size:0.82rem;">{{ d.day }}</td>
+        <td style="font-weight:600;color:#13677A;">{{ d.cnt }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="2" style="color:#6e6e73;">No data yet</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

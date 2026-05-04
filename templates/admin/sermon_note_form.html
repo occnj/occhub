@@ -1,0 +1,60 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit' if note else 'Import' }} Sermon Notes{% endblock %}
+{% block page_title %}{{ 'Edit Sermon Notes' if note else 'Import Sermon Notes' }}{% endblock %}
+{% block page_sub %}Upload a PDF or DOCX and the app will convert it into a phone-friendly notes page{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_sermon_notes') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:minmax(0,640px) minmax(0,1fr);gap:24px;align-items:start;">
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" class="form-control" value="{{ note.title if note else '' }}" placeholder="Leave blank to use the document heading">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" name="note_date" class="form-control" value="{{ note.note_date if note else '' }}" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Short Summary</label>
+          <textarea name="summary" class="form-control" style="min-height:90px;" placeholder="Optional short intro for the archive page">{{ note.summary if note else '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">{{ 'Replace Source File' if note else 'Upload Source File' }}</label>
+          <input type="file" name="source_file" class="form-control" accept=".pdf,.docx" {% if not note %}required{% endif %}>
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF and DOCX supported. The app will extract the text and turn it into a mobile reading page saved by date.</div>
+        </div>
+
+        {% if note %}
+        <div class="form-group">
+          <label class="form-label">Converted Body</label>
+          <textarea name="body_html" class="form-control" style="min-height:320px;">{{ note.body_html }}</textarea>
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">You can fine-tune the converted HTML here after import if you want cleaner spacing or headings.</div>
+        </div>
+        {% endif %}
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn btn-primary">{{ 'Save Changes' if note else 'Import Notes' }}</button>
+          <a href="{{ url_for('admin_sermon_notes') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="bi bi-info-circle"></i> How It Works</div></div>
+    <div class="card-body" style="font-size:0.84rem;color:#6e6e73;line-height:1.8;">
+      <p style="margin-bottom:12px;">1. Drop in the sermon PDF or DOCX.</p>
+      <p style="margin-bottom:12px;">2. The app reads the text and builds a clean phone-first notes page.</p>
+      <p style="margin-bottom:12px;">3. The newest note automatically becomes the Hub sermon-notes card.</p>
+      <p>4. Older notes stay in the archive by date, not by file name.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{{ note.title }} — Sermon Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:{{ site_settings.get('theme_primary', '#13677A') }};--orange:{{ site_settings.get('theme_accent', '#F2541B') }};--bg:{{ site_settings.get('theme_background', '#F5F5F7') }};--card:{{ site_settings.get('theme_card', '#ffffff') }};--text:{{ site_settings.get('theme_text', '#1d1d1f') }};--sub:{{ site_settings.get('theme_subtext', '#6e6e73') }};}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);{% if site_settings.get('ui_background_image') %}background-image:url('/static/{{ site_settings.get('ui_background_image') }}');background-size:cover;background-position:center;background-attachment:fixed;{% endif %}font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
+.shell{width:100%;max-width:390px;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:var(--orange);border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}
+.hero{position:relative;min-height:240px;overflow:hidden;background:linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);}
+.hero::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.08);filter:blur(2px);pointer-events:none;}
+.hero-content{position:relative;z-index:1;padding:56px 24px 28px 78px;}
+.hero-tag{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.62);margin-bottom:8px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:#fff;line-height:1.08;margin-bottom:10px;}
+.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:250px;}
+.body{padding:22px 16px 0;}
+.card{background:var(--card);border-radius:24px;padding:22px 20px;box-shadow:0 8px 24px rgba(0,0,0,0.08);}
+.meta{font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--sub);margin-bottom:16px;}
+.summary{font-size:0.95rem;line-height:1.75;color:var(--sub);margin-bottom:18px;}
+.content{font-size:0.96rem;line-height:1.9;color:#343438;}
+.content h2{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1.2;color:var(--text);margin:22px 0 10px;}
+.content p{margin:0 0 14px;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="{{ url_for('sermon_notes') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+    <div class="hero-content">
+      <div class="hero-tag">Sermon Notes</div>
+      <div class="hero-title">{{ note.title }}</div>
+      <div class="hero-copy">{{ note.note_date }}</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="card">
+      {% if note.summary %}<div class="summary">{{ note.summary }}</div>{% endif %}
+      <div class="content">{{ note.body_html|safe }}</div>
+    </div>
+  </div>
+</div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  });
+}
+</script>
+</body>
+</html>

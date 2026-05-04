@@ -4,7 +4,8 @@ from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
-import os, re, sqlite3, uuid
+import html
+import os, re, sqlite3, uuid, zipfile, zlib
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -19,6 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY','oasis-change-this-in-production')
 UPLOAD_FOLDER = os.path.join(BASE_DIR,'static','uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif'}
+DOCUMENT_EXTENSIONS = {'pdf', 'docx'}
 
 app.config.update(
     MAIL_SERVER='smtp.office365.com', MAIL_PORT=587,
@@ -128,6 +130,7 @@ def init_db():
         ('social_tiktok_url',''),
         ('sermon_channel_url',''),
         ('watch_page_description','Stay close to what God is saying at Oasis with the latest messages, moments, and live experiences all in one place.'),
+        ('sermon_notes_page_description','Catch the latest sermon notes in a clean reading format built for your phone.'),
         ('crew_page_description','Meet the teams who make the experience happen long before and after the lights come on.'),
         ('mission_page_description','Stories from the field, moments that matter, and the lives being touched through every mission.'),
         ('hub_notice_enabled','0'),
@@ -320,6 +323,16 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS analytics (
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL,
         page TEXT NOT NULL, ip TEXT, ua TEXT, sid TEXT
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS sermon_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        note_date TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        body_html TEXT DEFAULT '',
+        source_file TEXT DEFAULT '',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )''')
 
     conn.commit(); conn.close()
@@ -541,6 +554,9 @@ def get_sermon_videos(settings=None):
 
 def allowed_file(f): return '.'in f and f.rsplit('.',1)[1].lower() in ALLOWED_EXTENSIONS
 
+def allowed_document(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in DOCUMENT_EXTENSIONS
+
 def save_upload(field):
     try:
         f = request.files.get(field)
@@ -558,6 +574,128 @@ def save_upload(field):
     except Exception as e:
         app.logger.error(f"save_upload error ({field}): {e}")
         return None
+
+def save_document_upload(field):
+    try:
+        f = request.files.get(field)
+        if not f or not f.filename:
+            return None, None
+        if not allowed_document(f.filename):
+            app.logger.warning(f"save_document_upload: rejected file type '{f.filename}'")
+            return None, None
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        original_name = secure_filename(f.filename)
+        stem, ext = os.path.splitext(original_name)
+        fname = secure_filename(f"{stem}_{uuid.uuid4().hex[:8]}{ext.lower()}")
+        dest = os.path.join(UPLOAD_FOLDER, fname)
+        f.save(dest)
+        app.logger.info(f"save_document_upload: saved {dest}")
+        return 'uploads/' + fname, ext.lower().lstrip('.')
+    except Exception as e:
+        app.logger.error(f"save_document_upload error ({field}): {e}")
+        return None, None
+
+def normalize_text_lines(text):
+    lines = []
+    for raw_line in (text or '').replace('\r', '\n').split('\n'):
+        line = re.sub(r'\s+', ' ', raw_line).strip()
+        if line:
+            lines.append(line)
+    return lines
+
+def extract_docx_paragraphs(abs_path):
+    try:
+        with zipfile.ZipFile(abs_path) as docx:
+            xml_data = docx.read('word/document.xml')
+        root = ET.fromstring(xml_data)
+        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        paragraphs = []
+        for paragraph in root.findall('.//w:p', ns):
+            parts = []
+            for node in paragraph.findall('.//w:t', ns):
+                if node.text:
+                    parts.append(node.text)
+            text = ''.join(parts).strip()
+            if text:
+                paragraphs.append(text)
+        return paragraphs
+    except Exception as e:
+        app.logger.warning(f"extract_docx_paragraphs() error: {e}")
+        return []
+
+def extract_pdf_lines(abs_path):
+    try:
+        data = open(abs_path, 'rb').read()
+        streams = re.findall(rb'stream\r?\n(.*?)\r?\nendstream', data, re.S)
+        chunks = []
+        for stream in streams:
+            payload = stream
+            try:
+                payload = zlib.decompress(stream)
+            except Exception:
+                pass
+            if b'BT' not in payload:
+                continue
+            text = payload.decode('latin-1', errors='ignore')
+            text = re.sub(r'\\\)', ')', text)
+            text = re.sub(r'\\\(', '(', text)
+            text = re.sub(r'\\n', '\n', text)
+            chunks.extend(re.findall(r'\((.*?)\)\s*Tj', text, re.S))
+            tj_groups = re.findall(r'\[(.*?)\]\s*TJ', text, re.S)
+            for group in tj_groups:
+                chunks.extend(re.findall(r'\((.*?)\)', group, re.S))
+        return normalize_text_lines('\n'.join(chunks))
+    except Exception as e:
+        app.logger.warning(f"extract_pdf_lines() error: {e}")
+        return []
+
+def sermon_title_from_filename(path):
+    base = os.path.splitext(os.path.basename(path or ''))[0]
+    base = re.sub(r'[_-]+', ' ', base).strip()
+    return base.title() if base else 'Sermon Notes'
+
+def html_from_lines(lines):
+    if not lines:
+        return ''
+    blocks = []
+    for index, line in enumerate(lines):
+        escaped = html.escape(line)
+        if len(line) <= 70 and (line.isupper() or line.endswith(':') or (index == 0 and len(line.split()) <= 8)):
+            blocks.append(f'<h2>{escaped.rstrip(":")}</h2>')
+        else:
+            blocks.append(f'<p>{escaped}</p>')
+    return '\n'.join(blocks)
+
+def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
+    abs_path = os.path.join(BASE_DIR, 'static', path_rel)
+    if ext == 'docx':
+        lines = extract_docx_paragraphs(abs_path)
+    else:
+        lines = extract_pdf_lines(abs_path)
+    lines = normalize_text_lines('\n'.join(lines)) if ext == 'pdf' else [line.strip() for line in lines if line.strip()]
+    title = fallback_title.strip() if fallback_title else ''
+    if not title and lines:
+        title = lines[0][:120].strip()
+        lines = lines[1:] if len(lines) > 1 else lines
+    if not title:
+        title = sermon_title_from_filename(path_rel)
+    if not summary:
+        source_line = next((line for line in lines if len(line.split()) > 6), '')
+        summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
+    body_html = html_from_lines(lines)
+    if not body_html and lines:
+        body_html = '\n'.join(f'<p>{html.escape(line)}</p>' for line in lines)
+    return {
+        'title': title,
+        'summary': summary,
+        'body_html': body_html or '<p>Sermon notes were uploaded, but the document did not contain readable text.</p>',
+        'source_file': path_rel,
+    }
+
+def latest_sermon_note(conn):
+    return conn.execute(
+        "SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC LIMIT 1"
+    ).fetchone()
 
 def track(page):
     try:
@@ -752,12 +890,16 @@ def hub():
     hour=datetime.now().hour
     greeting="Good Morning" if hour<12 else "Good Afternoon" if hour<17 else "Good Evening"
     settings = all_settings()
+    conn = get_db()
+    latest_note = latest_sermon_note(conn)
+    conn.close()
     return render_template(
         'hub.html',
         greeting=greeting,
         date=datetime.now().strftime("%b %d, %Y").upper(),
         settings=settings,
         hub_notice=get_hub_notice(settings),
+        latest_note=latest_note,
     )
 
 @app.route('/watch-sermon')
@@ -765,6 +907,26 @@ def watch_sermon():
     track('watch_sermon')
     settings = all_settings()
     return render_template('watch_sermon.html', settings=settings, videos=get_sermon_videos(settings))
+
+@app.route('/sermon-notes')
+def sermon_notes():
+    track('sermon_notes')
+    conn = get_db()
+    notes = conn.execute("SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC").fetchall()
+    latest = notes[0] if notes else None
+    conn.close()
+    return render_template('sermon_notes.html', notes=notes, latest=latest, settings=all_settings())
+
+@app.route('/sermon-notes/<int:nid>')
+def sermon_note_detail(nid):
+    track('sermon_note_detail')
+    conn = get_db()
+    note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+    latest = latest_sermon_note(conn)
+    conn.close()
+    if not note:
+        return redirect(url_for('sermon_notes'))
+    return render_template('sermon_note_detail.html', note=note, latest=latest, settings=all_settings())
 
 @app.route('/beliefs')
 def beliefs():
@@ -1069,6 +1231,7 @@ def admin_page_headers():
             'serve_page_description',
             'social_page_description',
             'watch_page_description',
+            'sermon_notes_page_description',
             'crew_page_description',
         ]:
             conn.execute(
@@ -1107,6 +1270,95 @@ def admin_watch_sermons():
         flash('Watch sermons updated!', 'success')
         return redirect(url_for('admin_watch_sermons'))
     return render_template('admin/watch_sermons.html', settings=all_settings(), videos=get_sermon_videos())
+
+@app.route('/admin/sermon-notes')
+@login_required
+def admin_sermon_notes():
+    conn = get_db()
+    notes = conn.execute("SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC").fetchall()
+    conn.close()
+    return render_template('admin/sermon_notes.html', notes=notes)
+
+@app.route('/admin/sermon-notes/new', methods=['GET', 'POST'])
+@login_required
+def admin_sermon_note_new():
+    if request.method == 'POST':
+        source_file, ext = save_document_upload('source_file')
+        if not source_file:
+            flash('Please upload a PDF or DOCX file.', 'info')
+            return render_template('admin/sermon_note_form.html', note=None)
+        note_date = request.form.get('note_date', '').strip() or date.today().isoformat()
+        payload = build_sermon_note_payload(
+            source_file,
+            ext,
+            fallback_title=request.form.get('title', '').strip(),
+            summary=request.form.get('summary', '').strip(),
+        )
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO sermon_notes (title,note_date,summary,body_html,source_file) VALUES (?,?,?,?,?)",
+            (payload['title'], note_date, payload['summary'], payload['body_html'], payload['source_file'])
+        )
+        conn.commit()
+        conn.close()
+        flash('Sermon notes imported!', 'success')
+        return redirect(url_for('admin_sermon_notes'))
+    return render_template('admin/sermon_note_form.html', note=None)
+
+@app.route('/admin/sermon-notes/<int:nid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_sermon_note_edit(nid):
+    conn = get_db()
+    note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+    if not note:
+        conn.close()
+        return redirect(url_for('admin_sermon_notes'))
+    if request.method == 'POST':
+        source_file, ext = save_document_upload('source_file')
+        if source_file:
+            payload = build_sermon_note_payload(
+                source_file,
+                ext,
+                fallback_title=request.form.get('title', '').strip(),
+                summary=request.form.get('summary', '').strip(),
+            )
+            title = payload['title']
+            summary = payload['summary']
+            body_html = payload['body_html']
+            stored_file = payload['source_file']
+        else:
+            title = request.form.get('title', '').strip() or note['title']
+            summary = request.form.get('summary', '').strip() or note['summary']
+            body_html = request.form.get('body_html', '').strip() or note['body_html']
+            stored_file = note['source_file']
+        conn.execute(
+            "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=? WHERE id=?",
+            (
+                title,
+                request.form.get('note_date', '').strip() or note['note_date'],
+                summary,
+                body_html,
+                stored_file,
+                nid,
+            )
+        )
+        conn.commit()
+        updated = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+        conn.close()
+        flash('Sermon notes updated!', 'success')
+        return render_template('admin/sermon_note_form.html', note=updated)
+    conn.close()
+    return render_template('admin/sermon_note_form.html', note=note)
+
+@app.route('/admin/sermon-notes/<int:nid>/delete', methods=['POST'])
+@login_required
+def admin_sermon_note_delete(nid):
+    conn = get_db()
+    conn.execute("DELETE FROM sermon_notes WHERE id=?", (nid,))
+    conn.commit()
+    conn.close()
+    flash('Sermon note removed.', 'info')
+    return redirect(url_for('admin_sermon_notes'))
 
 @app.route('/admin/hub-notice', methods=['GET', 'POST'])
 @login_required

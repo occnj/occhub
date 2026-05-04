@@ -340,11 +340,11 @@
         <img src="/static/{{ settings.logo_path if settings.logo_path else 'logo.png' }}" class="logo-icon" alt="Oasis">
     </div>
 
-    <a href="{{ settings.sermon_url }}" class="sermon-card">
+    <a href="{{ url_for('sermon_note_detail', nid=latest_note.id) if latest_note else url_for('sermon_notes') }}" class="sermon-card">
         <div class="sermon-text">
             <div class="sermon-badge">Today's Message</div>
-            <div class="sermon-title">Click for Sermon Notes</div>
-            <div class="sermon-date">Tap to follow along →</div>
+            <div class="sermon-title">{{ latest_note.title if latest_note else 'Sermon Notes' }}</div>
+            <div class="sermon-date">{{ latest_note.note_date if latest_note else 'Tap to follow along →' }}</div>
         </div>
         <img src="/static/sermon.png" class="sermon-img" alt="">
     </a>

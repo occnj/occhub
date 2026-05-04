@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block title %}Sermon Notes{% endblock %}
+{% block page_title %}Sermon Notes{% endblock %}
+{% block page_sub %}Import notes from PDF or DOCX and publish them as a clean mobile reading experience{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_sermon_note_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Import Notes</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {% if notes %}
+  <table>
+    <thead><tr><th>Date</th><th>Title</th><th>Summary</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for note in notes %}
+    <tr>
+      <td><b>{{ note.note_date }}</b></td>
+      <td>{{ note.title }}</td>
+      <td style="color:#6e6e73;font-size:0.82rem;">{{ note.summary or '—' }}</td>
+      <td>
+        <a href="{{ url_for('sermon_note_detail', nid=note.id) }}" class="btn btn-ghost btn-sm" target="_blank"><i class="bi bi-eye"></i> View</a>
+        <a href="{{ url_for('admin_sermon_note_edit', nid=note.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{{ url_for('admin_sermon_note_delete', nid=note.id) }}" style="display:inline;" onsubmit="return confirm('Delete this sermon note?')">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No sermon notes yet. <a href="{{ url_for('admin_sermon_note_new') }}" style="color:#13677A;">Import the first one →</a></div>
+  {% endif %}
+</div>
+{% endblock %}

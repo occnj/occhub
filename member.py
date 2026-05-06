@@ -1328,8 +1328,8 @@ def admin_sermon_note_edit(nid):
             stored_file = payload['source_file']
         else:
             title = request.form.get('title', '').strip() or note['title']
-            summary = request.form.get('summary', '').strip() or note['summary']
-            body_html = request.form.get('body_html', '').strip() or note['body_html']
+            summary = request.form.get('summary', '').strip()
+            body_html = request.form.get('body_html', '').strip()
             stored_file = note['source_file']
         conn.execute(
             "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=? WHERE id=?",

@@ -882,7 +882,14 @@ def superadmin_required(f):
 def splash(): track('splash'); return render_template('splash.html')
 
 @app.route('/gate')
-def gate(): track('gate'); return render_template('gate.html',settings=all_settings())
+def gate():
+    track('gate')
+    thank_you = None
+    if request.args.get('connect') == '1':
+        raw_name = (request.args.get('name') or '').strip()
+        first_name = raw_name.split()[0] if raw_name else ''
+        thank_you = f"Thank you{', ' + first_name if first_name else ''}. We will reach out soon."
+    return render_template('gate.html', settings=all_settings(), thank_you=thank_you)
 
 @app.route('/hub')
 def hub():
@@ -1125,7 +1132,7 @@ def connect():
         <p style="background:#f9f9f9;padding:14px;border-left:4px solid #F2541B">{pr or '—'}</p>
         </div></body></html>"""
         send_email(f"Connect Card: {fn}",get_setting('connect_email','media@oasisnj.net'),html)
-        return redirect(url_for('hub'))
+        return redirect(url_for('gate', connect='1', name=fn))
     return render_template('connect.html',settings=all_settings())
 
 @app.route('/contact',methods=['GET','POST'])

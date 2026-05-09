@@ -340,7 +340,7 @@
         <img src="/static/{{ settings.logo_path if settings.logo_path else 'logo.png' }}" class="logo-icon" alt="Oasis">
     </div>
 
-    <a href="{{ url_for('sermon_note_detail', nid=latest_note.id) if latest_note else url_for('sermon_notes') }}" class="sermon-card">
+    <a href="{{ url_for('sermon_notes') }}" class="sermon-card">
         <div class="sermon-text">
             <div class="sermon-badge">Today's Message</div>
             <div class="sermon-title">{{ latest_note.title if latest_note else 'Sermon Notes' }}</div>
@@ -396,8 +396,8 @@
 
         <a href="/beliefs" class="tile">
             <div class="tile-icon orange"><i class="bi bi-book"></i></div>
-            <div class="tile-label">Our Beliefs</div>
-            <div class="tile-sub">What we stand on</div>
+            <div class="tile-label">Our Beliefs &amp; Values</div>
+            <div class="tile-sub">What shapes us</div>
             <i class="bi bi-chevron-right tile-chevron"></i>
         </a>
 

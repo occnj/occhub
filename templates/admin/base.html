@@ -287,8 +287,8 @@
         <a href="{{ url_for('admin_ministries') }}" class="nav-item {% if 'ministr' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Ministries
         </a>
-        <a href="{{ url_for('admin_beliefs') }}" class="nav-item {% if 'belief' in request.endpoint %}active{% endif %}">
-            <i class="bi bi-book-fill"></i> Beliefs
+        <a href="{{ url_for('admin_beliefs') }}" class="nav-item {% if 'belief' in request.endpoint or 'value' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-book-fill"></i> Beliefs &amp; Values
         </a>
         <a href="{{ url_for('admin_serve') }}" class="nav-item {% if 'serve' in request.endpoint %}active{% endif %}">
             <i class="bi bi-person-raised-hand"></i> Serve

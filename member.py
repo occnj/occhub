@@ -116,6 +116,7 @@ def init_db():
         ('about_hero',''),
         ('about_body','Oasis Christian Centre is a multicultural, non-denominational church in Rahway, NJ. We exist to help people Know God, Find Hope, and Make a Difference.'),
         ('beliefs_page_description','The heart, truth, and biblical foundation that shape who we are as a church.'),
+        ('values_page_description','The culture, convictions, and everyday posture that shape how we live out our faith together.'),
         ('calendar_page_description','See what is coming up at Oasis and make room for the moments that matter.'),
         ('connect_page_description','Tell us a little about yourself so we can help you take your next step.'),
         ('contact_page_description','We would love to hear from you and help you get connected.'),
@@ -246,6 +247,19 @@ def init_db():
             ('Eternal Destiny','God created people to exist forever — either eternally separated from God by sin, or eternally with God through forgiveness and salvation. Heaven and Hell are real places of eternal existence.','John 3:16 · Matthew 25:31-46 · Revelation 20:11-15',8),
             ('Marriage','Oasis Christian Centre believes in the sanctity of marriage between one man and one woman according to Mark 10:6-9. Married people are expected to maintain their marriage vows to each other.','Mark 10:6-9',9),
         ])
+    c.execute('''CREATE TABLE IF NOT EXISTS values_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
+        body TEXT NOT NULL, scripture TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute("SELECT COUNT(*) FROM values_items")
+    if c.fetchone()[0]==0:
+        c.executemany("INSERT INTO values_items (title,body,scripture,sort_order) VALUES (?,?,?,?)",[
+            ('Presence Over Performance','We value real encounters with God over polished appearances. Everything we build should create room for people to meet Jesus, not just admire the moment.','Psalm 27:4 · John 4:23-24',1),
+            ('People Matter Deeply','We lead with love, honor, and attention because every person has value. We want everyone who walks into Oasis to feel seen, welcomed, and cared for.','Mark 12:31 · Romans 12:10',2),
+            ('Excellence With Humility','We give God our best while staying teachable and servant-hearted. Excellence is not ego; it is stewardship.','Colossians 3:23 · Philippians 2:3-4',3),
+            ('Unity Builds Strength','We move farther together than we ever could alone. We protect healthy relationships and work as one team with one mission.','Psalm 133:1 · Ephesians 4:3',4),
+            ('Growth Is Intentional','We believe discipleship, healing, and leadership development happen on purpose. We stay open to God changing us from the inside out.','Luke 2:52 · 2 Peter 3:18',5),
+        ])
 
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -269,8 +283,12 @@ def init_db():
 
     c.execute('''CREATE TABLE IF NOT EXISTS serve_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-        icon TEXT DEFAULT 'bi-people-fill', color TEXT DEFAULT 'teal', sort_order INTEGER DEFAULT 0
+        icon TEXT DEFAULT 'bi-people-fill', color TEXT DEFAULT 'teal', photo TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
     )''')
+    try:
+        c.execute("ALTER TABLE serve_categories ADD COLUMN photo TEXT DEFAULT ''")
+    except Exception:
+        pass
     c.execute('''CREATE TABLE IF NOT EXISTS serve_roles (
         id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER NOT NULL,
         label TEXT NOT NULL, sort_order INTEGER DEFAULT 0,
@@ -937,8 +955,18 @@ def sermon_note_detail(nid):
 
 @app.route('/beliefs')
 def beliefs():
-    track('beliefs'); conn=get_db(); items=conn.execute("SELECT * FROM beliefs ORDER BY sort_order").fetchall(); conn.close()
+    track('beliefs')
+    return render_template('beliefs_landing.html', settings=all_settings())
+
+@app.route('/beliefs/statement')
+def beliefs_statement():
+    track('beliefs_statement'); conn=get_db(); items=conn.execute("SELECT * FROM beliefs ORDER BY sort_order").fetchall(); conn.close()
     return render_template('beliefs.html',beliefs=items,settings=all_settings())
+
+@app.route('/beliefs/values')
+def beliefs_values():
+    track('beliefs_values'); conn=get_db(); items=conn.execute("SELECT * FROM values_items ORDER BY sort_order").fetchall(); conn.close()
+    return render_template('values.html',values=items,settings=all_settings())
 
 @app.route('/ministries')
 def ministries():
@@ -1228,6 +1256,7 @@ def admin_page_headers():
         for key in [
             'about_page_description',
             'beliefs_page_description',
+            'values_page_description',
             'calendar_page_description',
             'connect_page_description',
             'contact_page_description',
@@ -1707,7 +1736,7 @@ def admin_behind_scene_member_delete(sid, mid):
 @login_required
 def admin_beliefs():
     conn=get_db(); items=conn.execute("SELECT * FROM beliefs ORDER BY sort_order").fetchall(); conn.close()
-    return render_template('admin/beliefs.html',beliefs=items)
+    return render_template('admin/beliefs.html',beliefs=items, values=[])
 
 @app.route('/admin/beliefs/new',methods=['GET','POST'])
 @login_required
@@ -1734,6 +1763,38 @@ def admin_belief_edit(bid):
 def admin_belief_delete(bid):
     conn=get_db(); conn.execute("DELETE FROM beliefs WHERE id=?",(bid,)); conn.commit(); conn.close()
     flash('Removed.','info'); return redirect(url_for('admin_beliefs'))
+
+@app.route('/admin/values')
+@login_required
+def admin_values():
+    conn=get_db(); items=conn.execute("SELECT * FROM values_items ORDER BY sort_order").fetchall(); conn.close()
+    return render_template('admin/values.html',values=items)
+
+@app.route('/admin/values/new',methods=['GET','POST'])
+@login_required
+def admin_value_new():
+    if request.method=='POST':
+        conn=get_db(); conn.execute("INSERT INTO values_items (title,body,scripture,sort_order) VALUES (?,?,?,?)",
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99)))
+        conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_values'))
+    return render_template('admin/value_form.html',value=None)
+
+@app.route('/admin/values/<int:vid>/edit',methods=['GET','POST'])
+@login_required
+def admin_value_edit(vid):
+    conn=get_db(); v=conn.execute("SELECT * FROM values_items WHERE id=?",(vid,)).fetchone()
+    if not v: conn.close(); return redirect(url_for('admin_values'))
+    if request.method=='POST':
+        conn.execute("UPDATE values_items SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99),vid))
+        conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_values'))
+    conn.close(); return render_template('admin/value_form.html',value=v)
+
+@app.route('/admin/values/<int:vid>/delete',methods=['POST'])
+@login_required
+def admin_value_delete(vid):
+    conn=get_db(); conn.execute("DELETE FROM values_items WHERE id=?",(vid,)); conn.commit(); conn.close()
+    flash('Removed.','info'); return redirect(url_for('admin_values'))
 
 # Ministries
 @app.route('/admin/ministries')
@@ -1781,8 +1842,9 @@ def admin_serve():
 @app.route('/admin/serve/category/new',methods=['POST'])
 @login_required
 def admin_serve_cat_new():
-    conn=get_db(); conn.execute("INSERT INTO serve_categories (name,icon,color,sort_order) VALUES (?,?,?,?)",
-        (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),int(request.form.get('sort_order') or 99)))
+    photo = save_upload('photo') or ''
+    conn=get_db(); conn.execute("INSERT INTO serve_categories (name,icon,color,photo,sort_order) VALUES (?,?,?,?,?)",
+        (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99)))
     conn.commit(); conn.close(); flash('Category added!','success'); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/category/<int:cid>/edit',methods=['GET','POST'])
@@ -1791,8 +1853,11 @@ def admin_serve_cat_edit(cid):
     conn=get_db(); cat=conn.execute("SELECT * FROM serve_categories WHERE id=?",(cid,)).fetchone()
     if not cat: conn.close(); return redirect(url_for('admin_serve'))
     if request.method=='POST':
-        conn.execute("UPDATE serve_categories SET name=?,icon=?,color=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),int(request.form.get('sort_order') or 99),cid))
+        photo = save_upload('photo')
+        if photo is None:
+            photo = cat['photo']
+        conn.execute("UPDATE serve_categories SET name=?,icon=?,color=?,photo=?,sort_order=? WHERE id=?",
+            (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99),cid))
         conn.commit(); conn.close(); flash('Category updated!','success'); return redirect(url_for('admin_serve'))
     conn.close(); return render_template('admin/serve_cat_form.html',cat=cat)
 

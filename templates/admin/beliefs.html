@@ -10,6 +10,10 @@
 {% endblock %}
 
 {% block content %}
+<div style="display:flex;gap:10px;margin-bottom:18px;">
+    <a href="{{ url_for('admin_beliefs') }}" class="btn btn-primary">Beliefs</a>
+    <a href="{{ url_for('admin_values') }}" class="btn btn-ghost">Values</a>
+</div>
 <div class="card">
     {% if beliefs %}
     <table>

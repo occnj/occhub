@@ -22,11 +22,65 @@
         .hero-copy { font-size: 0.9rem; line-height: 1.65; color: rgba(255,255,255,0.78); max-width: 250px; margin-top: 10px; }
         .list { padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
         .category { background: var(--card); border-radius: 20px; padding: 20px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-        .cat-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-        .cat-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-        .cat-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
-        .cat-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
-        .cat-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+        .cat-header { display: flex; flex-direction: column; gap: 14px; margin-bottom: 14px; }
+        .cat-placeholder {
+            width: 100%;
+            min-height: 132px;
+            border-radius: 18px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 18px;
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.04) 0%, rgba(0,0,0,0.34) 100%),
+                linear-gradient(140deg,
+                    rgba(19,103,122,0.22) 0%,
+                    rgba(255,255,255,0.1) 42%,
+                    rgba(242,84,27,0.20) 100%);
+            border: 1px solid rgba(255,255,255,0.24);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
+        }
+        .cat-placeholder.teal {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.34) 100%),
+                linear-gradient(140deg, rgba(19,103,122,0.75) 0%, rgba(19,103,122,0.28) 45%, rgba(255,255,255,0.12) 100%);
+        }
+        .cat-placeholder.orange {
+            background:
+                linear-gradient(180deg, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.34) 100%),
+                linear-gradient(140deg, rgba(242,84,27,0.72) 0%, rgba(242,84,27,0.30) 48%, rgba(255,255,255,0.12) 100%);
+        }
+        .cat-placeholder::before {
+            content: "";
+            position: absolute;
+            inset: 14px 14px auto auto;
+            width: 86px;
+            height: 86px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.09);
+            transform: rotate(14deg);
+        }
+        .cat-placeholder::after {
+            content: "";
+            position: absolute;
+            inset: auto auto 14px -18px;
+            width: 92px;
+            height: 92px;
+            border-radius: 22px;
+            background: rgba(255,255,255,0.08);
+            transform: rotate(18deg);
+        }
+        .cat-name {
+            position: relative;
+            z-index: 1;
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.35rem;
+            line-height: 1.1;
+            color: white;
+            text-shadow: 0 8px 20px rgba(0,0,0,0.24);
+            max-width: 180px;
+        }
         .tags { display: flex; flex-wrap: wrap; gap: 6px; }
         .tag { background: var(--bg); color: var(--sub); font-size: 0.72rem; font-weight: 500; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.02em; }
         .cta-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; padding: 12px 16px 28px; background: rgba(245,245,247,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.07); }
@@ -48,8 +102,9 @@
         {% for g in grouped %}
         <div class="category">
             <div class="cat-header">
-                <div class="cat-icon {{ g.cat.color }}"><i class="bi {{ g.cat.icon }}"></i></div>
-                <div class="cat-name">{{ g.cat.name }}</div>
+                <div class="cat-placeholder {{ g.cat.color }}">
+                    <div class="cat-name">{{ g.cat.name }}</div>
+                </div>
             </div>
             <div class="tags">
                 {% for r in g.roles %}

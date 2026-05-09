@@ -9,7 +9,11 @@
     <div class="card">
       <div class="card-header">
         <div style="display:flex;align-items:center;gap:10px;">
+          {% if g.cat.photo %}
+          <img src="/static/{{ g.cat.photo }}" alt="{{ g.cat.name }}" style="width:44px;height:44px;border-radius:12px;object-fit:cover;">
+          {% else %}
           <i class="bi {{ g.cat.icon }}" style="color:{{ '#13677A' if g.cat.color=='teal' else '#F2541B' }};font-size:1.1rem;"></i>
+          {% endif %}
           <div class="card-title">{{ g.cat.name }}</div>
         </div>
         <div style="display:flex;gap:6px;">
@@ -45,10 +49,15 @@
   <div class="card" style="position:sticky;top:88px;">
     <div class="card-header"><div class="card-title">Add New Category</div></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('admin_serve_cat_new') }}">
+      <form method="POST" action="{{ url_for('admin_serve_cat_new') }}" enctype="multipart/form-data">
         <div class="form-group">
           <label class="form-label">Category Name</label>
           <input type="text" name="name" class="form-control" required placeholder="e.g. Hospitality">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category Image</label>
+          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:5px;">Upload the image that should appear on the public Serve card for this category.</div>
         </div>
         <div class="form-group">
           <label class="form-label">Bootstrap Icon</label>

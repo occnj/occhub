@@ -6,10 +6,22 @@
 <div class="card" style="max-width:480px;">
   <div class="card-header"><div class="card-title">Edit: {{ cat.name }}</div></div>
   <div class="card-body">
-    <form method="POST">
+    <form method="POST" enctype="multipart/form-data">
       <div class="form-group">
         <label class="form-label">Category Name</label>
         <input type="text" name="name" class="form-control" value="{{ cat.name }}" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category Image</label>
+        <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+        {% if cat.photo %}
+        <div style="margin-top:10px;">
+          <img src="/static/{{ cat.photo }}" alt="{{ cat.name }}" style="width:120px;height:120px;border-radius:18px;object-fit:cover;display:block;">
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:6px;">Current image. Upload a new one to replace it.</div>
+        </div>
+        {% else %}
+        <div style="font-size:0.72rem;color:#6e6e73;margin-top:6px;">Upload the image that should appear on the public Serve card for this category.</div>
+        {% endif %}
       </div>
       <div class="form-group">
         <label class="form-label">Bootstrap Icon Class</label>

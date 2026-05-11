@@ -765,25 +765,86 @@ def html_from_lines(lines):
             blocks.append(f'<p>{escaped}</p>')
     return '\n'.join(blocks)
 
+def extract_docx_html(abs_path, skip_first=False):
+    """Extract rich HTML from a DOCX preserving bold, italic, and heading paragraph styles."""
+    try:
+        with zipfile.ZipFile(abs_path) as docx:
+            xml_data = docx.read('word/document.xml')
+        root = ET.fromstring(xml_data)
+        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+        blocks = []
+        skipped = False
+        for para in root.findall('.//w:p', ns):
+            pPr = para.find('w:pPr', ns)
+            style_val = ''
+            if pPr is not None:
+                pStyle = pPr.find('w:pStyle', ns)
+                if pStyle is not None:
+                    style_val = (pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val') or '').lower()
+            runs_html = []
+            for run in para.findall('w:r', ns):
+                rPr = run.find('w:rPr', ns)
+                is_bold = is_italic = False
+                if rPr is not None:
+                    is_bold = rPr.find('w:b', ns) is not None
+                    is_italic = rPr.find('w:i', ns) is not None
+                text = ''.join(t.text for t in run.findall('w:t', ns) if t.text)
+                if not text:
+                    continue
+                text = html.escape(text)
+                if is_bold and is_italic:
+                    text = f'<strong><em>{text}</em></strong>'
+                elif is_bold:
+                    text = f'<strong>{text}</strong>'
+                elif is_italic:
+                    text = f'<em>{text}</em>'
+                runs_html.append(text)
+            para_html = ''.join(runs_html).strip()
+            if not para_html:
+                continue
+            if skip_first and not skipped:
+                skipped = True
+                continue
+            is_heading = style_val.startswith('heading') or style_val in ('title', 'subtitle')
+            tag = 'h2' if is_heading else 'p'
+            blocks.append(f'<{tag}>{para_html}</{tag}>')
+        return '\n'.join(blocks)
+    except Exception as e:
+        app.logger.warning(f"extract_docx_html() error: {e}")
+        return ''
+
 def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
     abs_path = os.path.join(BASE_DIR, 'static', path_rel)
+    title = fallback_title.strip() if fallback_title else ''
     if ext == 'docx':
-        lines = extract_docx_paragraphs(abs_path)
+        plain_lines = [l.strip() for l in extract_docx_paragraphs(abs_path) if l.strip()]
+        skip_first = False
+        if not title and plain_lines:
+            title = plain_lines[0][:120].strip()
+            plain_lines = plain_lines[1:]
+            skip_first = True
+        if not title:
+            title = sermon_title_from_filename(path_rel)
+        if not summary:
+            source_line = next((l for l in plain_lines if len(l.split()) > 6), '')
+            summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
+        body_html = extract_docx_html(abs_path, skip_first=skip_first)
+        if not body_html and plain_lines:
+            body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in plain_lines)
     else:
         lines = extract_pdf_lines(abs_path)
-    lines = normalize_text_lines('\n'.join(lines)) if ext == 'pdf' else [line.strip() for line in lines if line.strip()]
-    title = fallback_title.strip() if fallback_title else ''
-    if not title and lines:
-        title = lines[0][:120].strip()
-        lines = lines[1:] if len(lines) > 1 else lines
-    if not title:
-        title = sermon_title_from_filename(path_rel)
-    if not summary:
-        source_line = next((line for line in lines if len(line.split()) > 6), '')
-        summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
-    body_html = html_from_lines(lines)
-    if not body_html and lines:
-        body_html = '\n'.join(f'<p>{html.escape(line)}</p>' for line in lines)
+        lines = normalize_text_lines('\n'.join(lines))
+        if not title and lines:
+            title = lines[0][:120].strip()
+            lines = lines[1:] if len(lines) > 1 else lines
+        if not title:
+            title = sermon_title_from_filename(path_rel)
+        if not summary:
+            source_line = next((l for l in lines if len(l.split()) > 6), '')
+            summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
+        body_html = html_from_lines(lines)
+        if not body_html and lines:
+            body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in lines)
     return {
         'title': title,
         'summary': summary,

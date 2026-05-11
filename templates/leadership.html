@@ -61,6 +61,8 @@
         .sheet-role { font-size: 0.78rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
         .sheet-divider { height: 1px; background: #f0f0f5; margin-bottom: 18px; }
         .sheet-bio { font-size: 0.9rem; color: #3a3a3c; line-height: 1.75; text-align: left; }
+        .sheet-bio p { margin: 0 0 12px; }
+        .sheet-bio p:last-child { margin-bottom: 0; }
 
         .sheet-close { position: absolute; top: 14px; right: 18px; background: #f0f0f5; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; color: var(--sub); }
     </style>
@@ -129,13 +131,20 @@ const leaderData = [
     {% endfor %}
 ];
 
+function bioToHtml(text) {
+    if (!text || !text.trim()) return '<p>No bio available.</p>';
+    return text.split(/\n+/).filter(p => p.trim()).map(p =>
+        '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
+    ).join('');
+}
+
 function openLeader(i) {
     const l = leaderData[i];
 
     // Name & role
     document.getElementById('sheet-name').textContent = l.name;
     document.getElementById('sheet-role').textContent = l.role;
-    document.getElementById('sheet-bio').textContent  = l.bio || 'No bio available.';
+    document.getElementById('sheet-bio').innerHTML = bioToHtml(l.bio);
 
     // Avatar
     const wrap = document.getElementById('sheet-avatar-wrap');

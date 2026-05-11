@@ -45,6 +45,8 @@
         .sheet-role { font-size: 0.76rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
         .sheet-divider { height: 1px; background: #f0f0f5; margin-bottom: 18px; }
         .sheet-bio { font-size: 0.9rem; color: #3a3a3c; line-height: 1.75; text-align: left; }
+        .sheet-bio p { margin: 0 0 12px; }
+        .sheet-bio p:last-child { margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -113,11 +115,18 @@ const sceneMembers = [
     {% endfor %}
 ];
 
+function bioToHtml(text) {
+    if (!text || !text.trim()) return '<p>No bio available.</p>';
+    return text.split(/\n+/).filter(p => p.trim()).map(p =>
+        '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
+    ).join('');
+}
+
 function openMember(index) {
     const member = sceneMembers[index];
     document.getElementById('sheet-name').textContent = member.name;
     document.getElementById('sheet-role').textContent = member.role;
-    document.getElementById('sheet-bio').textContent = member.bio || 'No bio available.';
+    document.getElementById('sheet-bio').innerHTML = bioToHtml(member.bio);
     const avatarWrap = document.getElementById('sheet-avatar-wrap');
     if (member.photo) {
         avatarWrap.innerHTML = '<img src="' + member.photo + '" alt="' + member.name + '">';

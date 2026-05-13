@@ -131,6 +131,11 @@
                 </div>
                 {% endif %}
             </div>
+            {% if g.cat.description %}
+            <div style="margin-top:10px;color:var(--sub);font-size:0.9rem;line-height:1.45;">
+                {{ g.cat.description }}
+            </div>
+            {% endif %}
             <div class="tags">
                 {% for r in g.roles %}
                 <span class="tag">{{ r.label }}</span>

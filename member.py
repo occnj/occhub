@@ -339,10 +339,15 @@ def init_db():
 
     c.execute('''CREATE TABLE IF NOT EXISTS serve_categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+        description TEXT DEFAULT '',
         icon TEXT DEFAULT 'bi-people-fill', color TEXT DEFAULT 'teal', photo TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
     )''')
     try:
         c.execute("ALTER TABLE serve_categories ADD COLUMN photo TEXT DEFAULT ''")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE serve_categories ADD COLUMN description TEXT DEFAULT ''")
     except Exception:
         pass
     c.execute('''CREATE TABLE IF NOT EXISTS serve_roles (
@@ -2031,8 +2036,8 @@ def admin_serve():
 @login_required
 def admin_serve_cat_new():
     photo = save_upload('photo') or ''
-    conn=get_db(); conn.execute("INSERT INTO serve_categories (name,icon,color,photo,sort_order) VALUES (?,?,?,?,?)",
-        (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99)))
+    conn=get_db(); conn.execute("INSERT INTO serve_categories (name,description,icon,color,photo,sort_order) VALUES (?,?,?,?,?,?)",
+        (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99)))
     conn.commit(); conn.close(); flash('Category added!','success'); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/category/<int:cid>/edit',methods=['GET','POST'])
@@ -2044,8 +2049,8 @@ def admin_serve_cat_edit(cid):
         photo = save_upload('photo')
         if photo is None:
             photo = cat['photo']
-        conn.execute("UPDATE serve_categories SET name=?,icon=?,color=?,photo=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99),cid))
+        conn.execute("UPDATE serve_categories SET name=?,description=?,icon=?,color=?,photo=?,sort_order=? WHERE id=?",
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99),cid))
         conn.commit(); conn.close(); flash('Category updated!','success'); return redirect(url_for('admin_serve'))
     conn.close(); return render_template('admin/serve_cat_form.html',cat=cat)
 

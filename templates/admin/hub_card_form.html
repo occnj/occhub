@@ -24,9 +24,36 @@
         <input type="text" name="subtitle" class="form-control" value="{{ card.subtitle if card else '' }}" placeholder="Meet the team">
       </div>
 
-      <div class="form-group">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Card Type</label>
+          <select name="card_type" class="form-control" id="card-type" onchange="toggleHubCardFields()">
+            {% set current_type = card.card_type if card else 'link' %}
+            <option value="link" {% if current_type == 'link' %}selected{% endif %}>Link</option>
+            <option value="group" {% if current_type == 'group' %}selected{% endif %}>Group</option>
+            <option value="modal" {% if current_type == 'modal' %}selected{% endif %}>Modal</option>
+            <option value="media" {% if current_type == 'media' %}selected{% endif %}>Media</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Parent Card</label>
+          <select name="parent_id" class="form-control">
+            <option value="">Top level card</option>
+            {% for parent in parent_choices %}
+            <option value="{{ parent.id }}" {% if card and card.parent_id == parent.id %}selected{% endif %}>{{ parent.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group field-link field-group">
         <label class="form-label">Target URL</label>
         <input type="text" name="target_url" class="form-control" value="{{ card.target_url if card else '' }}" placeholder="/leadership or https://...">
+      </div>
+
+      <div class="form-group field-media">
+        <label class="form-label">Embedded Media URL</label>
+        <input type="text" name="media_url" class="form-control" value="{{ card.media_url if card else '' }}" placeholder="https://www.youtube.com/watch?v= or audio/video embed link">
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -43,6 +70,38 @@
           <label class="form-label">Fallback Icon</label>
           <input type="text" name="icon" class="form-control" value="{{ card.icon if card else 'bi-grid-fill' }}" placeholder="bi-book">
           <div style="font-size:0.72rem;color:#6e6e73;margin-top:5px;">Used only when no image is uploaded.</div>
+        </div>
+      </div>
+
+      <div class="field-modal" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Modal Title</label>
+          <input type="text" name="modal_title" class="form-control" value="{{ card.modal_title if card else '' }}" placeholder="Leadership">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Modal Image</label>
+          <input type="file" name="modal_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          {% if card and card.modal_image %}
+          <div style="margin-top:10px;">
+            <img src="/static/{{ card.modal_image }}" alt="{{ card.title }}" style="width:140px;height:120px;border-radius:18px;object-fit:cover;display:block;">
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="form-group field-modal">
+        <label class="form-label">Modal Body</label>
+        <textarea name="modal_body" class="form-control" style="min-height:140px;" placeholder="Add the info that should appear in the card modal.">{{ card.modal_body if card else '' }}</textarea>
+      </div>
+
+      <div class="field-modal" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Modal Button Label</label>
+          <input type="text" name="modal_button_label" class="form-control" value="{{ card.modal_button_label if card else '' }}" placeholder="Learn More">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Modal Button URL</label>
+          <input type="text" name="modal_button_url" class="form-control" value="{{ card.modal_button_url if card else '' }}" placeholder="/leadership or https://...">
         </div>
       </div>
 
@@ -64,4 +123,22 @@
     </form>
   </div>
 </div>
+<script>
+function toggleHubCardFields() {
+  const type = document.getElementById('card-type').value;
+  document.querySelectorAll('.field-link').forEach(el => {
+    el.style.display = type === 'link' ? '' : 'none';
+  });
+  document.querySelectorAll('.field-group').forEach(el => {
+    el.style.display = type === 'group' ? '' : 'none';
+  });
+  document.querySelectorAll('.field-media').forEach(el => {
+    el.style.display = type === 'media' ? '' : 'none';
+  });
+  document.querySelectorAll('.field-modal').forEach(el => {
+    el.style.display = type === 'modal' ? '' : 'none';
+  });
+}
+window.addEventListener('load', toggleHubCardFields);
+</script>
 {% endblock %}

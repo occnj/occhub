@@ -267,27 +267,55 @@ def init_db():
         subtitle TEXT DEFAULT '',
         photo TEXT DEFAULT '',
         icon TEXT DEFAULT 'bi-grid-fill',
+        card_type TEXT DEFAULT 'link',
+        parent_id INTEGER,
         target_url TEXT DEFAULT '',
+        media_url TEXT DEFAULT '',
+        modal_title TEXT DEFAULT '',
+        modal_body TEXT DEFAULT '',
+        modal_button_label TEXT DEFAULT '',
+        modal_button_url TEXT DEFAULT '',
+        modal_image TEXT DEFAULT '',
         open_in_new_tab INTEGER DEFAULT 0,
         sort_order INTEGER DEFAULT 0,
-        is_active INTEGER DEFAULT 1
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY(parent_id) REFERENCES hub_cards(id) ON DELETE CASCADE
     )''')
+    for col, defn in [
+        ("card_type", "TEXT DEFAULT 'link'"),
+        ("parent_id", "INTEGER"),
+        ("media_url", "TEXT DEFAULT ''"),
+        ("modal_title", "TEXT DEFAULT ''"),
+        ("modal_body", "TEXT DEFAULT ''"),
+        ("modal_button_label", "TEXT DEFAULT ''"),
+        ("modal_button_url", "TEXT DEFAULT ''"),
+        ("modal_image", "TEXT DEFAULT ''"),
+    ]:
+        try:
+            c.execute("ALTER TABLE hub_cards ADD COLUMN " + col + " " + defn)
+        except Exception:
+            pass
     seeded_hub_cards = [
-        ('you-said-yes', 'You Said Yes', 'Download PDF', '', 'bi-cloud-arrow-down', 'https://drive.google.com/file/d/1nc29sDRO2Q5ijcWGRv-3HHpXt_I4bF7t/view?usp=sharing', 1, 1, 1),
-        ('watch-latest', 'Watch the Latest', 'Latest messages', '', 'bi-youtube', '/watch-sermon', 0, 2, 1),
-        ('mission', 'Mission', 'Stories from the field', '', 'bi-globe-americas', '/mission', 0, 3, 1),
-        ('upcoming-events', 'Upcoming Events', "What's happening", '', 'bi-calendar3', '/calendar', 0, 4, 1),
-        ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', '/prayer', 0, 5, 1),
-        ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'https://www.oasisnj.net/helpdesk', 1, 6, 1),
-        ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', '/beliefs', 0, 7, 1),
-        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', '/leadership', 0, 8, 1),
-        ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', '/behind-the-scene', 0, 9, 1),
+        ('you-said-yes', 'You Said Yes', 'Download PDF', '', 'bi-cloud-arrow-down', 'link', None, 'https://drive.google.com/file/d/1nc29sDRO2Q5ijcWGRv-3HHpXt_I4bF7t/view?usp=sharing', '', '', '', '', '', '', 1, 1, 1),
+        ('watch-latest', 'Watch the Latest', 'Latest messages', '', 'bi-youtube', 'media', None, '', '/watch-sermon', '', '', '', '', '', 0, 2, 1),
+        ('mission', 'Mission', 'Stories from the field', '', 'bi-globe-americas', 'group', None, '/mission', '', '', '', '', '', '', 0, 3, 1),
+        ('upcoming-events', 'Upcoming Events', "What's happening", '', 'bi-calendar3', 'link', None, '/calendar', '', '', '', '', '', '', 0, 4, 1),
+        ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', 'link', None, '/prayer', '', '', '', '', '', '', 0, 5, 1),
+        ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'link', None, 'https://www.oasisnj.net/helpdesk', '', '', '', '', '', '', 1, 6, 1),
+        ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'group', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
+        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'modal', None, '', '', 'Leadership', 'Meet the pastors and leaders helping guide the vision of Oasis.', 'Open Leadership', '/leadership', '', 0, 8, 1),
+        ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
     ]
     for card in seeded_hub_cards:
         c.execute(
-            "INSERT OR IGNORE INTO hub_cards (slug,title,subtitle,photo,icon,target_url,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT OR IGNORE INTO hub_cards (slug,title,subtitle,photo,icon,card_type,parent_id,target_url,media_url,modal_title,modal_body,modal_button_label,modal_button_url,modal_image,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             card
         )
+    c.execute("UPDATE hub_cards SET card_type='media', media_url='/watch-sermon', target_url='' WHERE slug='watch-latest'")
+    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('mission','beliefs-values')")
+    c.execute(
+        "UPDATE hub_cards SET card_type='modal', target_url='', modal_title='Leadership', modal_body='Meet the pastors and leaders helping guide the vision of Oasis.', modal_button_label='Open Leadership', modal_button_url='/leadership' WHERE slug='leadership'"
+    )
 
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -881,9 +909,14 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
-def get_hub_cards(conn):
+def get_hub_cards(conn, parent_id=None):
+    if parent_id is None:
+        return conn.execute(
+            "SELECT * FROM hub_cards WHERE is_active=1 AND parent_id IS NULL ORDER BY sort_order, id"
+        ).fetchall()
     return conn.execute(
-        "SELECT * FROM hub_cards WHERE is_active=1 ORDER BY sort_order, id"
+        "SELECT * FROM hub_cards WHERE is_active=1 AND parent_id=? ORDER BY sort_order, id",
+        (parent_id,)
     ).fetchall()
 
 def analytics_window_start(days=0):
@@ -1059,6 +1092,18 @@ def mission_detail(mid):
     ).fetchall()
     conn.close()
     return render_template('mission_detail.html', mission=mission, images=images, settings=all_settings())
+
+@app.route('/hub-cards/<int:cid>')
+def hub_card_group(cid):
+    track('hub_card_group')
+    conn = get_db()
+    parent = conn.execute("SELECT * FROM hub_cards WHERE id=? AND is_active=1", (cid,)).fetchone()
+    if not parent:
+        conn.close()
+        return redirect(url_for('hub'))
+    children = get_hub_cards(conn, parent_id=cid)
+    conn.close()
+    return render_template('hub_card_group.html', parent=parent, cards=children, settings=all_settings())
 
 @app.route('/serve')
 def serve():
@@ -1346,7 +1391,9 @@ def admin_watch_sermons():
 @login_required
 def admin_hub_cards():
     conn = get_db()
-    cards = conn.execute("SELECT * FROM hub_cards ORDER BY sort_order, id").fetchall()
+    cards = conn.execute(
+        "SELECT c.*, p.title AS parent_title FROM hub_cards c LEFT JOIN hub_cards p ON p.id = c.parent_id ORDER BY COALESCE(c.parent_id, c.id), c.sort_order, c.id"
+    ).fetchall()
     conn.close()
     return render_template('admin/hub_cards.html', cards=cards)
 
@@ -1357,16 +1404,27 @@ def admin_hub_card_new():
         title = request.form.get('title', '').strip()
         slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-') or f'card-{uuid.uuid4().hex[:6]}'
         photo = save_upload('photo') or ''
+        modal_image = save_upload('modal_image') or ''
+        raw_parent = (request.form.get('parent_id') or '').strip()
+        parent_id = int(raw_parent) if raw_parent else None
         conn = get_db()
         conn.execute(
-            "INSERT INTO hub_cards (slug,title,subtitle,photo,icon,target_url,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO hub_cards (slug,title,subtitle,photo,icon,card_type,parent_id,target_url,media_url,modal_title,modal_body,modal_button_label,modal_button_url,modal_image,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 slug,
                 title,
                 request.form.get('subtitle', '').strip(),
                 photo,
                 request.form.get('icon', 'bi-grid-fill').strip(),
+                request.form.get('card_type', 'link').strip(),
+                parent_id,
                 request.form.get('target_url', '').strip(),
+                request.form.get('media_url', '').strip(),
+                request.form.get('modal_title', '').strip(),
+                request.form.get('modal_body', '').strip(),
+                request.form.get('modal_button_label', '').strip(),
+                request.form.get('modal_button_url', '').strip(),
+                modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
                 int(request.form.get('sort_order') or 99),
                 1 if request.form.get('is_active') else 0,
@@ -1376,7 +1434,10 @@ def admin_hub_card_new():
         conn.close()
         flash('Hub card added!', 'success')
         return redirect(url_for('admin_hub_cards'))
-    return render_template('admin/hub_card_form.html', card=None)
+    conn = get_db()
+    parent_choices = conn.execute("SELECT id,title FROM hub_cards WHERE parent_id IS NULL ORDER BY sort_order, id").fetchall()
+    conn.close()
+    return render_template('admin/hub_card_form.html', card=None, parent_choices=parent_choices)
 
 @app.route('/admin/hub-cards/<int:cid>/edit', methods=['GET', 'POST'])
 @login_required
@@ -1386,18 +1447,32 @@ def admin_hub_card_edit(cid):
     if not card:
         conn.close()
         return redirect(url_for('admin_hub_cards'))
+    parent_choices = conn.execute("SELECT id,title FROM hub_cards WHERE parent_id IS NULL AND id != ? ORDER BY sort_order, id", (cid,)).fetchall()
     if request.method == 'POST':
         photo = save_upload('photo')
         if photo is None:
             photo = card['photo']
+        modal_image = save_upload('modal_image')
+        if modal_image is None:
+            modal_image = card['modal_image']
+        raw_parent = (request.form.get('parent_id') or '').strip()
+        parent_id = int(raw_parent) if raw_parent else None
         conn.execute(
-            "UPDATE hub_cards SET title=?,subtitle=?,photo=?,icon=?,target_url=?,open_in_new_tab=?,sort_order=?,is_active=? WHERE id=?",
+            "UPDATE hub_cards SET title=?,subtitle=?,photo=?,icon=?,card_type=?,parent_id=?,target_url=?,media_url=?,modal_title=?,modal_body=?,modal_button_label=?,modal_button_url=?,modal_image=?,open_in_new_tab=?,sort_order=?,is_active=? WHERE id=?",
             (
                 request.form.get('title', '').strip(),
                 request.form.get('subtitle', '').strip(),
                 photo,
                 request.form.get('icon', 'bi-grid-fill').strip(),
+                request.form.get('card_type', 'link').strip(),
+                parent_id,
                 request.form.get('target_url', '').strip(),
+                request.form.get('media_url', '').strip(),
+                request.form.get('modal_title', '').strip(),
+                request.form.get('modal_body', '').strip(),
+                request.form.get('modal_button_label', '').strip(),
+                request.form.get('modal_button_url', '').strip(),
+                modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
                 int(request.form.get('sort_order') or 99),
                 1 if request.form.get('is_active') else 0,
@@ -1408,7 +1483,7 @@ def admin_hub_card_edit(cid):
         flash('Hub card updated!', 'success')
         card = conn.execute("SELECT * FROM hub_cards WHERE id=?", (cid,)).fetchone()
     conn.close()
-    return render_template('admin/hub_card_form.html', card=card)
+    return render_template('admin/hub_card_form.html', card=card, parent_choices=parent_choices)
 
 @app.route('/admin/hub-cards/<int:cid>/delete', methods=['POST'])
 @login_required

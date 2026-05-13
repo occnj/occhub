@@ -359,6 +359,80 @@
             background: rgba(19,103,122,0.08);
             color: var(--teal);
         }
+        .card-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 16, 24, 0.62);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 3100;
+        }
+        .card-overlay.open { display: flex; }
+        .overlay-card {
+            width: 100%;
+            max-width: 360px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(249,249,251,0.98) 100%);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 22px 42px rgba(0,0,0,0.18);
+        }
+        .overlay-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .overlay-body {
+            padding: 20px;
+        }
+        .overlay-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.5rem;
+            line-height: 1.1;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .overlay-copy {
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--sub);
+        }
+        .overlay-frame {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: 0;
+            display: block;
+            background: #000;
+        }
+        .overlay-btn,
+        .overlay-close {
+            width: 100%;
+            border: none;
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        .overlay-btn {
+            background: var(--orange);
+            color: white;
+            margin-top: 12px;
+        }
+        .overlay-close {
+            background: rgba(19,103,122,0.08);
+            color: var(--teal);
+        }
     </style>
 </head>
 <body>
@@ -383,7 +457,15 @@
     <div class="section-label">Quick Access</div>
     <div class="grid">
         {% for card in hub_cards %}
-        <a href="{{ card.target_url or '#' }}" {% if card.open_in_new_tab %}target="_blank" rel="noopener noreferrer"{% endif %} class="tile {% if not card.photo %}no-image{% endif %}" {% if card.photo %}style="background-image:url('/static/{{ card.photo }}');"{% endif %}>
+        {% set href = card.target_url or '#' %}
+        {% if card.card_type == 'group' %}
+            {% set href = url_for('hub_card_group', cid=card.id) %}
+        {% elif card.card_type in ['media', 'modal'] %}
+            {% set href = '#' %}
+        {% endif %}
+        <a href="{{ href }}" {% if card.open_in_new_tab and card.card_type == 'link' %}target="_blank" rel="noopener noreferrer"{% endif %}
+           class="tile {% if not card.photo %}no-image{% endif %}" {% if card.photo %}style="background-image:url('/static/{{ card.photo }}');"{% endif %}
+           {% if card.card_type == 'media' %}onclick="openMediaCard({{ card.id }}, event)"{% elif card.card_type == 'modal' %}onclick="openInfoCard({{ card.id }}, event)"{% endif %}>
             <div class="tile-icon"><i class="bi {{ card.icon or 'bi-grid-fill' }}"></i></div>
             <div class="tile-label">{{ card.title }}</div>
             {% if card.subtitle %}
@@ -417,6 +499,29 @@
   </div>
 </div>
 {% endif %}
+
+<div id="media-card-overlay" class="card-overlay" onclick="if(event.target===this)closeMediaCard()">
+  <div class="overlay-card">
+    <iframe id="media-card-frame" class="overlay-frame" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    <div class="overlay-body">
+      <div class="overlay-title" id="media-card-title"></div>
+      <div class="overlay-copy" id="media-card-copy"></div>
+      <button type="button" class="overlay-close" onclick="closeMediaCard()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="info-card-overlay" class="card-overlay" onclick="if(event.target===this)closeInfoCard()">
+  <div class="overlay-card">
+    <img id="info-card-image" class="overlay-image" style="display:none;" alt="">
+    <div class="overlay-body">
+      <div class="overlay-title" id="info-card-title"></div>
+      <div class="overlay-copy" id="info-card-copy"></div>
+      <a id="info-card-btn" class="overlay-btn" style="display:none;" target="_blank" rel="noopener noreferrer"></a>
+      <button type="button" class="overlay-close" onclick="closeInfoCard()">Close</button>
+    </div>
+  </div>
+</div>
 
 <nav class="tabbar">
     <a href="/about" class="tab-item">
@@ -565,6 +670,83 @@
 }
 </style>
 <script>
+const hubCards = [
+  {% for card in hub_cards %}
+  {
+    id: {{ card.id }},
+    card_type: {{ (card.card_type or 'link')|tojson }},
+    title: {{ (card.title or '')|tojson }},
+    subtitle: {{ (card.subtitle or '')|tojson }},
+    media_url: {{ (card.media_url or '')|tojson }},
+    target_url: {{ (card.target_url or '')|tojson }},
+    modal_title: {{ (card.modal_title or '')|tojson }},
+    modal_body: {{ (card.modal_body or '')|tojson }},
+    modal_button_label: {{ (card.modal_button_label or '')|tojson }},
+    modal_button_url: {{ (card.modal_button_url or '')|tojson }},
+    modal_image: {{ (card.modal_image or '')|tojson }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+function findHubCard(id) {
+  return hubCards.find(card => card.id === id);
+}
+function embedMediaUrl(url) {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.hostname.includes('youtube.com') && parsed.searchParams.get('v')) {
+      return `https://www.youtube.com/embed/${parsed.searchParams.get('v')}`;
+    }
+    if (parsed.hostname.includes('youtu.be')) {
+      const id = parsed.pathname.replace('/', '');
+      return id ? `https://www.youtube.com/embed/${id}` : url;
+    }
+    return parsed.toString();
+  } catch (err) {
+    return url;
+  }
+}
+function openMediaCard(id, event) {
+  if (event) event.preventDefault();
+  const card = findHubCard(id);
+  if (!card) return;
+  document.getElementById('media-card-title').textContent = card.title || 'Media';
+  document.getElementById('media-card-copy').textContent = card.subtitle || '';
+  document.getElementById('media-card-frame').src = embedMediaUrl(card.media_url || card.target_url || '');
+  document.getElementById('media-card-overlay').classList.add('open');
+}
+function closeMediaCard() {
+  document.getElementById('media-card-frame').src = '';
+  document.getElementById('media-card-overlay').classList.remove('open');
+}
+function openInfoCard(id, event) {
+  if (event) event.preventDefault();
+  const card = findHubCard(id);
+  if (!card) return;
+  document.getElementById('info-card-title').textContent = card.modal_title || card.title || 'Info';
+  document.getElementById('info-card-copy').textContent = card.modal_body || card.subtitle || '';
+  const image = document.getElementById('info-card-image');
+  if (card.modal_image) {
+    image.src = `/static/${card.modal_image}`;
+    image.style.display = 'block';
+  } else {
+    image.style.display = 'none';
+    image.src = '';
+  }
+  const btn = document.getElementById('info-card-btn');
+  if (card.modal_button_label && card.modal_button_url) {
+    btn.textContent = card.modal_button_label;
+    btn.href = card.modal_button_url;
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+    btn.removeAttribute('href');
+  }
+  document.getElementById('info-card-overlay').classList.add('open');
+}
+function closeInfoCard() {
+  document.getElementById('info-card-overlay').classList.remove('open');
+}
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     const registrations = await navigator.serviceWorker.getRegistrations();

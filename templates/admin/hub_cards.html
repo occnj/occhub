@@ -8,7 +8,7 @@
 <div class="card">
   {% if cards %}
   <table>
-    <thead><tr><th>Order</th><th>Card</th><th>Target</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Order</th><th>Card</th><th>Type</th><th>Target</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>
     {% for card in cards %}
     <tr>
@@ -22,10 +22,11 @@
           {% endif %}
           <div>
             <div style="font-weight:700;color:#1d1d1f;">{{ card.title }}</div>
-            <div style="font-size:0.76rem;color:#6e6e73;">{{ card.subtitle or 'No subtitle' }}</div>
+            <div style="font-size:0.76rem;color:#6e6e73;">{{ card.subtitle or 'No subtitle' }}{% if card.parent_title %} · Child of {{ card.parent_title }}{% endif %}</div>
           </div>
         </div>
       </td>
+      <td><span class="badge badge-orange">{{ card.card_type or 'link' }}</span></td>
       <td style="color:#6e6e73;font-size:0.8rem;">{{ card.target_url or '—' }}</td>
       <td>
         <span class="badge {{ 'badge-teal' if card.is_active else 'badge-orange' }}">{{ 'Active' if card.is_active else 'Hidden' }}</span>

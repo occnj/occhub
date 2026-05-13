@@ -260,6 +260,34 @@ def init_db():
             ('Unity Builds Strength','We move farther together than we ever could alone. We protect healthy relationships and work as one team with one mission.','Psalm 133:1 · Ephesians 4:3',4),
             ('Growth Is Intentional','We believe discipleship, healing, and leadership development happen on purpose. We stay open to God changing us from the inside out.','Luke 2:52 · 2 Peter 3:18',5),
         ])
+    c.execute('''CREATE TABLE IF NOT EXISTS hub_cards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        subtitle TEXT DEFAULT '',
+        photo TEXT DEFAULT '',
+        icon TEXT DEFAULT 'bi-grid-fill',
+        target_url TEXT DEFAULT '',
+        open_in_new_tab INTEGER DEFAULT 0,
+        sort_order INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1
+    )''')
+    seeded_hub_cards = [
+        ('you-said-yes', 'You Said Yes', 'Download PDF', '', 'bi-cloud-arrow-down', 'https://drive.google.com/file/d/1nc29sDRO2Q5ijcWGRv-3HHpXt_I4bF7t/view?usp=sharing', 1, 1, 1),
+        ('watch-latest', 'Watch the Latest', 'Latest messages', '', 'bi-youtube', '/watch-sermon', 0, 2, 1),
+        ('mission', 'Mission', 'Stories from the field', '', 'bi-globe-americas', '/mission', 0, 3, 1),
+        ('upcoming-events', 'Upcoming Events', "What's happening", '', 'bi-calendar3', '/calendar', 0, 4, 1),
+        ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', '/prayer', 0, 5, 1),
+        ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'https://www.oasisnj.net/helpdesk', 1, 6, 1),
+        ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', '/beliefs', 0, 7, 1),
+        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', '/leadership', 0, 8, 1),
+        ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', '/behind-the-scene', 0, 9, 1),
+    ]
+    for card in seeded_hub_cards:
+        c.execute(
+            "INSERT OR IGNORE INTO hub_cards (slug,title,subtitle,photo,icon,target_url,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?)",
+            card
+        )
 
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -853,6 +881,11 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
+def get_hub_cards(conn):
+    return conn.execute(
+        "SELECT * FROM hub_cards WHERE is_active=1 ORDER BY sort_order, id"
+    ).fetchall()
+
 def analytics_window_start(days=0):
     base_day = datetime.now().date() - timedelta(days=days)
     return f"{base_day.isoformat()} 00:00:00"
@@ -917,6 +950,7 @@ def hub():
     settings = all_settings()
     conn = get_db()
     latest_note = latest_sermon_note(conn)
+    hub_cards = get_hub_cards(conn)
     conn.close()
     return render_template(
         'hub.html',
@@ -925,6 +959,7 @@ def hub():
         settings=settings,
         hub_notice=get_hub_notice(settings),
         latest_note=latest_note,
+        hub_cards=hub_cards,
     )
 
 @app.route('/watch-sermon')
@@ -1306,6 +1341,84 @@ def admin_watch_sermons():
         flash('Watch sermons updated!', 'success')
         return redirect(url_for('admin_watch_sermons'))
     return render_template('admin/watch_sermons.html', settings=all_settings(), videos=get_sermon_videos())
+
+@app.route('/admin/hub-cards')
+@login_required
+def admin_hub_cards():
+    conn = get_db()
+    cards = conn.execute("SELECT * FROM hub_cards ORDER BY sort_order, id").fetchall()
+    conn.close()
+    return render_template('admin/hub_cards.html', cards=cards)
+
+@app.route('/admin/hub-cards/new', methods=['GET', 'POST'])
+@login_required
+def admin_hub_card_new():
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        slug = re.sub(r'[^a-z0-9]+', '-', title.lower()).strip('-') or f'card-{uuid.uuid4().hex[:6]}'
+        photo = save_upload('photo') or ''
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO hub_cards (slug,title,subtitle,photo,icon,target_url,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                slug,
+                title,
+                request.form.get('subtitle', '').strip(),
+                photo,
+                request.form.get('icon', 'bi-grid-fill').strip(),
+                request.form.get('target_url', '').strip(),
+                1 if request.form.get('open_in_new_tab') else 0,
+                int(request.form.get('sort_order') or 99),
+                1 if request.form.get('is_active') else 0,
+            )
+        )
+        conn.commit()
+        conn.close()
+        flash('Hub card added!', 'success')
+        return redirect(url_for('admin_hub_cards'))
+    return render_template('admin/hub_card_form.html', card=None)
+
+@app.route('/admin/hub-cards/<int:cid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_hub_card_edit(cid):
+    conn = get_db()
+    card = conn.execute("SELECT * FROM hub_cards WHERE id=?", (cid,)).fetchone()
+    if not card:
+        conn.close()
+        return redirect(url_for('admin_hub_cards'))
+    if request.method == 'POST':
+        photo = save_upload('photo')
+        if photo is None:
+            photo = card['photo']
+        conn.execute(
+            "UPDATE hub_cards SET title=?,subtitle=?,photo=?,icon=?,target_url=?,open_in_new_tab=?,sort_order=?,is_active=? WHERE id=?",
+            (
+                request.form.get('title', '').strip(),
+                request.form.get('subtitle', '').strip(),
+                photo,
+                request.form.get('icon', 'bi-grid-fill').strip(),
+                request.form.get('target_url', '').strip(),
+                1 if request.form.get('open_in_new_tab') else 0,
+                int(request.form.get('sort_order') or 99),
+                1 if request.form.get('is_active') else 0,
+                cid,
+            )
+        )
+        conn.commit()
+        flash('Hub card updated!', 'success')
+        card = conn.execute("SELECT * FROM hub_cards WHERE id=?", (cid,)).fetchone()
+    conn.close()
+    return render_template('admin/hub_card_form.html', card=card)
+
+@app.route('/admin/hub-cards/<int:cid>/delete', methods=['POST'])
+@login_required
+def admin_hub_card_delete(cid):
+    conn = get_db()
+    conn.execute("DELETE FROM hub_cards WHERE id=?", (cid,))
+    conn.commit()
+    conn.close()
+    flash('Hub card removed.', 'info')
+    return redirect(url_for('admin_hub_cards'))
 
 @app.route('/admin/sermon-notes')
 @login_required

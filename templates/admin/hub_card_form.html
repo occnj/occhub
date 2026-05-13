@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit' if card else 'New' }} Hub Card{% endblock %}
+{% block page_title %}{{ 'Edit Hub Card' if card else 'Add Hub Card' }}{% endblock %}
+{% block page_sub %}Create image-first Quick Access cards for the Hub{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_hub_cards') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:700px;">
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" name="title" class="form-control" value="{{ card.title if card else '' }}" required placeholder="Leadership">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Display Order</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ card.sort_order if card else 99 }}">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subtitle</label>
+        <input type="text" name="subtitle" class="form-control" value="{{ card.subtitle if card else '' }}" placeholder="Meet the team">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Target URL</label>
+        <input type="text" name="target_url" class="form-control" value="{{ card.target_url if card else '' }}" placeholder="/leadership or https://...">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Card Image</label>
+          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          {% if card and card.photo %}
+          <div style="margin-top:10px;">
+            <img src="/static/{{ card.photo }}" alt="{{ card.title }}" style="width:140px;height:120px;border-radius:18px;object-fit:cover;display:block;">
+          </div>
+          {% endif %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Fallback Icon</label>
+          <input type="text" name="icon" class="form-control" value="{{ card.icon if card else 'bi-grid-fill' }}" placeholder="bi-book">
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:5px;">Used only when no image is uploaded.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.84rem;font-weight:500;text-transform:none;letter-spacing:0;margin:0;">
+          <input type="checkbox" name="open_in_new_tab" value="1" {% if card and card.open_in_new_tab %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
+          Open in new tab
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.84rem;font-weight:500;text-transform:none;letter-spacing:0;margin:0;">
+          <input type="checkbox" name="is_active" value="1" {% if not card or card.is_active %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
+          Show card on Hub
+        </label>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if card else 'Add Card' }}</button>
+        <a href="{{ url_for('admin_hub_cards') }}" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

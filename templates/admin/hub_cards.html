@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% block title %}Hub Cards{% endblock %}
+{% block page_title %}Hub Cards{% endblock %}
+{% block page_sub %}Manage the Quick Access cards shown on the Hub home screen{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_hub_card_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Card</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {% if cards %}
+  <table>
+    <thead><tr><th>Order</th><th>Card</th><th>Target</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for card in cards %}
+    <tr>
+      <td style="color:#6e6e73; width:60px;">{{ card.sort_order }}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:12px;">
+          {% if card.photo %}
+          <img src="/static/{{ card.photo }}" alt="{{ card.title }}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;">
+          {% else %}
+          <div class="avatar-placeholder" style="border-radius:14px;width:56px;height:56px;"><i class="bi {{ card.icon or 'bi-grid-fill' }}"></i></div>
+          {% endif %}
+          <div>
+            <div style="font-weight:700;color:#1d1d1f;">{{ card.title }}</div>
+            <div style="font-size:0.76rem;color:#6e6e73;">{{ card.subtitle or 'No subtitle' }}</div>
+          </div>
+        </div>
+      </td>
+      <td style="color:#6e6e73;font-size:0.8rem;">{{ card.target_url or '—' }}</td>
+      <td>
+        <span class="badge {{ 'badge-teal' if card.is_active else 'badge-orange' }}">{{ 'Active' if card.is_active else 'Hidden' }}</span>
+      </td>
+      <td>
+        <a href="{{ url_for('admin_hub_card_edit', cid=card.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{{ url_for('admin_hub_card_delete', cid=card.id) }}" style="display:inline;" onsubmit="return confirm('Delete this Hub card?')">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No Hub cards yet. <a href="{{ url_for('admin_hub_card_new') }}" style="color:#13677A;">Add the first one →</a></div>
+  {% endif %}
+</div>
+{% endblock %}

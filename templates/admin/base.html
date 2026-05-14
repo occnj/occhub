@@ -287,6 +287,9 @@
         <a href="{{ url_for('admin_missions') }}" class="nav-item {% if 'mission' in request.endpoint and request.endpoint != 'admin_page_headers' %}active{% endif %}">
             <i class="bi bi-globe-americas"></i> Mission
         </a>
+        <a href="{{ url_for('admin_beyond_walls') }}" class="nav-item {% if 'beyond_wall' in request.endpoint or 'beyond_walls' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-compass"></i> Beyond the Walls
+        </a>
         <a href="{{ url_for('admin_ministries') }}" class="nav-item {% if 'ministr' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Ministries
         </a>

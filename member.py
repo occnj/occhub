@@ -134,6 +134,7 @@ def init_db():
         ('sermon_notes_page_description','Catch the latest sermon notes in a clean reading format built for your phone.'),
         ('crew_page_description','Meet the teams who make the experience happen long before and after the lights come on.'),
         ('mission_page_description','Stories from the field, moments that matter, and the lives being touched through every mission.'),
+        ('beyond_walls_page_description','Stories, impact, and moments from outreach beyond our Sunday walls.'),
         ('hub_notice_enabled','0'),
         ('hub_notice_title',''),
         ('hub_notice_body',''),
@@ -230,6 +231,23 @@ def init_db():
         FOREIGN KEY(mission_id) REFERENCES missions(id) ON DELETE CASCADE
     )''')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS beyond_walls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        summary TEXT DEFAULT '',
+        body TEXT DEFAULT '',
+        cover_photo TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS beyond_wall_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        beyond_id INTEGER NOT NULL,
+        photo TEXT NOT NULL,
+        caption TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(beyond_id) REFERENCES beyond_walls(id) ON DELETE CASCADE
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS beliefs (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
         body TEXT NOT NULL, scripture TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
@@ -305,7 +323,7 @@ def init_db():
         ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'group', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
         ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'modal', None, '', '', 'Leadership', 'Meet the pastors and leaders helping guide the vision of Oasis.', 'Open Leadership', '/leadership', '', 0, 8, 1),
         ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
-        ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'group', None, '', '', '', '', '', '', '', 0, 10, 1),
+        ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 10, 1),
     ]
     for card in seeded_hub_cards:
         c.execute(
@@ -314,6 +332,7 @@ def init_db():
         )
     c.execute("UPDATE hub_cards SET card_type='media', media_url='/watch-sermon', target_url='' WHERE slug='watch-latest'")
     c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('mission','beliefs-values','beyond-the-walls')")
+    c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")
     c.execute(
         "UPDATE hub_cards SET card_type='modal', target_url='', modal_title='Leadership', modal_body='Meet the pastors and leaders helping guide the vision of Oasis.', modal_button_label='Open Leadership', modal_button_url='/leadership' WHERE slug='leadership'"
     )
@@ -904,6 +923,32 @@ def get_mission_cards(conn):
         })
     return cards
 
+def get_beyond_wall_cover(conn, beyond_id):
+    cover = conn.execute("SELECT cover_photo FROM beyond_walls WHERE id=?", (beyond_id,)).fetchone()
+    if cover and cover['cover_photo']:
+        return cover['cover_photo']
+    first_image = conn.execute(
+        "SELECT photo FROM beyond_wall_images WHERE beyond_id=? ORDER BY sort_order, id LIMIT 1",
+        (beyond_id,)
+    ).fetchone()
+    return first_image['photo'] if first_image else ''
+
+def get_beyond_wall_cards(conn):
+    items = conn.execute("SELECT * FROM beyond_walls ORDER BY sort_order, id DESC").fetchall()
+    cards = []
+    for item in items:
+        cards.append({
+            'id': item['id'],
+            'title': item['title'],
+            'summary': item['summary'],
+            'cover_photo': get_beyond_wall_cover(conn, item['id']),
+            'image_count': conn.execute(
+                "SELECT COUNT(*) FROM beyond_wall_images WHERE beyond_id=?",
+                (item['id'],)
+            ).fetchone()[0],
+        })
+    return cards
+
 def get_hub_notice(settings=None):
     settings = settings or all_settings()
     return {
@@ -1098,6 +1143,29 @@ def mission_detail(mid):
     ).fetchall()
     conn.close()
     return render_template('mission_detail.html', mission=mission, images=images, settings=all_settings())
+
+@app.route('/beyond-the-walls')
+def beyond_the_walls():
+    track('beyond_the_walls')
+    conn = get_db()
+    cards = get_beyond_wall_cards(conn)
+    conn.close()
+    return render_template('beyond_walls.html', items=cards, settings=all_settings())
+
+@app.route('/beyond-the-walls/<int:bid>')
+def beyond_the_walls_detail(bid):
+    track('beyond_the_walls_detail')
+    conn = get_db()
+    item = conn.execute("SELECT * FROM beyond_walls WHERE id=?", (bid,)).fetchone()
+    if not item:
+        conn.close()
+        return redirect(url_for('beyond_the_walls'))
+    images = conn.execute(
+        "SELECT * FROM beyond_wall_images WHERE beyond_id=? ORDER BY sort_order, id",
+        (bid,)
+    ).fetchall()
+    conn.close()
+    return render_template('beyond_walls_detail.html', item=item, images=images, settings=all_settings())
 
 @app.route('/hub-cards/<int:cid>')
 def hub_card_group(cid):
@@ -1348,6 +1416,7 @@ def admin_page_headers():
             'contact_page_description',
             'leadership_page_description',
             'mission_page_description',
+            'beyond_walls_page_description',
             'ministries_page_description',
             'prayer_page_description',
             'serve_page_description',
@@ -1728,6 +1797,123 @@ def admin_mission_image_delete(mid, iid):
     conn.close()
     flash('Mission image removed.', 'info')
     return redirect(url_for('admin_mission_edit', mid=mid))
+
+# Beyond the Walls
+@app.route('/admin/beyond-the-walls')
+@login_required
+def admin_beyond_walls():
+    conn = get_db()
+    items = get_beyond_wall_cards(conn)
+    conn.close()
+    return render_template('admin/beyond_walls.html', items=items)
+
+@app.route('/admin/beyond-the-walls/new', methods=['GET', 'POST'])
+@login_required
+def admin_beyond_wall_new():
+    if request.method == 'POST':
+        cover = save_upload('cover_photo') or ''
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO beyond_walls (title,summary,body,cover_photo,sort_order) VALUES (?,?,?,?,?)",
+            (
+                request.form.get('title', '').strip(),
+                request.form.get('summary', '').strip(),
+                request.form.get('body', '').strip(),
+                cover,
+                int(request.form.get('sort_order') or 99),
+            )
+        )
+        conn.commit()
+        bid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.close()
+        flash('Saved! Add images below.', 'success')
+        return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+    return render_template('admin/beyond_wall_form.html', item=None, images=[])
+
+@app.route('/admin/beyond-the-walls/<int:bid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_beyond_wall_edit(bid):
+    conn = get_db()
+    item = conn.execute("SELECT * FROM beyond_walls WHERE id=?", (bid,)).fetchone()
+    if not item:
+        conn.close()
+        return redirect(url_for('admin_beyond_walls'))
+    if request.method == 'POST':
+        cover = save_upload('cover_photo')
+        if cover is None:
+            cover = item['cover_photo']
+        conn.execute(
+            "UPDATE beyond_walls SET title=?,summary=?,body=?,cover_photo=?,sort_order=? WHERE id=?",
+            (
+                request.form.get('title', '').strip(),
+                request.form.get('summary', '').strip(),
+                request.form.get('body', '').strip(),
+                cover,
+                int(request.form.get('sort_order') or 99),
+                bid,
+            )
+        )
+        conn.commit()
+        flash('Updated!', 'success')
+        item = conn.execute("SELECT * FROM beyond_walls WHERE id=?", (bid,)).fetchone()
+    images = conn.execute(
+        "SELECT * FROM beyond_wall_images WHERE beyond_id=? ORDER BY sort_order, id",
+        (bid,)
+    ).fetchall()
+    conn.close()
+    return render_template('admin/beyond_wall_form.html', item=item, images=images)
+
+@app.route('/admin/beyond-the-walls/<int:bid>/delete', methods=['POST'])
+@login_required
+def admin_beyond_wall_delete(bid):
+    conn = get_db()
+    conn.execute("DELETE FROM beyond_walls WHERE id=?", (bid,))
+    conn.commit()
+    conn.close()
+    flash('Removed.', 'info')
+    return redirect(url_for('admin_beyond_walls'))
+
+@app.route('/admin/beyond-the-walls/<int:bid>/images/new', methods=['POST'])
+@login_required
+def admin_beyond_wall_image_new(bid):
+    conn = get_db()
+    exists = conn.execute("SELECT id FROM beyond_walls WHERE id=?", (bid,)).fetchone()
+    image_count = conn.execute("SELECT COUNT(*) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0]
+    if not exists:
+        conn.close()
+        return redirect(url_for('admin_beyond_walls'))
+    if image_count >= 10:
+        conn.close()
+        flash('Each item can have up to 10 images.', 'info')
+        return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+    photo = save_upload('photo')
+    if not photo:
+        conn.close()
+        flash('Choose an image first.', 'info')
+        return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+    conn.execute(
+        "INSERT INTO beyond_wall_images (beyond_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+        (
+            bid,
+            photo,
+            request.form.get('caption', '').strip(),
+            int(request.form.get('sort_order') or 99),
+        )
+    )
+    conn.commit()
+    conn.close()
+    flash('Image added!', 'success')
+    return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+
+@app.route('/admin/beyond-the-walls/<int:bid>/images/<int:iid>/delete', methods=['POST'])
+@login_required
+def admin_beyond_wall_image_delete(bid, iid):
+    conn = get_db()
+    conn.execute("DELETE FROM beyond_wall_images WHERE id=? AND beyond_id=?", (iid, bid))
+    conn.commit()
+    conn.close()
+    flash('Image removed.', 'info')
+    return redirect(url_for('admin_beyond_wall_edit', bid=bid))
 
 # Leaders
 @app.route('/admin/leaders')

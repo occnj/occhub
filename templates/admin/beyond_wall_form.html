@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit' if item else 'New' }} Beyond the Walls{% endblock %}
+{% block page_title %}{{ 'Edit Story' if item else 'Add Story' }}{% endblock %}
+{% block page_sub %}Image gallery + blog-style story{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_beyond_walls') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr;gap:18px;max-width:980px;">
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" name="title" class="form-control" value="{{ item.title if item else '' }}" required placeholder="Outreach in ...">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Short Summary</label>
+          <textarea name="summary" class="form-control" style="min-height:100px;" placeholder="Shown on the Beyond the Walls landing page.">{{ item.summary if item else '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Story</label>
+          <textarea name="body" class="form-control" style="min-height:220px;" placeholder="Write the full story here.">{{ item.body if item else '' }}</textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 180px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Cover Image</label>
+            <input type="file" name="cover_photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+            <div style="font-size:0.72rem;color:#6e6e73;margin-top:6px;">If you skip this, the first gallery image becomes the cover.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sort Order</label>
+            <input type="number" name="sort_order" class="form-control" value="{{ item.sort_order if item else 99 }}">
+          </div>
+        </div>
+
+        {% if item and item.cover_photo %}
+        <img src="/static/{{ item.cover_photo }}" alt="{{ item.title }}" style="width:100%;max-width:260px;border-radius:18px;display:block;margin:0 0 16px;">
+        {% endif %}
+
+        <div style="display:flex;gap:10px;">
+          <button type="submit" class="btn btn-primary">{{ 'Save Changes' if item else 'Create Story' }}</button>
+          <a href="{{ url_for('admin_beyond_walls') }}" class="btn btn-ghost">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="bi bi-images"></i> Gallery Images</div>
+      <span class="badge badge-orange">{{ images|length }}/10</span>
+    </div>
+    <div class="card-body">
+      {% if item %}
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin_beyond_wall_image_new', bid=item.id) }}" style="border:1px solid #ececf0;border-radius:16px;padding:16px;margin-bottom:18px;">
+        <div class="form-group">
+          <label class="form-label">Add Image</label>
+          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Caption</label>
+          <input type="text" name="caption" class="form-control" placeholder="Optional caption">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sort Order</label>
+          <input type="number" name="sort_order" class="form-control" value="{{ images|length + 1 }}">
+        </div>
+        <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;"><i class="bi bi-plus-lg"></i> Add Image</button>
+      </form>
+
+      {% if images %}
+        {% for image in images %}
+        <div style="display:grid;grid-template-columns:84px 1fr auto;gap:14px;align-items:center;padding:12px;border:1px solid #ececf0;border-radius:16px;margin-bottom:12px;">
+          <img src="/static/{{ image.photo }}" alt="Image {{ loop.index }}" style="width:84px;height:84px;border-radius:16px;object-fit:cover;">
+          <div>
+            <div style="font-size:0.76rem;font-weight:700;color:#13677A;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Image {{ loop.index }}</div>
+            <div style="font-size:0.84rem;color:#1d1d1f;">{{ image.caption or 'No caption' }}</div>
+            <div style="font-size:0.74rem;color:#6e6e73;margin-top:4px;">Sort {{ image.sort_order }}</div>
+          </div>
+          <form method="POST" action="{{ url_for('admin_beyond_wall_image_delete', bid=item.id, iid=image.id) }}" onsubmit="return confirm('Delete this image?')">
+            <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+        {% endfor %}
+      {% else %}
+      <div style="font-size:0.82rem;color:#6e6e73;line-height:1.7;">No gallery images yet.</div>
+      {% endif %}
+      {% else %}
+      <div style="font-size:0.82rem;color:#6e6e73;line-height:1.7;">Create the story first, then upload up to 10 images.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+

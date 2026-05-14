@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}Beyond the Walls{% endblock %}
+{% block page_title %}Beyond the Walls{% endblock %}
+{% block page_sub %}Manage stories and photo galleries (up to 10 images each){% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_beyond_wall_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Story</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    {% if items %}
+    <div style="display:grid;gap:12px;">
+      {% for it in items %}
+      <div style="display:grid;grid-template-columns:78px 1fr auto;gap:14px;align-items:center;padding:12px;border:1px solid #ececf0;border-radius:16px;">
+        {% if it.cover_photo %}
+        <img src="/static/{{ it.cover_photo }}" alt="{{ it.title }}" style="width:78px;height:78px;border-radius:16px;object-fit:cover;">
+        {% else %}
+        <div style="width:78px;height:78px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(19,103,122,0.16) 0%,rgba(242,84,27,0.18) 100%);color:#F2541B;">
+          <i class="bi bi-compass" style="font-size:1.4rem;"></i>
+        </div>
+        {% endif %}
+        <div>
+          <div style="font-weight:700;">{{ it.title }}</div>
+          <div style="font-size:0.82rem;color:#6e6e73;line-height:1.6;">{{ it.summary or '—' }}</div>
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:4px;">{{ it.image_count }} image{{ '' if it.image_count == 1 else 's' }} · Sort {{ it.sort_order }}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <a href="{{ url_for('admin_beyond_wall_edit', bid=it.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+          <form method="POST" action="{{ url_for('admin_beyond_wall_delete', bid=it.id) }}" onsubmit="return confirm('Delete this story?')" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="color:#6e6e73;">No stories yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

@@ -305,6 +305,7 @@ def init_db():
         ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'group', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
         ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'modal', None, '', '', 'Leadership', 'Meet the pastors and leaders helping guide the vision of Oasis.', 'Open Leadership', '/leadership', '', 0, 8, 1),
         ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
+        ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'group', None, '', '', '', '', '', '', '', 0, 10, 1),
     ]
     for card in seeded_hub_cards:
         c.execute(
@@ -312,7 +313,7 @@ def init_db():
             card
         )
     c.execute("UPDATE hub_cards SET card_type='media', media_url='/watch-sermon', target_url='' WHERE slug='watch-latest'")
-    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('mission','beliefs-values')")
+    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('mission','beliefs-values','beyond-the-walls')")
     c.execute(
         "UPDATE hub_cards SET card_type='modal', target_url='', modal_title='Leadership', modal_body='Meet the pastors and leaders helping guide the vision of Oasis.', modal_button_label='Open Leadership', modal_button_url='/leadership' WHERE slug='leadership'"
     )

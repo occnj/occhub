@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ 'Edit' if member else 'New' }} Oasis Crew Member{% endblock %}
 {% block page_title %}{{ 'Edit Member' if member else 'Add Member' }}{% endblock %}
-{% block page_sub %}Add one person once and assign them to up to 3 ministries{% endblock %}
+{% block page_sub %}{{ scene.name if scene is defined and scene else 'Add one person once and assign them to up to 3 ministries' }}{% endblock %}
 {% block topbar_actions %}
     <a href="{{ url_for('admin_behind_scenes') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
 {% endblock %}

@@ -2219,6 +2219,7 @@ def admin_behind_scene_person_new():
     conn.close()
     return render_template(
         'admin/behind_scene_person_form.html',
+        scene=None,
         member=None,
         assignments=[],
         scene_choices=scene_choices,
@@ -2259,6 +2260,7 @@ def admin_behind_scene_person_edit(mid):
     conn.close()
     return render_template(
         'admin/behind_scene_person_form.html',
+        scene=None,
         member=member,
         assignments=assignments,
         scene_choices=scene_choices,

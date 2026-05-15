@@ -1,0 +1,10 @@
+[Unit]
+Description=Sentinel Bot 02 - Error Log Monitor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/bin/sentinel-bot-02.sh
+

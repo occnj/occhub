@@ -2224,7 +2224,7 @@ def admin_behind_scene_person_new():
         assignments=[],
         scene_choices=scene_choices,
         default_scene_id=default_scene_id,
-        next_sort_order=next_sort_order,
+        display_order=next_sort_order,
     )
 
 @app.route('/admin/behind-the-scene/members/<int:mid>/edit', methods=['GET', 'POST'])
@@ -2265,7 +2265,7 @@ def admin_behind_scene_person_edit(mid):
         assignments=assignments,
         scene_choices=scene_choices,
         default_scene_id=None,
-        next_sort_order=member['sort_order'],
+        display_order=member['sort_order'],
     )
 
 @app.route('/admin/behind-the-scene/members/<int:mid>/delete', methods=['POST'])

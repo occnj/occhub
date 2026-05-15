@@ -21,6 +21,12 @@ backoff_sleep() {
 }
 
 svc_state() {
+  local load_state
+  load_state="$(systemctl show -p LoadState --value "$SERVICE_NAME" 2>/dev/null || echo not-found)"
+  if [[ "$load_state" == "not-found" ]]; then
+    echo "missing"
+    return
+  fi
   if systemctl is-failed --quiet "$SERVICE_NAME"; then echo "failed"; return; fi
   if systemctl is-active --quiet "$SERVICE_NAME"; then echo "active"; return; fi
   echo "inactive"
@@ -119,8 +125,12 @@ main() {
   local state issue dedup_key details
   state="$(svc_state)"
 
-  if [[ "$state" == "failed" ]]; then
+  if [[ "$state" == "missing" ]]; then
+    issue="systemd_missing_unit"
+  elif [[ "$state" == "failed" ]]; then
     issue="systemd_failed"
+  elif [[ "$state" == "inactive" ]]; then
+    issue="systemd_inactive"
   else
     local hb_epoch now_epoch age
     hb_epoch="$(get_heartbeat_epoch || echo 0)"

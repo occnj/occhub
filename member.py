@@ -330,7 +330,7 @@ def init_db():
         ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', 'link', None, '/prayer', '', '', '', '', '', '', 0, 5, 1),
         ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'link', None, 'https://www.oasisnj.net/helpdesk', '', '', '', '', '', '', 1, 6, 1),
         ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'group', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
-        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'modal', None, '', '', 'Leadership', 'Meet the pastors and leaders helping guide the vision of Oasis.', 'Open Leadership', '/leadership', '', 0, 8, 1),
+        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'link', None, '/leadership', '', '', '', '', '', '', 0, 8, 1),
         ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
         ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 10, 1),
     ]
@@ -343,9 +343,7 @@ def init_db():
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/mission' WHERE slug='mission'")
     c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('beliefs-values','beyond-the-walls')")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")
-    c.execute(
-        "UPDATE hub_cards SET card_type='modal', target_url='', modal_title='Leadership', modal_body='Meet the pastors and leaders helping guide the vision of Oasis.', modal_button_label='Open Leadership', modal_button_url='/leadership' WHERE slug='leadership'"
-    )
+    c.execute("UPDATE hub_cards SET card_type='link', target_url='/leadership', media_url='', modal_title='', modal_body='', modal_button_label='', modal_button_url='', modal_image='' WHERE slug='leadership'")
 
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,

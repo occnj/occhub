@@ -31,7 +31,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Display Order</label>
-                <input type="number" name="sort_order" class="form-control" value="{{ member.sort_order if member else 99 }}" style="width:120px;">
+                <input type="number" name="sort_order" class="form-control" value="{{ member.sort_order if member else next_sort_order('behind_scene_people') }}" style="width:120px;">
             </div>
             <div class="form-group">
                 <label class="form-label">Ministry Assignments</label>

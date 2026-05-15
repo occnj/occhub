@@ -952,6 +952,24 @@ def get_crew_people(conn):
         })
     return items
 
+def next_available_sort_order(conn, table_name, column_name='sort_order'):
+    rows = conn.execute(f"SELECT COALESCE({column_name}, 0) AS sort_order FROM {table_name} ORDER BY {column_name}, id").fetchall()
+    used = {int(row['sort_order']) for row in rows if row['sort_order'] is not None and int(row['sort_order']) > 0}
+    candidate = 1
+    while candidate in used:
+        candidate += 1
+    return candidate
+
+@app.context_processor
+def inject_next_sort_order():
+    def next_sort_order(table_name):
+        conn = get_db()
+        try:
+            return next_available_sort_order(conn, table_name)
+        finally:
+            conn.close()
+    return dict(next_sort_order=next_sort_order)
+
 def get_people_for_scene(conn, scene_id):
     return conn.execute(
         """
@@ -1652,7 +1670,7 @@ def admin_hub_card_new():
                 request.form.get('modal_button_url', '').strip(),
                 modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
             )
         )
@@ -1700,7 +1718,7 @@ def admin_hub_card_edit(cid):
                 request.form.get('modal_button_url', '').strip(),
                 modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
                 cid,
             )
@@ -1854,7 +1872,7 @@ def admin_mission_new():
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'missions'),
             )
         )
         conn.commit()
@@ -1883,7 +1901,7 @@ def admin_mission_edit(mid):
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else mission['sort_order'],
                 mid,
             )
         )
@@ -1931,7 +1949,7 @@ def admin_mission_image_new(mid):
             mid,
             photo,
             request.form.get('caption', '').strip(),
-            int(request.form.get('sort_order') or 99),
+            int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'mission_images'),
         )
     )
     conn.commit()
@@ -1971,7 +1989,7 @@ def admin_beyond_wall_new():
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beyond_walls'),
             )
         )
         conn.commit()
@@ -2000,7 +2018,7 @@ def admin_beyond_wall_edit(bid):
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else item['sort_order'],
                 bid,
             )
         )
@@ -2048,7 +2066,7 @@ def admin_beyond_wall_image_new(bid):
             bid,
             photo,
             request.form.get('caption', '').strip(),
-            int(request.form.get('sort_order') or 99),
+            int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beyond_wall_images'),
         )
     )
     conn.commit()
@@ -2079,7 +2097,7 @@ def admin_leader_new():
     if request.method=='POST':
         photo=save_upload('photo') or ''
         conn=get_db(); conn.execute("INSERT INTO leaders (name,role,bio,photo,sort_order) VALUES (?,?,?,?,?)",
-            (request.form['name'].strip(),request.form['role'].strip(),request.form.get('bio','').strip(),photo,int(request.form.get('sort_order') or 99)))
+            (request.form['name'].strip(),request.form['role'].strip(),request.form.get('bio','').strip(),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'leaders')))
         conn.commit(); conn.close(); flash('Leader added!','success'); return redirect(url_for('admin_leaders'))
     return render_template('admin/leader_form.html',leader=None)
 
@@ -2100,7 +2118,7 @@ def admin_leader_edit(lid):
                 "UPDATE leaders SET name=?,role=?,bio=?,photo=?,sort_order=? WHERE id=?",
                 (request.form['name'].strip(), request.form['role'].strip(),
                  request.form.get('bio','').strip(), photo,
-                 int(request.form.get('sort_order') or 99), lid)
+                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else l['sort_order'], lid)
             )
             conn.commit()
             flash('Leader updated!', 'success')
@@ -2177,6 +2195,7 @@ def admin_behind_scene_person_new():
     scene_choices = get_scene_choices(conn)
     default_scene_id = request.args.get('scene_id', '').strip()
     default_scene_id = int(default_scene_id) if default_scene_id.isdigit() else None
+    next_sort_order = next_available_sort_order(conn, 'behind_scene_people')
     if request.method == 'POST':
         photo = save_upload('photo') or ''
         conn.execute(
@@ -2185,7 +2204,7 @@ def admin_behind_scene_person_new():
                 request.form['name'].strip(),
                 request.form.get('bio', '').strip(),
                 photo,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'behind_scene_people'),
             )
         )
         person_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -2204,6 +2223,7 @@ def admin_behind_scene_person_new():
         assignments=[],
         scene_choices=scene_choices,
         default_scene_id=default_scene_id,
+        next_sort_order=next_sort_order,
     )
 
 @app.route('/admin/behind-the-scene/members/<int:mid>/edit', methods=['GET', 'POST'])
@@ -2226,7 +2246,7 @@ def admin_behind_scene_person_edit(mid):
                 request.form['name'].strip(),
                 request.form.get('bio', '').strip(),
                 photo,
-                int(request.form.get('sort_order') or 99),
+                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else member['sort_order'],
                 mid,
             )
         )
@@ -2243,6 +2263,7 @@ def admin_behind_scene_person_edit(mid):
         assignments=assignments,
         scene_choices=scene_choices,
         default_scene_id=None,
+        next_sort_order=member['sort_order'],
     )
 
 @app.route('/admin/behind-the-scene/members/<int:mid>/delete', methods=['POST'])
@@ -2282,7 +2303,7 @@ def admin_beliefs():
 def admin_belief_new():
     if request.method=='POST':
         conn=get_db(); conn.execute("INSERT INTO beliefs (title,body,scripture,sort_order) VALUES (?,?,?,?)",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99)))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beliefs')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_beliefs'))
     return render_template('admin/belief_form.html',belief=None)
 
@@ -2293,7 +2314,7 @@ def admin_belief_edit(bid):
     if not b: conn.close(); return redirect(url_for('admin_beliefs'))
     if request.method=='POST':
         conn.execute("UPDATE beliefs SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99),bid))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else b['sort_order'],bid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_beliefs'))
     conn.close(); return render_template('admin/belief_form.html',belief=b)
 
@@ -2314,7 +2335,7 @@ def admin_values():
 def admin_value_new():
     if request.method=='POST':
         conn=get_db(); conn.execute("INSERT INTO values_items (title,body,scripture,sort_order) VALUES (?,?,?,?)",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99)))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'values_items')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_values'))
     return render_template('admin/value_form.html',value=None)
 
@@ -2325,7 +2346,7 @@ def admin_value_edit(vid):
     if not v: conn.close(); return redirect(url_for('admin_values'))
     if request.method=='POST':
         conn.execute("UPDATE values_items SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order') or 99),vid))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else v['sort_order'],vid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_values'))
     conn.close(); return render_template('admin/value_form.html',value=v)
 
@@ -2347,7 +2368,7 @@ def admin_ministries():
 def admin_ministry_new():
     if request.method=='POST':
         conn=get_db(); conn.execute("INSERT INTO ministries (name,description,url,icon,sort_order) VALUES (?,?,?,?,?)",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order') or 99)))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'ministries')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_ministries'))
     return render_template('admin/ministry_form.html',ministry=None)
 
@@ -2358,7 +2379,7 @@ def admin_ministry_edit(mid):
     if not m: conn.close(); return redirect(url_for('admin_ministries'))
     if request.method=='POST':
         conn.execute("UPDATE ministries SET name=?,description=?,url=?,icon=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order') or 99),mid))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else m['sort_order'],mid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_ministries'))
     conn.close(); return render_template('admin/ministry_form.html',ministry=m)
 
@@ -2383,7 +2404,7 @@ def admin_serve():
 def admin_serve_cat_new():
     photo = save_upload('photo') or ''
     conn=get_db(); conn.execute("INSERT INTO serve_categories (name,description,icon,color,photo,sort_order) VALUES (?,?,?,?,?,?)",
-        (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99)))
+        (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'serve_categories')))
     conn.commit(); conn.close(); flash('Category added!','success'); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/category/<int:cid>/edit',methods=['GET','POST'])
@@ -2396,7 +2417,7 @@ def admin_serve_cat_edit(cid):
         if photo is None:
             photo = cat['photo']
         conn.execute("UPDATE serve_categories SET name=?,description=?,icon=?,color=?,photo=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order') or 99),cid))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else cat['sort_order'],cid))
         conn.commit(); conn.close(); flash('Category updated!','success'); return redirect(url_for('admin_serve'))
     conn.close(); return render_template('admin/serve_cat_form.html',cat=cat)
 
@@ -2410,7 +2431,7 @@ def admin_serve_cat_delete(cid):
 @login_required
 def admin_serve_role_new():
     conn=get_db(); conn.execute("INSERT INTO serve_roles (category_id,label,sort_order) VALUES (?,?,?)",
-        (int(request.form['category_id']),request.form['label'].strip(),int(request.form.get('sort_order') or 99)))
+        (int(request.form['category_id']),request.form['label'].strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'serve_roles')))
     conn.commit(); conn.close(); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/role/<int:rid>/delete',methods=['POST'])

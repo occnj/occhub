@@ -24,7 +24,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Display Order</label>
-                <input type="number" name="sort_order" class="form-control" value="{{ belief.sort_order if belief else 99 }}" style="width:120px;">
+                <input type="number" name="sort_order" class="form-control" value="{{ belief.sort_order if belief else next_sort_order('beliefs') }}" style="width:120px;">
             </div>
             <div style="display:flex; gap:10px;">
                 <button type="submit" class="btn btn-primary">{{ 'Save Changes' if belief else 'Add Belief' }}</button>

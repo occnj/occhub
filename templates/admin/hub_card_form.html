@@ -15,7 +15,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Display Order</label>
-          <input type="number" name="sort_order" class="form-control" value="{{ card.sort_order if card else 99 }}">
+          <input type="number" name="sort_order" class="form-control" value="{{ card.sort_order if card else next_sort_order('hub_cards') }}">
         </div>
       </div>
 

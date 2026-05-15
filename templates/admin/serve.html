@@ -74,7 +74,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Display Order</label>
-          <input type="number" name="sort_order" class="form-control" value="99" style="width:120px;">
+          <input type="number" name="sort_order" class="form-control" value="{{ next_sort_order('serve_categories') }}" style="width:120px;">
         </div>
         <button type="submit" class="btn btn-primary">Add Category</button>
       </form>

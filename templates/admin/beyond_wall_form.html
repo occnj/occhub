@@ -32,7 +32,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Sort Order</label>
-            <input type="number" name="sort_order" class="form-control" value="{{ item.sort_order if item else 99 }}">
+            <input type="number" name="sort_order" class="form-control" value="{{ item.sort_order if item else next_sort_order('beyond_walls') }}">
           </div>
         </div>
 
@@ -95,4 +95,3 @@
   </div>
 </div>
 {% endblock %}
-

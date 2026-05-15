@@ -324,7 +324,7 @@ def init_db():
             pass
     seeded_hub_cards = [
         ('you-said-yes', 'You Said Yes', 'Download PDF', '', 'bi-cloud-arrow-down', 'link', None, 'https://drive.google.com/file/d/1nc29sDRO2Q5ijcWGRv-3HHpXt_I4bF7t/view?usp=sharing', '', '', '', '', '', '', 1, 1, 1),
-        ('watch-latest', 'Watch the Latest', 'Latest messages', '', 'bi-youtube', 'media', None, '', '/watch-sermon', '', '', '', '', '', 0, 2, 1),
+        ('watch-latest', 'Watch the Latest', 'Latest messages', '', 'bi-youtube', 'link', None, '/watch-sermon', '', '', '', '', '', '', 0, 2, 1),
         ('mission', 'Mission', 'Stories from the field', '', 'bi-globe-americas', 'group', None, '/mission', '', '', '', '', '', '', 0, 3, 1),
         ('upcoming-events', 'Upcoming Events', "What's happening", '', 'bi-calendar3', 'link', None, '/calendar', '', '', '', '', '', '', 0, 4, 1),
         ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', 'link', None, '/prayer', '', '', '', '', '', '', 0, 5, 1),
@@ -339,7 +339,7 @@ def init_db():
             "INSERT OR IGNORE INTO hub_cards (slug,title,subtitle,photo,icon,card_type,parent_id,target_url,media_url,modal_title,modal_body,modal_button_label,modal_button_url,modal_image,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             card
         )
-    c.execute("UPDATE hub_cards SET card_type='media', media_url='/watch-sermon', target_url='' WHERE slug='watch-latest'")
+    c.execute("UPDATE hub_cards SET card_type='link', target_url='/watch-sermon', media_url='' WHERE slug='watch-latest'")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/mission' WHERE slug='mission'")
     c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('beliefs-values','beyond-the-walls')")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")

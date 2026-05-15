@@ -1,0 +1,11 @@
+[Unit]
+Description=Sentinel Bot 01 - Heartbeat Monitor
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/sentinel-bot-01.env
+ExecStart=/usr/local/bin/sentinel-bot-01.sh
+

@@ -1,0 +1,17 @@
+[Unit]
+Description=App Worker Heartbeat Test Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=occnj
+WorkingDirectory=/home/occnj/occ_hub
+Environment=SQLITE_DB_PATH=/home/occnj/occ_hub/oasis.db
+ExecStart=/usr/local/bin/app-worker.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

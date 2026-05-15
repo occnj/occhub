@@ -1,16 +1,63 @@
 {% extends "admin/base.html" %}
 {% block title %}Oasis Crew{% endblock %}
 {% block page_title %}Oasis Crew{% endblock %}
-{% block page_sub %}Manage ministry covers and volunteer assignments{% endblock %}
+{% block page_sub %}Manage people and ministry covers{% endblock %}
 {% block topbar_actions %}
-    <a href="{{ url_for('admin_ministries') }}" class="btn btn-primary"><i class="bi bi-gear"></i> Manage Ministries</a>
+    <a href="{{ url_for('admin_behind_scene_person_new') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Member</a>
 {% endblock %}
 
 {% block content %}
 <div class="alert alert-info">
-    <i class="bi bi-info-circle-fill"></i> Ministry names come from <b>Admin → Ministries</b>. Add, rename, or delete ministries there and Oasis Crew will update automatically.
+    <i class="bi bi-info-circle-fill"></i> Add each person once, then assign them to up to 3 ministries. The same person will show up everywhere automatically.
 </div>
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+        <div class="card-title">Oasis Crew Members</div>
+        <a href="{{ url_for('admin_behind_scene_person_new') }}" class="btn btn-orange btn-sm"><i class="bi bi-plus-lg"></i> Add Member</a>
+    </div>
+    {% if people %}
+    <table>
+        <thead><tr><th>Photo</th><th>Name</th><th>Ministries</th><th>Order</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for row in people %}
+        {% set member = row.person %}
+        <tr>
+            <td>
+                {% if member.photo %}
+                    <img src="/static/{{ member.photo }}" alt="{{ member.name }}" style="width:72px;height:72px;border-radius:18px;object-fit:cover;border:2px solid #d2d2d7;">
+                {% else %}
+                    <div class="avatar-placeholder" style="width:72px;height:72px;border-radius:18px;"><i class="bi bi-person"></i></div>
+                {% endif %}
+            </td>
+            <td><b>{{ member.name }}</b></td>
+            <td style="color:#6e6e73;">
+                {% if row.assignment_labels %}
+                    {{ row.assignment_labels | join(' · ') }}
+                {% else %}
+                    No ministry assigned
+                {% endif %}
+            </td>
+            <td style="color:#6e6e73;">{{ member.sort_order }}</td>
+            <td>
+                <a href="{{ url_for('admin_behind_scene_person_edit', mid=member.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+                <form method="POST" action="{{ url_for('admin_behind_scene_person_delete', mid=member.id) }}" style="display:inline;" onsubmit="return confirm('Remove {{ member.name }}?')">
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card-body" style="color:#6e6e73; font-size:0.85rem;">No members yet. Add the first one →</div>
+    {% endif %}
+</div>
+
 <div class="card">
+    <div class="card-header">
+        <div class="card-title">Ministry Covers</div>
+        <a href="{{ url_for('admin_ministries') }}" class="btn btn-ghost btn-sm"><i class="bi bi-gear"></i> Manage Ministries</a>
+    </div>
     {% if scenes %}
     <table>
         <thead><tr><th>Cover</th><th>Ministry</th><th>Volunteers</th><th>Order</th><th>Actions</th></tr></thead>

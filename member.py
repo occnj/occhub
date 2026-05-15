@@ -929,6 +929,29 @@ def get_people_count_by_scene(conn):
         ).fetchall()
     }
 
+def get_crew_people(conn):
+    people = conn.execute("SELECT * FROM behind_scene_people ORDER BY sort_order, name").fetchall()
+    assignments = conn.execute(
+        """
+        SELECT a.*, s.name AS scene_name
+        FROM behind_scene_assignments a
+        JOIN behind_scenes s ON s.id = a.scene_id
+        ORDER BY a.slot_order, a.id
+        """
+    ).fetchall()
+    grouped = {}
+    for row in assignments:
+        grouped.setdefault(row['person_id'], []).append(row)
+    items = []
+    for person in people:
+        slots = grouped.get(person['id'], [])
+        items.append({
+            'person': person,
+            'assignments': slots,
+            'assignment_labels': [f"{slot['scene_name']}" + (f" - {slot['role']}" if slot['role'] else "") for slot in slots],
+        })
+    return items
+
 def get_people_for_scene(conn, scene_id):
     return conn.execute(
         """
@@ -2104,14 +2127,14 @@ def admin_behind_scenes():
     sync_behind_scenes_with_ministries(conn)
     scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
     counts = get_people_count_by_scene(conn)
+    people = get_crew_people(conn)
     conn.close()
-    return render_template('admin/behind_scenes.html', scenes=scenes, member_counts=counts)
+    return render_template('admin/behind_scenes.html', scenes=scenes, member_counts=counts, people=people)
 
 @app.route('/admin/behind-the-scene/new', methods=['GET', 'POST'])
 @login_required
 def admin_behind_scene_new():
-    flash("Add and rename ministries from the Ministries admin section. Oasis Crew uses that list automatically.", 'info')
-    return redirect(url_for('admin_ministries'))
+    return redirect(url_for('admin_behind_scene_person_new'))
 
 @app.route('/admin/behind-the-scene/<int:sid>/edit', methods=['GET', 'POST'])
 @login_required
@@ -2146,16 +2169,14 @@ def admin_behind_scene_delete(sid):
     flash("Delete ministries from the Ministries admin section. Oasis Crew mirrors that list automatically.", 'info')
     return redirect(url_for('admin_ministries'))
 
-@app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])
+@app.route('/admin/behind-the-scene/members/new', methods=['GET', 'POST'])
 @login_required
-def admin_behind_scene_member_new(sid):
+def admin_behind_scene_person_new():
     conn = get_db()
     sync_behind_scenes_with_ministries(conn)
-    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
-    if not scene:
-        conn.close()
-        return redirect(url_for('admin_behind_scenes'))
     scene_choices = get_scene_choices(conn)
+    default_scene_id = request.args.get('scene_id', '').strip()
+    default_scene_id = int(default_scene_id) if default_scene_id.isdigit() else None
     if request.method == 'POST':
         photo = save_upload('photo') or ''
         conn.execute(
@@ -2169,33 +2190,30 @@ def admin_behind_scene_member_new(sid):
         )
         person_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         slots = assignment_slots_from_form(request.form)
-        if not slots:
-            slots = [{'scene_id': sid, 'role': request.form.get('assignment_1_role', '').strip(), 'slot_order': 1}]
+        if not slots and default_scene_id:
+            slots = [{'scene_id': default_scene_id, 'role': request.form.get('assignment_1_role', '').strip(), 'slot_order': 1}]
         replace_person_assignments(conn, person_id, slots)
         conn.commit()
         conn.close()
-        flash('Team member added!', 'success')
-        return redirect(url_for('admin_behind_scene_edit', sid=sid))
-    default_assignments = [{'scene_id': sid, 'role': '', 'slot_order': 1}]
+        flash('Member added!', 'success')
+        return redirect(url_for('admin_behind_scenes'))
     conn.close()
     return render_template(
-        'admin/behind_scene_member_form.html',
-        scene=scene,
+        'admin/behind_scene_person_form.html',
         member=None,
+        assignments=[],
         scene_choices=scene_choices,
-        assignments=default_assignments,
+        default_scene_id=default_scene_id,
     )
 
-@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/edit', methods=['GET', 'POST'])
+@app.route('/admin/behind-the-scene/members/<int:mid>/edit', methods=['GET', 'POST'])
 @login_required
-def admin_behind_scene_member_edit(sid, mid):
+def admin_behind_scene_person_edit(mid):
     conn = get_db()
     sync_behind_scenes_with_ministries(conn)
-    scene = conn.execute("SELECT * FROM behind_scenes WHERE id=?", (sid,)).fetchone()
     scene_choices = get_scene_choices(conn)
     member, assignments = get_person_with_assignments(conn, mid)
-    assigned_scene_ids = {assignment['scene_id'] for assignment in assignments}
-    if not scene or not member or sid not in assigned_scene_ids:
+    if not member:
         conn.close()
         return redirect(url_for('admin_behind_scenes'))
     if request.method == 'POST':
@@ -2213,31 +2231,44 @@ def admin_behind_scene_member_edit(sid, mid):
             )
         )
         slots = assignment_slots_from_form(request.form)
-        if not slots:
-            slots = [{'scene_id': sid, 'role': request.form.get('assignment_1_role', '').strip(), 'slot_order': 1}]
         replace_person_assignments(conn, mid, slots)
         conn.commit()
         conn.close()
-        flash('Team member updated!', 'success')
-        return redirect(url_for('admin_behind_scene_edit', sid=sid))
+        flash('Member updated!', 'success')
+        return redirect(url_for('admin_behind_scenes'))
     conn.close()
     return render_template(
-        'admin/behind_scene_member_form.html',
-        scene=scene,
+        'admin/behind_scene_person_form.html',
         member=member,
-        scene_choices=scene_choices,
         assignments=assignments,
+        scene_choices=scene_choices,
+        default_scene_id=None,
     )
 
-@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/delete', methods=['POST'])
+@app.route('/admin/behind-the-scene/members/<int:mid>/delete', methods=['POST'])
 @login_required
-def admin_behind_scene_member_delete(sid, mid):
+def admin_behind_scene_person_delete(mid):
     conn = get_db()
     conn.execute("DELETE FROM behind_scene_people WHERE id=?", (mid,))
     conn.commit()
     conn.close()
-    flash('Team member removed.', 'info')
-    return redirect(url_for('admin_behind_scene_edit', sid=sid))
+    flash('Member removed.', 'info')
+    return redirect(url_for('admin_behind_scenes'))
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/new', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_member_new(sid):
+    return redirect(url_for('admin_behind_scene_person_new', scene_id=sid))
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_behind_scene_member_edit(sid, mid):
+    return redirect(url_for('admin_behind_scene_person_edit', mid=mid))
+
+@app.route('/admin/behind-the-scene/<int:sid>/members/<int:mid>/delete', methods=['POST'])
+@login_required
+def admin_behind_scene_member_delete(sid, mid):
+    return redirect(url_for('admin_behind_scene_person_delete', mid=mid))
 
 # Beliefs
 @app.route('/admin/beliefs')

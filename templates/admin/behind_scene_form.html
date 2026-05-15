@@ -5,7 +5,7 @@
 {% block topbar_actions %}
     <a href="{{ url_for('admin_behind_scenes') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
     {% if scene %}
-    <a href="{{ url_for('admin_behind_scene_member_new', sid=scene.id) }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Person</a>
+    <a href="{{ url_for('admin_behind_scene_person_new', scene_id=scene.id) }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Person</a>
     {% endif %}
 {% endblock %}
 
@@ -15,7 +15,7 @@
         <div class="card-header"><div class="card-title">{{ 'Edit' if scene else 'New' }} Ministry</div></div>
         <div class="card-body">
             <div class="alert alert-info">
-                <i class="bi bi-info-circle-fill"></i> Ministry name and description are managed in <b>Admin → Ministries</b>. This page controls the Oasis Crew cover image and people assigned to this ministry.
+                <i class="bi bi-info-circle-fill"></i> Ministry name and description are managed in <b>Admin → Ministries</b>. This page controls the Oasis Crew cover image.
             </div>
             <form method="POST" enctype="multipart/form-data">
                 <div class="form-group">
@@ -48,7 +48,7 @@
     <div class="card">
         <div class="card-header">
             <div class="card-title">People in {{ scene.name }}</div>
-            <a href="{{ url_for('admin_behind_scene_member_new', sid=scene.id) }}" class="btn btn-orange btn-sm"><i class="bi bi-plus-lg"></i> Add Person</a>
+        <a href="{{ url_for('admin_behind_scene_person_new', scene_id=scene.id) }}" class="btn btn-orange btn-sm"><i class="bi bi-plus-lg"></i> Add Person</a>
         </div>
         {% if members %}
         <table>
@@ -68,8 +68,8 @@
                 <td style="color:#6e6e73;">Up to 3 ministries</td>
                 <td style="color:#6e6e73;">{{ member.sort_order }}</td>
                 <td>
-                    <a href="{{ url_for('admin_behind_scene_member_edit', sid=scene.id, mid=member.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
-                    <form method="POST" action="{{ url_for('admin_behind_scene_member_delete', sid=scene.id, mid=member.id) }}" style="display:inline;" onsubmit="return confirm('Remove {{ member.name }}?')">
+                    <a href="{{ url_for('admin_behind_scene_person_edit', mid=member.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+                    <form method="POST" action="{{ url_for('admin_behind_scene_person_delete', mid=member.id) }}" style="display:inline;" onsubmit="return confirm('Remove {{ member.name }}?')">
                         <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
                     </form>
                 </td>

@@ -8,7 +8,7 @@ Type=simple
 User=occnj
 WorkingDirectory=/home/occnj/occ_hub
 Environment="PATH=/home/occnj/occ_hub/venv/bin"
-Environment="SECRET_KEY=change-this-to-a-long-random-string"
+Environment="SECRET_KEY=89399d8cbd557f9d012df93ebee102e7737d9a287a3ee8397a6bc292df5a28b7"
 Environment="MAIL_USERNAME=media@oasisnj.net"
 Environment="MAIL_PASSWORD=Oasis2052"
 ExecStart=/home/occnj/occ_hub/venv/bin/gunicorn \

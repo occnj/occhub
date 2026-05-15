@@ -61,6 +61,7 @@
     <div class="error"><i class="bi bi-exclamation-circle-fill"></i> {{ error }}</div>
     {% endif %}
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Username</label>
         <input type="text" name="username" autocomplete="username" placeholder="admin" required>
         <label>Password</label>

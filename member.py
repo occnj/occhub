@@ -5,7 +5,7 @@ from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import html
-import os, re, sqlite3, uuid, zipfile, zlib
+import os, re, secrets, sqlite3, time, uuid, zipfile, zlib
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -15,7 +15,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__,
     static_folder=os.path.join(BASE_DIR,'static'),
     template_folder=os.path.join(BASE_DIR,'templates'))
-app.secret_key = os.environ.get('SECRET_KEY','oasis-change-this-in-production')
+app.secret_key = os.environ.get('SECRET_KEY')
+if not app.secret_key:
+    raise RuntimeError('SECRET_KEY environment variable must be set')
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR,'static','uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -28,6 +30,9 @@ app.config.update(
     MAIL_USERNAME=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
     MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD',''),
     MAIL_DEFAULT_SENDER=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
 )
 mail = Mail(app)
 
@@ -84,10 +89,14 @@ def init_db():
         role TEXT DEFAULT 'editor',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )''')
-    c.execute(
-        "INSERT OR IGNORE INTO admin_users (username,password,role) VALUES (?,?,?)",
-        ('admin', hash_password('oasis2025'), 'superadmin')
-    )
+    existing = c.execute("SELECT COUNT(*) FROM admin_users").fetchone()[0]
+    if existing == 0:
+        first_password = secrets.token_urlsafe(16)
+        c.execute(
+            "INSERT INTO admin_users (username,password,role) VALUES (?,?,?)",
+            ('admin', hash_password(first_password), 'superadmin')
+        )
+        print(f"\n[FIRST RUN] Admin account created — username: admin  password: {first_password}\n", flush=True)
 
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     for k,v in [
@@ -1056,6 +1065,49 @@ def ensure_admin_password_hash(conn, user_row, raw_password):
     )
     conn.commit()
 
+# ── CSRF ─────────────────────────────────────────────────────────────────────
+
+def get_csrf_token():
+    if '_csrf' not in session:
+        session['_csrf'] = secrets.token_hex(32)
+    return session['_csrf']
+
+app.jinja_env.globals['csrf_token'] = get_csrf_token
+
+@app.before_request
+def csrf_protect():
+    if request.method == 'POST' and request.path.startswith('/admin'):
+        token = request.form.get('csrf_token', '')
+        if not token or token != session.get('_csrf'):
+            from flask import abort
+            abort(403)
+
+# ── Login rate limiting ───────────────────────────────────────────────────────
+
+_login_attempts: dict = {}
+_LOGIN_MAX = 5
+_LOGIN_WINDOW = 900  # 15 minutes
+
+def _check_rate_limit(ip):
+    now = time.time()
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW]
+    _login_attempts[ip] = attempts
+    if len(attempts) >= _LOGIN_MAX:
+        wait = int(_LOGIN_WINDOW - (now - attempts[0]))
+        return False, wait
+    return True, 0
+
+def _record_failed_login(ip):
+    now = time.time()
+    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW]
+    attempts.append(now)
+    _login_attempts[ip] = attempts
+
+def _clear_login_attempts(ip):
+    _login_attempts.pop(ip, None)
+
+# ── Auth decorators ───────────────────────────────────────────────────────────
+
 def login_required(f):
     @wraps(f)
     def dec(*a,**kw):
@@ -1408,6 +1460,11 @@ def admin_login():
     if session.get('admin_logged_in'): return redirect(url_for('admin_dashboard'))
     error=None
     if request.method=='POST':
+        ip = request.headers.get('X-Real-IP') or request.remote_addr or '0.0.0.0'
+        allowed, wait = _check_rate_limit(ip)
+        if not allowed:
+            error = f'Too many failed attempts. Try again in {wait // 60 + 1} minute(s).'
+            return render_template('admin/login.html', error=error)
         conn=get_db()
         username = request.form.get('username','').strip()
         password = request.form.get('password','')
@@ -1415,10 +1472,12 @@ def admin_login():
         if u and verify_password(u['password'], password):
             ensure_admin_password_hash(conn, u, password)
             conn.close()
+            _clear_login_attempts(ip)
             session.permanent=True; session['admin_logged_in']=True
             session['admin_user']=u['username']; session['admin_role']=u['role']
             return redirect(url_for('admin_dashboard'))
         conn.close()
+        _record_failed_login(ip)
         error='Invalid username or password.'
     return render_template('admin/login.html',error=error)
 

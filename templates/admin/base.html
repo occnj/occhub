@@ -35,6 +35,26 @@
             {% endif %}
         }
 
+        .nav-toggle {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            color: var(--text);
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .nav-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.28);
+            z-index: 95;
+        }
+
         /* Sidebar */
         .sidebar {
             width: var(--sidebar);
@@ -110,6 +130,27 @@
         .btn-sm { padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; }
 
         .content { padding: 32px; flex: 1; }
+
+        @media (max-width: 900px) {
+            :root { --sidebar: 280px; }
+            body { display: block; }
+            .main { margin-left: 0; }
+            .topbar { padding: 14px 16px; gap: 12px; }
+            .topbar-right { flex-wrap: wrap; justify-content: flex-end; }
+            .nav-toggle { display: inline-flex; }
+            .content { padding: 16px; }
+            .stats { grid-template-columns: 1fr; }
+            table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+            .sidebar {
+                transform: translateX(-105%);
+                transition: transform 0.2s ease;
+                width: var(--sidebar);
+                box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+            }
+            body.nav-open .sidebar { transform: translateX(0); }
+            body.nav-open .nav-overlay { display: block; }
+        }
 
         /* Cards */
         .card {
@@ -239,6 +280,8 @@
 </head>
 <body>
 
+<div class="nav-overlay" onclick="document.body.classList.remove('nav-open')"></div>
+
 <aside class="sidebar">
     <div class="sidebar-logo">
         <img src="/static/{{ site_settings.get('logo_path') or 'logo.png' }}" alt="Oasis" onerror="this.style.display='none'">
@@ -328,9 +371,14 @@
 
 <div class="main">
     <div class="topbar">
-        <div>
-            <div class="topbar-title">{% block page_title %}Admin{% endblock %}</div>
-            <div class="topbar-sub">{% block page_sub %}Oasis Christian Centre{% endblock %}</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <button class="nav-toggle" type="button" onclick="document.body.classList.toggle('nav-open')" aria-label="Menu">
+                <i class="bi bi-list"></i>
+            </button>
+            <div>
+                <div class="topbar-title">{% block page_title %}Admin{% endblock %}</div>
+                <div class="topbar-sub">{% block page_sub %}Oasis Christian Centre{% endblock %}</div>
+            </div>
         </div>
         <div class="topbar-right">
             {% block topbar_actions %}{% endblock %}
@@ -352,6 +400,12 @@
         {% block content %}{% endblock %}
     </div>
 </div>
+
+<script>
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') document.body.classList.remove('nav-open');
+});
+</script>
 
 </body>
 </html>

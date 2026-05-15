@@ -340,7 +340,8 @@ def init_db():
             card
         )
     c.execute("UPDATE hub_cards SET card_type='media', media_url='/watch-sermon', target_url='' WHERE slug='watch-latest'")
-    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('mission','beliefs-values','beyond-the-walls')")
+    c.execute("UPDATE hub_cards SET card_type='link', target_url='/mission' WHERE slug='mission'")
+    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('beliefs-values','beyond-the-walls')")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")
     c.execute(
         "UPDATE hub_cards SET card_type='modal', target_url='', modal_title='Leadership', modal_body='Meet the pastors and leaders helping guide the vision of Oasis.', modal_button_label='Open Leadership', modal_button_url='/leadership' WHERE slug='leadership'"
@@ -1288,6 +1289,12 @@ def hub_card_group(cid):
     if not parent:
         conn.close()
         return redirect(url_for('hub'))
+    if parent['slug'] == 'mission':
+        conn.close()
+        return redirect(url_for('missions'))
+    if parent['slug'] == 'beyond-the-walls':
+        conn.close()
+        return redirect(url_for('beyond_the_walls'))
     children = get_hub_cards(conn, parent_id=cid)
     conn.close()
     return render_template('hub_card_group.html', parent=parent, cards=children, settings=all_settings())

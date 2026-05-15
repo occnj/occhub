@@ -8,6 +8,12 @@ SQLITE_DB_PATH="${SQLITE_DB_PATH:-/home/occnj/occ_hub/oasis.db}"
 MAX_RESTARTS="${MAX_RESTARTS:-1}"
 MIN_500S="${MIN_500S:-2}"
 WINDOW_SECONDS="${WINDOW_SECONDS:-300}"
+ALERT_COOLDOWN_SECONDS="${ALERT_COOLDOWN_SECONDS:-1800}"
+ALERT_TO="${ALERT_TO:-media@oasisnj.net}"
+SMTP_HOST="${SMTP_HOST:-smtp.office365.com}"
+SMTP_PORT="${SMTP_PORT:-587}"
+SMTP_USERNAME="${SMTP_USERNAME:-${MAIL_USERNAME:-media@oasisnj.net}}"
+SMTP_PASSWORD="${SMTP_PASSWORD:-${MAIL_PASSWORD:-}}"
 HOST="$(hostname -s 2>/dev/null || hostname)"
 
 now_utc() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
@@ -48,6 +54,32 @@ write_state() {
            ON CONFLICT(bot_name) DO UPDATE SET last_offset=${offset};"
 }
 
+ensure_bot_state_columns() {
+  python3 - "$SQLITE_DB_PATH" <<'PY'
+import sqlite3, sys
+db = sys.argv[1]
+conn = sqlite3.connect(db)
+cols = {row[1] for row in conn.execute("PRAGMA table_info(bot_log_state)")}
+if "last_alert_at" not in cols:
+    conn.execute("ALTER TABLE bot_log_state ADD COLUMN last_alert_at TEXT NOT NULL DEFAULT ''")
+if "last_alert_key" not in cols:
+    conn.execute("ALTER TABLE bot_log_state ADD COLUMN last_alert_key TEXT NOT NULL DEFAULT ''")
+conn.commit()
+conn.close()
+PY
+}
+
+last_alert_state() {
+  sqlite_python "SELECT COALESCE(last_alert_at, '' ) || '|' || COALESCE(last_alert_key, '') FROM bot_log_state WHERE bot_name='${BOT_NAME}' LIMIT 1;"
+}
+
+write_alert_state() {
+  local alert_at="$1"
+  local alert_key="$2"
+  db_exec "INSERT INTO bot_log_state (bot_name,last_offset,last_alert_at,last_alert_key) VALUES ('${BOT_NAME}', 0, '${alert_at}', '${alert_key}')
+           ON CONFLICT(bot_name) DO UPDATE SET last_alert_at='${alert_at}', last_alert_key='${alert_key}';"
+}
+
 incident_upsert() {
   local issue="$1" fix="$2" success="$3" attempt="$4" details_json="$5" dedup_key="$6"
   python3 - "$SQLITE_DB_PATH" "$BOT_NAME" "$HOST" "$SERVICE_NAME" "$issue" "$fix" "$success" "$attempt" "$details_json" "$dedup_key" <<'PY'
@@ -72,7 +104,31 @@ restart_service() {
   systemctl restart "$SERVICE_NAME"
 }
 
+send_email() {
+  local subject="$1" body="$2"
+  python3 - "$subject" "$body" "$ALERT_TO" "$SMTP_HOST" "$SMTP_PORT" "$SMTP_USERNAME" "$SMTP_PASSWORD" <<'PY'
+import os, smtplib, ssl, sys
+from email.mime.text import MIMEText
+
+subject, body, to_addr, host, port, username, password = sys.argv[1:8]
+msg = MIMEText(body, "plain", "utf-8")
+msg["Subject"] = subject
+msg["From"] = username
+msg["To"] = to_addr
+
+ctx = ssl.create_default_context()
+with smtplib.SMTP(host, int(port), timeout=20) as s:
+    s.ehlo()
+    s.starttls(context=ctx)
+    s.ehlo()
+    if password:
+        s.login(username, password)
+    s.send_message(msg)
+PY
+}
+
 main() {
+  ensure_bot_state_columns
   [[ -f "$LOG_PATH" ]] || exit 0
 
   local start_offset current_size
@@ -108,6 +164,9 @@ main() {
   issue="error_log_spike"
   fix="systemctl restart ${SERVICE_NAME}"
   dedup_key="$(date -u +%Y%m%d%H%M)-${HOST}-${SERVICE_NAME}-${issue}"
+  last_alert="$(last_alert_state)"
+  last_alert_at="${last_alert%%|*}"
+  last_alert_key="${last_alert#*|}"
   details="$(python3 - <<PY
 import json
 print(json.dumps({
@@ -119,6 +178,39 @@ print(json.dumps({
 }))
 PY
 )"
+
+  alert_body="$(python3 - <<PY
+print("""Oasis Hub Issue
+
+Service: ${SERVICE_NAME}
+Host: ${HOST}
+Issue: ${issue}
+Status: log spike detected
+
+Latest log excerpt:
+${error_lines:-No matching error lines captured}
+
+Details:
+${details}
+""")
+PY
+)"
+
+  should_email=1
+  if [[ -n "${last_alert_at}" && -n "${last_alert_key}" ]]; then
+    if [[ "${last_alert_key}" == "${issue}" ]]; then
+      last_epoch="$(date -d "${last_alert_at}" +%s 2>/dev/null || echo 0)"
+      now_epoch="$(date +%s)"
+      if (( now_epoch - last_epoch < ALERT_COOLDOWN_SECONDS )); then
+        should_email=0
+      fi
+    fi
+  fi
+
+  if [[ "$should_email" -eq 1 ]]; then
+    send_email "Oasis Hub Issue" "$alert_body" || true
+    write_alert_state "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" "$issue" || true
+  fi
 
   incident_upsert "$issue" "$fix" 0 1 "$details" "$dedup_key" || true
 
@@ -136,4 +228,3 @@ PY
 }
 
 main "$@"
-

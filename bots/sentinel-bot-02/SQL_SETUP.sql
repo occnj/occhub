@@ -4,6 +4,8 @@
 CREATE TABLE IF NOT EXISTS bot_log_state (
   bot_name TEXT PRIMARY KEY,
   last_offset INTEGER NOT NULL DEFAULT 0,
+  last_alert_at TEXT NOT NULL DEFAULT '',
+  last_alert_key TEXT NOT NULL DEFAULT '',
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
@@ -15,4 +17,3 @@ BEGIN
   SET updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
   WHERE bot_name = NEW.bot_name;
 END;
-

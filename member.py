@@ -329,7 +329,7 @@ def init_db():
         ('upcoming-events', 'Upcoming Events', "What's happening", '', 'bi-calendar3', 'link', None, '/calendar', '', '', '', '', '', '', 0, 4, 1),
         ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', 'link', None, '/prayer', '', '', '', '', '', '', 0, 5, 1),
         ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'link', None, 'https://www.oasisnj.net/helpdesk', '', '', '', '', '', '', 1, 6, 1),
-        ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'group', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
+        ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'link', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
         ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'link', None, '/leadership', '', '', '', '', '', '', 0, 8, 1),
         ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
         ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 10, 1),
@@ -341,7 +341,7 @@ def init_db():
         )
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/watch-sermon', media_url='' WHERE slug='watch-latest'")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/mission' WHERE slug='mission'")
-    c.execute("UPDATE hub_cards SET card_type='group' WHERE slug IN ('beliefs-values','beyond-the-walls')")
+    c.execute("UPDATE hub_cards SET card_type='link', target_url='/beliefs' WHERE slug='beliefs-values'")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")
     c.execute("UPDATE hub_cards SET card_type='link', target_url='/leadership', media_url='', modal_title='', modal_body='', modal_button_label='', modal_button_url='', modal_image='' WHERE slug='leadership'")
 
@@ -1290,6 +1290,9 @@ def hub_card_group(cid):
     if parent['slug'] == 'mission':
         conn.close()
         return redirect(url_for('missions'))
+    if parent['slug'] == 'beliefs-values':
+        conn.close()
+        return redirect(url_for('beliefs'))
     if parent['slug'] == 'beyond-the-walls':
         conn.close()
         return redirect(url_for('beyond_the_walls'))

@@ -7,7 +7,7 @@ THRESHOLD_SECONDS="${THRESHOLD_SECONDS:-120}"
 VERIFY_SLEEP_SECONDS="${VERIFY_SLEEP_SECONDS:-10}"
 MAX_FIX_ATTEMPTS="${MAX_FIX_ATTEMPTS:-3}"
 
-: "${SQLITE_DB_PATH:?missing SQLITE_DB_PATH}"
+SQLITE_DB_PATH="${SQLITE_DB_PATH:-/home/occnj/occ_hub/oasis.db}"
 
 HOST="$(hostname -s 2>/dev/null || hostname)"
 

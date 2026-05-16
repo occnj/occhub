@@ -37,64 +37,67 @@
     width:100%;
     max-width:360px;
 }
-.crew-grid {
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
-    gap:16px;
-}
-.crew-member-card {
-    border:1px solid #ececf0;
-    border-radius:22px;
-    background:#fff;
-    padding:16px;
-    box-shadow:0 10px 24px rgba(0,0,0,.04);
+.crew-pill-list {
     display:flex;
-    flex-direction:column;
+    flex-wrap:wrap;
     gap:12px;
-    min-height:100%;
 }
-.crew-member-top {
+.crew-member-pill {
+    border:1px solid #ececf0;
+    border-radius:999px;
+    background:#fff;
+    box-shadow:0 10px 24px rgba(0,0,0,.04);
+    padding:12px 14px;
     display:flex;
     align-items:center;
     gap:12px;
+    min-width:240px;
+    max-width:100%;
+    flex:1 1 240px;
 }
 .crew-member-photo {
-    width:72px;
-    height:72px;
-    border-radius:20px;
+    width:52px;
+    height:52px;
+    border-radius:16px;
     object-fit:cover;
     border:2px solid #d2d2d7;
     flex:0 0 auto;
 }
+.crew-member-copy {
+    min-width:0;
+    flex:1 1 auto;
+}
 .crew-member-name {
-    font-size:1.02rem;
+    font-size:0.98rem;
     font-weight:700;
     margin:0;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 .crew-member-meta {
     color:#6e6e73;
-    font-size:0.82rem;
-    line-height:1.5;
-}
-.crew-ministry-list {
-    display:flex;
-    flex-wrap:wrap;
-    gap:6px;
+    font-size:0.76rem;
+    line-height:1.35;
 }
 .crew-pill {
     display:inline-flex;
     align-items:center;
     border-radius:999px;
-    padding:5px 9px;
-    font-size:0.74rem;
+    padding:4px 8px;
+    font-size:0.7rem;
     background:#f5f5f7;
     color:#424245;
+    margin-top:6px;
+    margin-right:6px;
 }
 .crew-actions {
     display:flex;
     gap:8px;
     flex-wrap:wrap;
-    margin-top:auto;
+    align-items:center;
+    justify-content:flex-end;
 }
 @media (max-width: 760px) {
     .crew-toolbar {
@@ -102,6 +105,9 @@
     }
     .crew-search {
         max-width:none;
+    }
+    .crew-member-pill {
+        flex-basis:100%;
     }
 }
 </style>
@@ -124,37 +130,30 @@
         <button type="button" data-letter="{{ letter }}">{{ letter }}</button>
         {% endfor %}
     </div>
-    <div class="crew-grid" id="crewGrid">
+    <div class="crew-pill-list" id="crewGrid">
         {% for row in people %}
         {% set member = row.person %}
-        <div class="crew-member-card" data-search="{{ member.name|lower }} {{ member.sort_order }} {{ (row.assignment_labels | join(' ')) | lower }}" data-letter="{{ (member.name[:1] or '').upper() }}">
-            <div class="crew-member-top">
-                {% if member.photo %}
-                    <img src="/static/{{ member.photo }}" alt="{{ member.name }}" class="crew-member-photo">
-                {% else %}
-                    <div class="avatar-placeholder crew-member-photo" style="border-radius:20px;"><i class="bi bi-person"></i></div>
-                {% endif %}
-                <div>
-                    <p class="crew-member-name">{{ member.name }}</p>
-                    <div class="crew-member-meta">Display order {{ member.sort_order }}</div>
-                </div>
-            </div>
-            <div>
-                <div class="crew-member-meta" style="margin-bottom:8px;">Ministries</div>
-                <div class="crew-ministry-list">
+        <div class="crew-member-pill" data-search="{{ member.name|lower }} {{ member.sort_order }} {{ (row.assignment_labels | join(' ')) | lower }}" data-letter="{{ (member.name[:1] or '').upper() }}">
+            {% if member.photo %}
+                <img src="/static/{{ member.photo }}" alt="{{ member.name }}" class="crew-member-photo">
+            {% else %}
+                <div class="avatar-placeholder crew-member-photo" style="border-radius:16px;"><i class="bi bi-person"></i></div>
+            {% endif %}
+            <div class="crew-member-copy">
+                <p class="crew-member-name">{{ member.name }}</p>
+                <div class="crew-member-meta">Order {{ member.sort_order }}</div>
+                <div class="crew-member-meta">
                     {% if row.assignment_labels %}
-                        {% for label in row.assignment_labels %}
-                            <span class="crew-pill">{{ label }}</span>
-                        {% endfor %}
+                        {{ row.assignment_labels | join(' · ') }}
                     {% else %}
-                        <span class="crew-pill">No ministry assigned</span>
+                        No ministry assigned
                     {% endif %}
                 </div>
             </div>
             <div class="crew-actions">
-                <a href="{{ url_for('admin_behind_scene_person_edit', mid=member.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+                <a href="{{ url_for('admin_behind_scene_person_edit', mid=member.id) }}" class="btn btn-ghost btn-sm" title="Edit {{ member.name }}"><i class="bi bi-pencil"></i></a>
                 <form method="POST" action="{{ url_for('admin_behind_scene_person_delete', mid=member.id) }}" style="display:inline;" onsubmit="return confirm('Remove {{ member.name }}?')">
-                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    <button type="submit" class="btn btn-danger btn-sm" title="Delete {{ member.name }}"><i class="bi bi-trash"></i></button>
                 </form>
             </div>
         </div>

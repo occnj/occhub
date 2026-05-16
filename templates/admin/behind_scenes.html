@@ -13,6 +13,26 @@
     align-items:center;
     margin-bottom:14px;
 }
+.crew-alpha {
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin:0 0 12px;
+}
+.crew-alpha button {
+    border:1px solid #e5e5ea;
+    background:#fff;
+    color:#424245;
+    border-radius:999px;
+    padding:7px 11px;
+    font-size:0.78rem;
+    cursor:pointer;
+}
+.crew-alpha button.active {
+    background:#f05123;
+    border-color:#f05123;
+    color:#fff;
+}
 .crew-search {
     width:100%;
     max-width:360px;
@@ -98,10 +118,16 @@
         <div style="color:#6e6e73;font-size:0.82rem;">{{ people|length }} members</div>
         <input id="crewSearch" class="form-control crew-search" type="search" placeholder="Search members or ministries...">
     </div>
+    <div class="crew-alpha" id="crewAlpha">
+        <button type="button" class="active" data-letter="all">All</button>
+        {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+        <button type="button" data-letter="{{ letter }}">{{ letter }}</button>
+        {% endfor %}
+    </div>
     <div class="crew-grid" id="crewGrid">
         {% for row in people %}
         {% set member = row.person %}
-        <div class="crew-member-card" data-search="{{ member.name|lower }} {{ member.sort_order }} {{ (row.assignment_labels | join(' ')) | lower }}">
+        <div class="crew-member-card" data-search="{{ member.name|lower }} {{ member.sort_order }} {{ (row.assignment_labels | join(' ')) | lower }}" data-letter="{{ (member.name[:1] or '').upper() }}">
             <div class="crew-member-top">
                 {% if member.photo %}
                     <img src="/static/{{ member.photo }}" alt="{{ member.name }}" class="crew-member-photo">
@@ -180,14 +206,30 @@
 (function () {
   const input = document.getElementById('crewSearch');
   const grid = document.getElementById('crewGrid');
-  if (!input || !grid) return;
+  const alpha = document.getElementById('crewAlpha');
+  if (!input || !grid || !alpha) return;
   const cards = Array.from(grid.querySelectorAll('[data-search]'));
-  input.addEventListener('input', function () {
-    const q = this.value.trim().toLowerCase();
+  let activeLetter = 'all';
+
+  function applyFilters() {
+    const q = input.value.trim().toLowerCase();
     cards.forEach(card => {
-      const match = !q || card.dataset.search.includes(q);
-      card.style.display = match ? '' : 'none';
+      const matchesSearch = !q || card.dataset.search.includes(q);
+      const matchesLetter = activeLetter === 'all' || card.dataset.letter === activeLetter;
+      card.style.display = (matchesSearch && matchesLetter) ? '' : 'none';
     });
+  }
+
+  input.addEventListener('input', function () {
+    applyFilters();
+  });
+
+  alpha.addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-letter]');
+    if (!btn) return;
+    activeLetter = btn.dataset.letter;
+    alpha.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    applyFilters();
   });
 })();
 </script>

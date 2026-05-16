@@ -930,7 +930,7 @@ def get_people_count_by_scene(conn):
     }
 
 def get_crew_people(conn):
-    people = conn.execute("SELECT * FROM behind_scene_people ORDER BY sort_order, name").fetchall()
+    people = conn.execute("SELECT * FROM behind_scene_people ORDER BY LOWER(name), sort_order, id").fetchall()
     assignments = conn.execute(
         """
         SELECT a.*, s.name AS scene_name

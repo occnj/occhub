@@ -11,7 +11,7 @@
     grid-template-columns:minmax(0,1fr) auto;
     gap:12px;
     align-items:center;
-    margin-bottom:14px;
+    margin:0 0 14px;
 }
 .crew-alpha {
     display:flex;
@@ -36,11 +36,13 @@
 .crew-search {
     width:100%;
     max-width:360px;
+    justify-self:end;
 }
 .crew-pill-list {
     display:flex;
     flex-wrap:wrap;
     gap:12px;
+    margin:0 4px;
 }
 .crew-member-pill {
     border:1px solid #ececf0;
@@ -105,6 +107,10 @@
     }
     .crew-search {
         max-width:none;
+        justify-self:stretch;
+    }
+    .crew-pill-list {
+        margin:0;
     }
     .crew-member-pill {
         flex-basis:100%;
@@ -121,7 +127,7 @@
     </div>
     {% if people %}
     <div class="crew-toolbar">
-        <div style="color:#6e6e73;font-size:0.82rem;">{{ people|length }} members</div>
+        <div style="color:#6e6e73;font-size:0.82rem;padding-left:4px;">{{ people|length }} members</div>
         <input id="crewSearch" class="form-control crew-search" type="search" placeholder="Search members or ministries...">
     </div>
     <div class="crew-alpha" id="crewAlpha">
@@ -129,7 +135,7 @@
         <button type="button" data-letter="{{ letter }}">{{ letter }}</button>
         {% endfor %}
     </div>
-    <div class="crew-pill-list" id="crewGrid">
+    <div class="crew-pill-list" id="crewGrid" style="display:none;">
         {% for row in people %}
         {% set member = row.person %}
         <div class="crew-member-pill" data-search="{{ member.name|lower }} {{ member.sort_order }} {{ (row.assignment_labels | join(' ')) | lower }}" data-letter="{{ (member.name[:1] or '').upper() }}">
@@ -202,6 +208,7 @@
   let activeLetter = '';
 
   function applyFilters() {
+    grid.style.display = activeLetter ? '' : 'none';
     const q = input.value.trim().toLowerCase();
     cards.forEach(card => {
       const matchesSearch = !q || card.dataset.search.includes(q);
@@ -218,6 +225,7 @@
     const btn = e.target.closest('button[data-letter]');
     if (!btn) return;
     activeLetter = btn.dataset.letter;
+    alpha.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
     applyFilters();
   });
 })();

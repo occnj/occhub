@@ -125,7 +125,6 @@
         <input id="crewSearch" class="form-control crew-search" type="search" placeholder="Search members or ministries...">
     </div>
     <div class="crew-alpha" id="crewAlpha">
-        <button type="button" class="active" data-letter="all">All</button>
         {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
         <button type="button" data-letter="{{ letter }}">{{ letter }}</button>
         {% endfor %}
@@ -141,14 +140,6 @@
             {% endif %}
             <div class="crew-member-copy">
                 <p class="crew-member-name">{{ member.name }}</p>
-                <div class="crew-member-meta">Order {{ member.sort_order }}</div>
-                <div class="crew-member-meta">
-                    {% if row.assignment_labels %}
-                        {{ row.assignment_labels | join(' · ') }}
-                    {% else %}
-                        No ministry assigned
-                    {% endif %}
-                </div>
             </div>
             <div class="crew-actions">
                 <a href="{{ url_for('admin_behind_scene_person_edit', mid=member.id) }}" class="btn btn-ghost btn-sm" title="Edit {{ member.name }}"><i class="bi bi-pencil"></i></a>
@@ -208,13 +199,13 @@
   const alpha = document.getElementById('crewAlpha');
   if (!input || !grid || !alpha) return;
   const cards = Array.from(grid.querySelectorAll('[data-search]'));
-  let activeLetter = 'all';
+  let activeLetter = '';
 
   function applyFilters() {
     const q = input.value.trim().toLowerCase();
     cards.forEach(card => {
       const matchesSearch = !q || card.dataset.search.includes(q);
-      const matchesLetter = activeLetter === 'all' || card.dataset.letter === activeLetter;
+      const matchesLetter = !activeLetter || card.dataset.letter === activeLetter;
       card.style.display = (matchesSearch && matchesLetter) ? '' : 'none';
     });
   }
@@ -227,7 +218,6 @@
     const btn = e.target.closest('button[data-letter]');
     if (!btn) return;
     activeLetter = btn.dataset.letter;
-    alpha.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
     applyFilters();
   });
 })();

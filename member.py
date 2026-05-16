@@ -5,7 +5,7 @@ from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import html
-import os, re, secrets, sqlite3, time, uuid, zipfile, zlib
+import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -1322,7 +1322,8 @@ def behind_scene():
     settings = all_settings()
     conn = get_db()
     sync_behind_scenes_with_ministries(conn)
-    scenes = conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall()
+    scenes = list(conn.execute("SELECT * FROM behind_scenes ORDER BY sort_order, name").fetchall())
+    random.shuffle(scenes)
     counts = get_people_count_by_scene(conn)
     conn.close()
     return render_template('behind_scene.html', scenes=scenes, member_counts=counts, settings=settings)

@@ -2003,20 +2003,15 @@ def admin_mission_image_new(mid):
         conn.close()
         return redirect(url_for('admin_missions'))
     image_count = conn.execute("SELECT COUNT(*) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0]
-    if image_count >= 20:
-        conn.close()
-        flash('Each mission can have up to 20 images.', 'info')
-        return redirect(url_for('admin_mission_edit', mid=mid))
     files = [f for f in request.files.getlist('photo') if f and f.filename]
     if not files:
         conn.close()
         flash('Please choose at least one image.', 'info')
         return redirect(url_for('admin_mission_edit', mid=mid))
     caption = request.form.get('caption', '').strip()
-    slots = 20 - image_count
     next_sort = (conn.execute("SELECT COALESCE(MAX(sort_order),0) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0] or 0) + 1
     saved = 0
-    for f in files[:slots]:
+    for f in files:
         photo = _save_file_obj(f)
         if photo:
             conn.execute(
@@ -2123,20 +2118,15 @@ def admin_beyond_wall_image_new(bid):
         conn.close()
         return redirect(url_for('admin_beyond_walls'))
     image_count = conn.execute("SELECT COUNT(*) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0]
-    if image_count >= 20:
-        conn.close()
-        flash('Each item can have up to 20 images.', 'info')
-        return redirect(url_for('admin_beyond_wall_edit', bid=bid))
     files = [f for f in request.files.getlist('photo') if f and f.filename]
     if not files:
         conn.close()
         flash('Choose at least one image.', 'info')
         return redirect(url_for('admin_beyond_wall_edit', bid=bid))
     caption = request.form.get('caption', '').strip()
-    slots = 20 - image_count
     next_sort = (conn.execute("SELECT COALESCE(MAX(sort_order),0) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0] or 0) + 1
     saved = 0
-    for f in files[:slots]:
+    for f in files:
         photo = _save_file_obj(f)
         if photo:
             conn.execute(

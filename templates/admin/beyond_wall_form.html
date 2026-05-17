@@ -57,18 +57,15 @@
       {% if item %}
       <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin_beyond_wall_image_new', bid=item.id) }}" style="border:1px solid #ececf0;border-radius:16px;padding:16px;margin-bottom:18px;">
         <div class="form-group">
-          <label class="form-label">Add Image</label>
-          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <label class="form-label">Add Images</label>
+          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif" multiple>
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:5px;">Hold Ctrl / Cmd to select multiple files at once.</div>
         </div>
         <div class="form-group">
-          <label class="form-label">Caption</label>
+          <label class="form-label">Caption <span style="font-weight:400;color:#6e6e73;">(applies to all uploaded images)</span></label>
           <input type="text" name="caption" class="form-control" placeholder="Optional caption">
         </div>
-        <div class="form-group">
-          <label class="form-label">Sort Order</label>
-          <input type="number" name="sort_order" class="form-control" value="{{ images|length + 1 }}">
-        </div>
-        <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;"><i class="bi bi-plus-lg"></i> Add Image</button>
+        <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;"><i class="bi bi-plus-lg"></i> Add Images</button>
       </form>
 
       {% if images %}

@@ -684,23 +684,25 @@ def allowed_file(f): return '.'in f and f.rsplit('.',1)[1].lower() in ALLOWED_EX
 def allowed_document(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in DOCUMENT_EXTENSIONS
 
-def save_upload(field):
+def _save_file_obj(f):
     try:
-        f = request.files.get(field)
         if not f or not f.filename:
             return None
         if not allowed_file(f.filename):
-            app.logger.warning(f"save_upload: rejected file type '{f.filename}'")
+            app.logger.warning(f"_save_file_obj: rejected '{f.filename}'")
             return None
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)   # ensure dir exists every time
-        fname = secure_filename(f.filename)
-        dest  = os.path.join(UPLOAD_FOLDER, fname)
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        fname = f"{uuid.uuid4().hex[:8]}_{secure_filename(f.filename)}"
+        dest = os.path.join(UPLOAD_FOLDER, fname)
         f.save(dest)
-        app.logger.info(f"save_upload: saved {dest}")
+        app.logger.info(f"_save_file_obj: saved {dest}")
         return 'uploads/' + fname
     except Exception as e:
-        app.logger.error(f"save_upload error ({field}): {e}")
+        app.logger.error(f"_save_file_obj error: {e}")
         return None
+
+def save_upload(field):
+    return _save_file_obj(request.files.get(field))
 
 def save_document_upload(field):
     try:
@@ -1997,31 +1999,34 @@ def admin_mission_delete(mid):
 def admin_mission_image_new(mid):
     conn = get_db()
     mission = conn.execute("SELECT id FROM missions WHERE id=?", (mid,)).fetchone()
-    image_count = conn.execute("SELECT COUNT(*) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0]
     if not mission:
         conn.close()
         return redirect(url_for('admin_missions'))
+    image_count = conn.execute("SELECT COUNT(*) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0]
     if image_count >= 10:
         conn.close()
         flash('Each mission can have up to 10 images.', 'info')
         return redirect(url_for('admin_mission_edit', mid=mid))
-    photo = save_upload('photo')
-    if not photo:
+    files = [f for f in request.files.getlist('photo') if f and f.filename]
+    if not files:
         conn.close()
-        flash('Please choose an image first.', 'info')
+        flash('Please choose at least one image.', 'info')
         return redirect(url_for('admin_mission_edit', mid=mid))
-    conn.execute(
-        "INSERT INTO mission_images (mission_id,photo,caption,sort_order) VALUES (?,?,?,?)",
-        (
-            mid,
-            photo,
-            request.form.get('caption', '').strip(),
-            int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'mission_images'),
-        )
-    )
+    caption = request.form.get('caption', '').strip()
+    slots = 10 - image_count
+    next_sort = (conn.execute("SELECT COALESCE(MAX(sort_order),0) FROM mission_images WHERE mission_id=?", (mid,)).fetchone()[0] or 0) + 1
+    saved = 0
+    for f in files[:slots]:
+        photo = _save_file_obj(f)
+        if photo:
+            conn.execute(
+                "INSERT INTO mission_images (mission_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+                (mid, photo, caption, next_sort + saved)
+            )
+            saved += 1
     conn.commit()
     conn.close()
-    flash('Mission image added!', 'success')
+    flash(f'{saved} image{"s" if saved != 1 else ""} added!', 'success')
     return redirect(url_for('admin_mission_edit', mid=mid))
 
 @app.route('/admin/missions/<int:mid>/images/<int:iid>/delete', methods=['POST'])
@@ -2114,31 +2119,34 @@ def admin_beyond_wall_delete(bid):
 def admin_beyond_wall_image_new(bid):
     conn = get_db()
     exists = conn.execute("SELECT id FROM beyond_walls WHERE id=?", (bid,)).fetchone()
-    image_count = conn.execute("SELECT COUNT(*) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0]
     if not exists:
         conn.close()
         return redirect(url_for('admin_beyond_walls'))
+    image_count = conn.execute("SELECT COUNT(*) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0]
     if image_count >= 10:
         conn.close()
         flash('Each item can have up to 10 images.', 'info')
         return redirect(url_for('admin_beyond_wall_edit', bid=bid))
-    photo = save_upload('photo')
-    if not photo:
+    files = [f for f in request.files.getlist('photo') if f and f.filename]
+    if not files:
         conn.close()
-        flash('Choose an image first.', 'info')
+        flash('Choose at least one image.', 'info')
         return redirect(url_for('admin_beyond_wall_edit', bid=bid))
-    conn.execute(
-        "INSERT INTO beyond_wall_images (beyond_id,photo,caption,sort_order) VALUES (?,?,?,?)",
-        (
-            bid,
-            photo,
-            request.form.get('caption', '').strip(),
-            int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beyond_wall_images'),
-        )
-    )
+    caption = request.form.get('caption', '').strip()
+    slots = 10 - image_count
+    next_sort = (conn.execute("SELECT COALESCE(MAX(sort_order),0) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0] or 0) + 1
+    saved = 0
+    for f in files[:slots]:
+        photo = _save_file_obj(f)
+        if photo:
+            conn.execute(
+                "INSERT INTO beyond_wall_images (beyond_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+                (bid, photo, caption, next_sort + saved)
+            )
+            saved += 1
     conn.commit()
     conn.close()
-    flash('Image added!', 'success')
+    flash(f'{saved} image{"s" if saved != 1 else ""} added!', 'success')
     return redirect(url_for('admin_beyond_wall_edit', bid=bid))
 
 @app.route('/admin/beyond-the-walls/<int:bid>/images/<int:iid>/delete', methods=['POST'])

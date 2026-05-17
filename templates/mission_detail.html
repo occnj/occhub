@@ -24,7 +24,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}
 .gallery-track::-webkit-scrollbar{display:none;}
 .slide{min-width:100%;scroll-snap-align:start;position:relative;background:linear-gradient(150deg,#dceef1 0%,#f7d9cf 100%);}
-.slide img{width:100%;height:280px;object-fit:cover;display:block;cursor:pointer;}
+.slide img{width:100%;height:280px;object-fit:cover;display:block;cursor:pointer;touch-action:manipulation;}
 .slide-fallback{height:280px;display:flex;align-items:center;justify-content:center;color:var(--orange);font-size:2.4rem;}
 .slide-caption{padding:14px 16px 18px;font-size:0.86rem;color:var(--sub);line-height:1.6;}
 .gallery-actions{display:flex;justify-content:space-between;gap:10px;padding:14px 16px 18px;}
@@ -62,7 +62,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
         {% if images %}
           {% for image in images %}
           <div class="slide">
-            <img src="/static/{{ image.photo }}" alt="{{ mission.title }} image {{ loop.index }}" data-caption="{{ image.caption or '' }}" onclick="openLightbox({{ loop.index0 }})" loading="lazy">
+            <img src="/static/{{ image.photo }}" alt="{{ mission.title }} image {{ loop.index }}" data-caption="{{ image.caption or '' }}" loading="lazy">
             {% if image.caption %}
             <div class="slide-caption">{{ image.caption }}</div>
             {% endif %}
@@ -70,7 +70,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
           {% endfor %}
         {% elif mission.cover_photo %}
           <div class="slide">
-            <img src="/static/{{ mission.cover_photo }}" alt="{{ mission.title }}" data-caption="" onclick="openLightbox(0)">
+            <img src="/static/{{ mission.cover_photo }}" alt="{{ mission.title }}" data-caption="">
           </div>
         {% else %}
           <div class="slide"><div class="slide-fallback"><i class="bi bi-images"></i></div></div>
@@ -120,6 +120,17 @@ if (galleryTrack) {
 }
 const lbImages = Array.from(document.querySelectorAll('.slide img')).map(img => ({ src: img.src, caption: img.dataset.caption || '' }));
 let lbIdx = 0;
+document.querySelectorAll('.slide img').forEach((img, idx) => {
+  let tX = 0, tY = 0;
+  img.addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive: true });
+  img.addEventListener('touchend', e => {
+    if (Math.abs(e.changedTouches[0].clientX - tX) < 10 && Math.abs(e.changedTouches[0].clientY - tY) < 10) {
+      e.preventDefault();
+      openLightbox(idx);
+    }
+  });
+  img.addEventListener('click', () => openLightbox(idx));
+});
 function openLightbox(index) {
   lbIdx = index;
   lbRefresh();

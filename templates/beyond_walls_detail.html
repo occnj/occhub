@@ -25,7 +25,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .card{background:var(--card);border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,0.08);overflow:hidden;}
 .gallery{display:flex;overflow-x:auto;gap:10px;padding:14px;scroll-snap-type:x mandatory;}
 .gallery::-webkit-scrollbar{display:none;}
-.gimg{flex:0 0 84%;max-width:84%;height:220px;border-radius:20px;object-fit:cover;scroll-snap-align:center;background:linear-gradient(145deg,rgba(19,103,122,0.16) 0%,rgba(242,84,27,0.18) 100%);cursor:pointer;}
+.gimg{flex:0 0 84%;max-width:84%;height:220px;border-radius:20px;object-fit:cover;scroll-snap-align:center;background:linear-gradient(145deg,rgba(19,103,122,0.16) 0%,rgba(242,84,27,0.18) 100%);cursor:pointer;touch-action:manipulation;}
 .caption{padding:0 14px 14px;color:var(--sub);font-size:0.86rem;line-height:1.6;}
 .story{padding:18px 18px 20px;}
 .lb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:1000;align-items:center;justify-content:center;flex-direction:column;padding:0 52px;}
@@ -58,7 +58,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
     <div class="card">
       <div class="gallery">
         {% for img in images %}
-        <img src="/static/{{ img.photo }}" class="gimg" alt="{{ item.title }} image {{ loop.index }}" data-caption="{{ img.caption or '' }}" onclick="openLightbox({{ loop.index0 }})" loading="lazy">
+        <img src="/static/{{ img.photo }}" class="gimg" alt="{{ item.title }} image {{ loop.index }}" data-caption="{{ img.caption or '' }}" loading="lazy">
         {% endfor %}
       </div>
       {% set first_caption = images[0].caption if images and images[0].caption else '' %}
@@ -85,6 +85,17 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 <script>
 const lbImages = Array.from(document.querySelectorAll('.gimg')).map(img => ({ src: img.src, caption: img.dataset.caption || '' }));
 let lbIdx = 0;
+document.querySelectorAll('.gimg').forEach((img, idx) => {
+  let tX = 0, tY = 0;
+  img.addEventListener('touchstart', e => { tX = e.touches[0].clientX; tY = e.touches[0].clientY; }, { passive: true });
+  img.addEventListener('touchend', e => {
+    if (Math.abs(e.changedTouches[0].clientX - tX) < 10 && Math.abs(e.changedTouches[0].clientY - tY) < 10) {
+      e.preventDefault();
+      openLightbox(idx);
+    }
+  });
+  img.addEventListener('click', () => openLightbox(idx));
+});
 function openLightbox(index) {
   lbIdx = index;
   lbRefresh();

@@ -60,18 +60,18 @@ def get_db():
 
 def sync_behind_scenes_with_ministries(conn):
     ministries = conn.execute(
-        "SELECT id, name, description, sort_order FROM ministries ORDER BY id"
+        "SELECT id, name, description, photo, sort_order FROM ministries ORDER BY id"
     ).fetchall()
     ministry_ids = []
     for ministry in ministries:
         ministry_ids.append(ministry['id'])
         conn.execute(
             "INSERT OR IGNORE INTO behind_scenes (id,name,description,photo,sort_order) VALUES (?,?,?,?,?)",
-            (ministry['id'], ministry['name'], ministry['description'], '', ministry['sort_order'])
+            (ministry['id'], ministry['name'], ministry['description'], ministry['photo'] or '', ministry['sort_order'])
         )
         conn.execute(
-            "UPDATE behind_scenes SET name=?,description=?,sort_order=? WHERE id=?",
-            (ministry['name'], ministry['description'], ministry['sort_order'], ministry['id'])
+            "UPDATE behind_scenes SET name=?,description=?,photo=?,sort_order=? WHERE id=?",
+            (ministry['name'], ministry['description'], ministry['photo'] or '', ministry['sort_order'], ministry['id'])
         )
     if ministry_ids:
         placeholders = ",".join("?" for _ in ministry_ids)
@@ -261,6 +261,14 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
         body TEXT NOT NULL, scripture TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
     )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS belief_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        belief_id INTEGER NOT NULL,
+        photo TEXT NOT NULL,
+        caption TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(belief_id) REFERENCES beliefs(id) ON DELETE CASCADE
+    )''')
     c.execute("SELECT COUNT(*) FROM beliefs")
     if c.fetchone()[0]==0:
         c.executemany("INSERT INTO beliefs (title,body,scripture,sort_order) VALUES (?,?,?,?)",[
@@ -277,6 +285,14 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS values_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
         body TEXT NOT NULL, scripture TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
+    )''')
+    c.execute('''CREATE TABLE IF NOT EXISTS value_images (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        value_id INTEGER NOT NULL,
+        photo TEXT NOT NULL,
+        caption TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(value_id) REFERENCES values_items(id) ON DELETE CASCADE
     )''')
     c.execute("SELECT COUNT(*) FROM values_items")
     if c.fetchone()[0]==0:
@@ -348,8 +364,12 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
         description TEXT DEFAULT '', url TEXT DEFAULT '',
-        icon TEXT DEFAULT 'bi-people-fill', sort_order INTEGER DEFAULT 0
+        icon TEXT DEFAULT 'bi-people-fill', photo TEXT DEFAULT '', sort_order INTEGER DEFAULT 0
     )''')
+    try:
+        c.execute("ALTER TABLE ministries ADD COLUMN photo TEXT DEFAULT ''")
+    except Exception:
+        pass
     c.execute("SELECT COUNT(*) FROM ministries")
     if c.fetchone()[0]==0:
         c.executemany("INSERT INTO ministries (name,description,url,icon,sort_order) VALUES (?,?,?,?,?)",[
@@ -960,6 +980,17 @@ def next_available_sort_order(conn, table_name, column_name='sort_order'):
         candidate += 1
     return candidate
 
+def next_available_sort_order_for_parent(conn, table_name, parent_col, parent_id, column_name='sort_order'):
+    rows = conn.execute(
+        f"SELECT COALESCE({column_name}, 0) AS sort_order FROM {table_name} WHERE {parent_col}=? ORDER BY {column_name}, id",
+        (parent_id,)
+    ).fetchall()
+    used = {int(row['sort_order']) for row in rows if row['sort_order'] is not None and int(row['sort_order']) > 0}
+    candidate = 1
+    while candidate in used:
+        candidate += 1
+    return candidate
+
 @app.context_processor
 def inject_next_sort_order():
     def next_sort_order(table_name):
@@ -1058,6 +1089,23 @@ def get_beyond_wall_cards(conn):
             ).fetchone()[0],
         })
     return cards
+
+def get_gallery_images(conn, table_name, ref_col, ref_id):
+    return conn.execute(
+        f"SELECT * FROM {table_name} WHERE {ref_col}=? ORDER BY sort_order, id",
+        (ref_id,)
+    ).fetchall()
+
+def gallery_images_by_parent(rows, parent_key):
+    grouped = {}
+    for row in rows:
+        grouped.setdefault(row[parent_key], []).append({
+            'id': row['id'],
+            'photo': row['photo'],
+            'caption': row['caption'] or '',
+            'sort_order': row['sort_order'],
+        })
+    return grouped
 
 def get_hub_notice(settings=None):
     settings = settings or all_settings()
@@ -1232,13 +1280,31 @@ def beliefs():
 
 @app.route('/beliefs/statement')
 def beliefs_statement():
-    track('beliefs_statement'); conn=get_db(); items=conn.execute("SELECT * FROM beliefs ORDER BY sort_order").fetchall(); conn.close()
-    return render_template('beliefs.html',beliefs=items,settings=all_settings())
+    track('beliefs_statement')
+    conn=get_db()
+    items=conn.execute("SELECT * FROM beliefs ORDER BY sort_order").fetchall()
+    images=conn.execute("SELECT * FROM belief_images ORDER BY sort_order, id").fetchall()
+    conn.close()
+    return render_template(
+        'beliefs.html',
+        beliefs=items,
+        belief_images=gallery_images_by_parent(images, 'belief_id'),
+        settings=all_settings()
+    )
 
 @app.route('/beliefs/values')
 def beliefs_values():
-    track('beliefs_values'); conn=get_db(); items=conn.execute("SELECT * FROM values_items ORDER BY sort_order").fetchall(); conn.close()
-    return render_template('values.html',values=items,settings=all_settings())
+    track('beliefs_values')
+    conn=get_db()
+    items=conn.execute("SELECT * FROM values_items ORDER BY sort_order").fetchall()
+    images=conn.execute("SELECT * FROM value_images ORDER BY sort_order, id").fetchall()
+    conn.close()
+    return render_template(
+        'values.html',
+        values=items,
+        value_images=gallery_images_by_parent(images, 'value_id'),
+        settings=all_settings()
+    )
 
 @app.route('/ministries')
 def ministries():
@@ -2318,13 +2384,36 @@ def admin_belief_edit(bid):
         conn.execute("UPDATE beliefs SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
             (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else b['sort_order'],bid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_beliefs'))
-    conn.close(); return render_template('admin/belief_form.html',belief=b)
+    images = conn.execute("SELECT * FROM belief_images WHERE belief_id=? ORDER BY sort_order, id", (bid,)).fetchall()
+    conn.close(); return render_template('admin/belief_form.html',belief=b,images=images)
 
 @app.route('/admin/beliefs/<int:bid>/delete',methods=['POST'])
 @login_required
 def admin_belief_delete(bid):
     conn=get_db(); conn.execute("DELETE FROM beliefs WHERE id=?",(bid,)); conn.commit(); conn.close()
     flash('Removed.','info'); return redirect(url_for('admin_beliefs'))
+
+@app.route('/admin/beliefs/<int:bid>/images/new',methods=['POST'])
+@login_required
+def admin_belief_image_new(bid):
+    conn=get_db()
+    image_count = conn.execute("SELECT COUNT(*) FROM belief_images WHERE belief_id=?", (bid,)).fetchone()[0]
+    if image_count >= 10:
+        conn.close(); flash('Each belief can have up to 10 images.', 'info'); return redirect(url_for('admin_belief_edit', bid=bid))
+    photo = save_upload('photo')
+    if not photo:
+        conn.close(); flash('Choose an image first.', 'info'); return redirect(url_for('admin_belief_edit', bid=bid))
+    conn.execute(
+        "INSERT INTO belief_images (belief_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+        (bid, photo, request.form.get('caption','').strip(), int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order_for_parent(conn, 'belief_images', 'belief_id', bid))
+    )
+    conn.commit(); conn.close(); flash('Belief image added!', 'success'); return redirect(url_for('admin_belief_edit', bid=bid))
+
+@app.route('/admin/beliefs/<int:bid>/images/<int:iid>/delete',methods=['POST'])
+@login_required
+def admin_belief_image_delete(bid, iid):
+    conn=get_db(); conn.execute("DELETE FROM belief_images WHERE id=? AND belief_id=?", (iid, bid)); conn.commit(); conn.close()
+    flash('Belief image removed.','info'); return redirect(url_for('admin_belief_edit', bid=bid))
 
 @app.route('/admin/values')
 @login_required
@@ -2350,13 +2439,36 @@ def admin_value_edit(vid):
         conn.execute("UPDATE values_items SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
             (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else v['sort_order'],vid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_values'))
-    conn.close(); return render_template('admin/value_form.html',value=v)
+    images = conn.execute("SELECT * FROM value_images WHERE value_id=? ORDER BY sort_order, id", (vid,)).fetchall()
+    conn.close(); return render_template('admin/value_form.html',value=v,images=images)
 
 @app.route('/admin/values/<int:vid>/delete',methods=['POST'])
 @login_required
 def admin_value_delete(vid):
     conn=get_db(); conn.execute("DELETE FROM values_items WHERE id=?",(vid,)); conn.commit(); conn.close()
     flash('Removed.','info'); return redirect(url_for('admin_values'))
+
+@app.route('/admin/values/<int:vid>/images/new',methods=['POST'])
+@login_required
+def admin_value_image_new(vid):
+    conn=get_db()
+    image_count = conn.execute("SELECT COUNT(*) FROM value_images WHERE value_id=?", (vid,)).fetchone()[0]
+    if image_count >= 10:
+        conn.close(); flash('Each value can have up to 10 images.', 'info'); return redirect(url_for('admin_value_edit', vid=vid))
+    photo = save_upload('photo')
+    if not photo:
+        conn.close(); flash('Choose an image first.', 'info'); return redirect(url_for('admin_value_edit', vid=vid))
+    conn.execute(
+        "INSERT INTO value_images (value_id,photo,caption,sort_order) VALUES (?,?,?,?)",
+        (vid, photo, request.form.get('caption','').strip(), int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order_for_parent(conn, 'value_images', 'value_id', vid))
+    )
+    conn.commit(); conn.close(); flash('Value image added!', 'success'); return redirect(url_for('admin_value_edit', vid=vid))
+
+@app.route('/admin/values/<int:vid>/images/<int:iid>/delete',methods=['POST'])
+@login_required
+def admin_value_image_delete(vid, iid):
+    conn=get_db(); conn.execute("DELETE FROM value_images WHERE id=? AND value_id=?", (iid, vid)); conn.commit(); conn.close()
+    flash('Value image removed.','info'); return redirect(url_for('admin_value_edit', vid=vid))
 
 # Ministries
 @app.route('/admin/ministries')
@@ -2369,8 +2481,9 @@ def admin_ministries():
 @login_required
 def admin_ministry_new():
     if request.method=='POST':
-        conn=get_db(); conn.execute("INSERT INTO ministries (name,description,url,icon,sort_order) VALUES (?,?,?,?,?)",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'ministries')))
+        conn=get_db(); photo = save_upload('photo')
+        conn.execute("INSERT INTO ministries (name,description,url,icon,photo,sort_order) VALUES (?,?,?,?,?,?)",
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'ministries')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_ministries'))
     return render_template('admin/ministry_form.html',ministry=None)
 
@@ -2380,8 +2493,11 @@ def admin_ministry_edit(mid):
     conn=get_db(); m=conn.execute("SELECT * FROM ministries WHERE id=?",(mid,)).fetchone()
     if not m: conn.close(); return redirect(url_for('admin_ministries'))
     if request.method=='POST':
-        conn.execute("UPDATE ministries SET name=?,description=?,url=?,icon=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else m['sort_order'],mid))
+        photo = save_upload('photo')
+        if photo is None:
+            photo = m['photo'] if 'photo' in m.keys() else ''
+        conn.execute("UPDATE ministries SET name=?,description=?,url=?,icon=?,photo=?,sort_order=? WHERE id=?",
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else m['sort_order'],mid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_ministries'))
     conn.close(); return render_template('admin/ministry_form.html',ministry=m)
 

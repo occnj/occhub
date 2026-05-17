@@ -10,12 +10,18 @@
 <div class="card">
     {% if ministries %}
     <table>
-        <thead><tr><th>Order</th><th>Icon</th><th>Name</th><th>Link</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Order</th><th>Thumbnail</th><th>Name</th><th>Link</th><th>Actions</th></tr></thead>
         <tbody>
         {% for m in ministries %}
         <tr>
             <td style="color:#6e6e73; width:60px;">{{ m.sort_order }}</td>
-            <td><i class="bi {{ m.icon }}" style="font-size:1.2rem; color:#13677A;"></i></td>
+            <td>
+                {% if m.photo %}
+                <img src="/static/{{ m.photo }}" alt="{{ m.name }}" style="width:52px;height:52px;border-radius:14px;object-fit:cover;border:2px solid #ececf0;">
+                {% else %}
+                <i class="bi {{ m.icon }}" style="font-size:1.2rem; color:#13677A;"></i>
+                {% endif %}
+            </td>
             <td><b>{{ m.name }}</b></td>
             <td style="color:#6e6e73; font-size:0.78rem;">
                 {% if m.url %}<a href="{{ m.url }}" target="_blank" style="color:#13677A;">{{ m.url[:35] }}{% if m.url|length > 35 %}…{% endif %}</a>{% else %}—{% endif %}

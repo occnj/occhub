@@ -9,7 +9,7 @@
 <div class="card" style="max-width:600px;">
     <div class="card-header"><div class="card-title">{{ 'Edit' if value else 'New' }} Value</div></div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label">Title</label>
                 <input type="text" name="title" class="form-control" value="{{ value.title if value else '' }}" required placeholder="e.g. People Matter Deeply">
@@ -33,4 +33,47 @@
         </form>
     </div>
 </div>
+
+{% if value %}
+<div class="card" style="margin-top:18px;max-width:800px;">
+    <div class="card-header">
+        <div class="card-title"><i class="bi bi-images"></i> Gallery Images</div>
+        <span class="badge badge-orange">{{ images|length }}/10</span>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('admin_value_image_new', vid=value.id) }}" style="border:1px solid #ececf0;border-radius:16px;padding:16px;margin-bottom:18px;">
+            <div class="form-group">
+                <label class="form-label">Add Image</label>
+                <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Caption</label>
+                <input type="text" name="caption" class="form-control" placeholder="Optional caption">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Sort Order</label>
+                <input type="number" name="sort_order" class="form-control" value="{{ images|length + 1 }}">
+            </div>
+            <button type="submit" class="btn btn-orange" style="width:100%;justify-content:center;"><i class="bi bi-plus-lg"></i> Add Value Image</button>
+        </form>
+        {% if images %}
+            {% for image in images %}
+            <div style="display:grid;grid-template-columns:84px 1fr auto;gap:14px;align-items:center;padding:12px;border:1px solid #ececf0;border-radius:16px;margin-bottom:12px;">
+                <img src="/static/{{ image.photo }}" alt="Value image {{ loop.index }}" style="width:84px;height:84px;border-radius:16px;object-fit:cover;">
+                <div>
+                    <div style="font-size:0.76rem;font-weight:700;color:#13677A;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Image {{ loop.index }}</div>
+                    <div style="font-size:0.84rem;color:#1d1d1f;">{{ image.caption or 'No caption' }}</div>
+                    <div style="font-size:0.74rem;color:#6e6e73;margin-top:4px;">Sort {{ image.sort_order }}</div>
+                </div>
+                <form method="POST" action="{{ url_for('admin_value_image_delete', vid=value.id, iid=image.id) }}" onsubmit="return confirm('Delete this image?')">
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div style="font-size:0.82rem;color:#6e6e73;line-height:1.7;">No gallery images yet. Add up to 10 and they will appear in the public slideshow.</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}

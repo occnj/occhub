@@ -35,6 +35,15 @@
         .sheet-header { padding: 0 22px 16px; border-bottom: 1px solid #f0f0f5; }
         .sheet-title { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--orange); font-weight: 600; margin-bottom: 4px; }
         .sheet-name { font-family: 'DM Serif Display', serif; font-size: 1.5rem; color: var(--text); }
+        .gallery-shell{background:var(--card);border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,0.08);overflow:hidden;margin:16px 0 18px;}
+        .gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;}
+        .gallery-track::-webkit-scrollbar{display:none;}
+        .slide{min-width:100%;scroll-snap-align:start;}
+        .slide img{width:100%;height:220px;object-fit:cover;display:block;}
+        .slide-caption{padding:12px 14px 14px;font-size:0.82rem;color:var(--sub);line-height:1.6;}
+        .gallery-actions{display:flex;gap:10px;padding:0 14px 12px;}
+        .gallery-btn{flex:1;border:none;background:rgba(19,103,122,0.08);color:var(--teal);border-radius:14px;padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;}
+        .gallery-count{font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--sub);text-align:center;padding:0 0 14px;}
         .sheet-body { padding: 20px 22px 0; font-size: 0.9rem; line-height: 1.7; color: #3a3a3c; }
         .scripture-box { background: rgba(19,103,122,0.06); border-left: 3px solid var(--teal); border-radius: 0 10px 10px 0; padding: 10px 14px; margin-top: 18px; font-size: 0.76rem; color: var(--teal); font-weight: 500; line-height: 1.5; }
         .sheet-close { position: absolute; top: 14px; right: 18px; background: #f0f0f5; border: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.8rem; color: var(--sub); }
@@ -68,23 +77,81 @@
         <div class="sheet-title">Values</div>
         <div class="sheet-name" id="sheet-name"></div>
     </div>
+    <div class="gallery-shell" id="gallery-shell" style="display:none;">
+        <div class="gallery-track" id="gallery-track"></div>
+        <div class="gallery-actions">
+            <button class="gallery-btn" type="button" onclick="moveGallery(-1)"><i class="bi bi-arrow-left"></i> Prev</button>
+            <button class="gallery-btn" type="button" onclick="moveGallery(1)">Next <i class="bi bi-arrow-right"></i></button>
+        </div>
+        <div class="gallery-count"><span id="gallery-index">1</span> / <span id="gallery-total">0</span></div>
+    </div>
     <div class="sheet-body" id="sheet-body"></div>
 </div>
 
 <script>
 const values = [
     {% for v in values %}
-    { title: {{ v.title | tojson }}, body: {{ (v.body or '') | tojson }}, ref: {{ (v.scripture or '') | tojson }} }{% if not loop.last %},{% endif %}
+    {
+      title: {{ v.title | tojson }},
+      body: {{ (v.body or '') | tojson }},
+      ref: {{ (v.scripture or '') | tojson }},
+      images: [
+        {% for img in value_images.get(v.id, []) %}
+        { photo: {{ ('/static/' ~ img.photo) | tojson }}, caption: {{ (img.caption or '') | tojson }} }{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
+let currentGallery = [];
 function openSheet(i) {
     const v = values[i];
     document.getElementById('sheet-name').textContent = v.title;
+    currentGallery = v.images || [];
+    renderGallery();
     const body = document.getElementById('sheet-body');
     body.innerHTML = v.body.split('\n\n').map(p => `<p style="margin-bottom:14px">${p}</p>`).join('') +
         (v.ref ? `<div class="scripture-box">${v.ref}</div>` : '');
     document.getElementById('overlay').classList.add('open');
     document.getElementById('sheet').classList.add('open');
+}
+function renderGallery() {
+    const shell = document.getElementById('gallery-shell');
+    const track = document.getElementById('gallery-track');
+    const total = document.getElementById('gallery-total');
+    const index = document.getElementById('gallery-index');
+    if (!shell || !track || !total || !index) return;
+    if (!currentGallery.length) {
+        shell.style.display = 'none';
+        track.innerHTML = '';
+        total.textContent = '0';
+        index.textContent = '1';
+        return;
+    }
+    shell.style.display = '';
+    total.textContent = String(currentGallery.length);
+    index.textContent = '1';
+    track.innerHTML = currentGallery.map(img => `
+      <div class="slide">
+        <img src="${img.photo}" alt="">
+        ${img.caption ? `<div class="slide-caption">${img.caption}</div>` : ''}
+      </div>
+    `).join('');
+    track.scrollLeft = 0;
+    track.onscroll = () => {
+      if (!track.clientWidth) return;
+      index.textContent = String(Math.round(track.scrollLeft / track.clientWidth) + 1);
+    };
+}
+function moveGallery(direction) {
+    const track = document.getElementById('gallery-track');
+    if (!track) return;
+    track.scrollBy({ left: track.clientWidth * direction, behavior: 'smooth' });
+    setTimeout(() => {
+      const index = document.getElementById('gallery-index');
+      if (!index || !track.clientWidth) return;
+      index.textContent = String(Math.round(track.scrollLeft / track.clientWidth) + 1);
+    }, 250);
 }
 function closeSheet() {
     document.getElementById('overlay').classList.remove('open');

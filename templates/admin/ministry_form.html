@@ -9,7 +9,7 @@
 <div class="card" style="max-width:580px;">
     <div class="card-header"><div class="card-title">{{ 'Edit' if ministry else 'New' }} Ministry</div></div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" enctype="multipart/form-data">
             <div class="form-group">
                 <label class="form-label">Ministry Name</label>
                 <input type="text" name="name" class="form-control" value="{{ ministry.name if ministry else '' }}" required placeholder="e.g. Circles Small Groups">
@@ -21,6 +21,13 @@
             <div class="form-group">
                 <label class="form-label">Website Link (optional)</label>
                 <input type="url" name="url" class="form-control" value="{{ ministry.url if ministry else '' }}" placeholder="https://www.oasisnj.net/circles">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Thumbnail Image</label>
+                <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+                {% if ministry and ministry.photo %}
+                <img src="/static/{{ ministry.photo }}" alt="{{ ministry.name }}" style="width:140px;height:140px;border-radius:20px;object-fit:cover;margin-top:10px;border:2px solid #ececf0;">
+                {% endif %}
             </div>
             <div class="form-group">
                 <label class="form-label">Bootstrap Icon Class</label>

@@ -6,6 +6,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import html
 import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
+from PIL import Image, ExifTags
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -684,6 +685,20 @@ def allowed_file(f): return '.'in f and f.rsplit('.',1)[1].lower() in ALLOWED_EX
 def allowed_document(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in DOCUMENT_EXTENSIONS
 
+_EXIF_ORIENTATION = next(
+    (k for k, v in ExifTags.TAGS.items() if v == 'Orientation'), None
+)
+_EXIF_TRANSPOSE = {
+    2: Image.FLIP_LEFT_RIGHT,
+    3: Image.ROTATE_180,
+    4: Image.FLIP_TOP_BOTTOM,
+    5: Image.TRANSPOSE,
+    6: Image.ROTATE_270,
+    7: Image.TRANSVERSE,
+    8: Image.ROTATE_90,
+}
+MAX_IMAGE_PX = 1400
+
 def _save_file_obj(f):
     try:
         if not f or not f.filename:
@@ -692,9 +707,40 @@ def _save_file_obj(f):
             app.logger.warning(f"_save_file_obj: rejected '{f.filename}'")
             return None
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        fname = f"{uuid.uuid4().hex[:8]}_{secure_filename(f.filename)}"
+        stem = uuid.uuid4().hex[:8]
+        fname = f"{stem}.jpg"
         dest = os.path.join(UPLOAD_FOLDER, fname)
-        f.save(dest)
+
+        img = Image.open(f.stream)
+        has_alpha = img.mode in ('RGBA', 'LA') or (img.mode == 'P' and 'transparency' in img.info)
+
+        # fix EXIF orientation before anything else
+        try:
+            exif = img._getexif()
+            if exif and _EXIF_ORIENTATION:
+                op = _EXIF_TRANSPOSE.get(exif.get(_EXIF_ORIENTATION))
+                if op:
+                    img = img.transpose(op)
+        except Exception:
+            pass
+
+        # resize so longest edge <= MAX_IMAGE_PX
+        w, h = img.size
+        if max(w, h) > MAX_IMAGE_PX:
+            scale = MAX_IMAGE_PX / max(w, h)
+            img = img.resize((int(w * scale), int(h * scale)), Image.LANCZOS)
+
+        if has_alpha:
+            if img.mode != 'RGBA':
+                img = img.convert('RGBA')
+            fname = f"{stem}.png"
+            dest = os.path.join(UPLOAD_FOLDER, fname)
+            img.save(dest, 'PNG', optimize=True)
+        else:
+            if img.mode != 'RGB':
+                img = img.convert('RGB')
+            img.save(dest, 'JPEG', quality=82, optimize=True)
+
         app.logger.info(f"_save_file_obj: saved {dest}")
         return 'uploads/' + fname
     except Exception as e:

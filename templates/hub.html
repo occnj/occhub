@@ -18,7 +18,9 @@
             --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }};
             --tile-bg: {{ site_settings.get('theme_tile_bg', '#FFFFFB') }};
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        a, button { outline: none; }
+        img { -webkit-user-drag: none; user-select: none; }
 
         body {
             background: var(--bg);

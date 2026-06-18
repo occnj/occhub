@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" href="/static/icon-192x192.png">
     <style>
         :root { --teal: {{ site_settings.get('theme_primary', '#13677A') }}; --orange: {{ site_settings.get('theme_accent', '#F2541B') }}; --bg: {{ site_settings.get('theme_background', '#F5F5F7') }}; --card: {{ site_settings.get('theme_card', '#ffffff') }}; --text: {{ site_settings.get('theme_text', '#1d1d1f') }}; --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }}; }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { background: var(--bg); {% if site_settings.get('ui_background_image') %}background-image: url('/static/{{ site_settings.get('ui_background_image') }}'); background-size: cover; background-position: center; background-attachment: fixed;{% endif %} font-family: 'DM Sans', sans-serif; color: var(--text); display: flex; justify-content: center; min-height: 100vh; padding-bottom: 32px; }
         .shell { width: 100%; max-width: 390px; }
         .back-btn{position:absolute;top:56px;left:20px;color:#fff;font-size:1rem;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;z-index:2;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);}

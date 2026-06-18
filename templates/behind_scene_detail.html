@@ -42,11 +42,7 @@
         .sheet-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .sheet-avatar-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.3rem; color: var(--teal); }
         .sheet-name { font-family: 'DM Serif Display', serif; font-size: 1.35rem; margin-bottom: 4px; }
-        .sheet-role { font-size: 0.76rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 18px; }
-        .sheet-divider { height: 1px; background: #f0f0f5; margin-bottom: 18px; }
-        .sheet-bio { font-size: 0.9rem; color: #3a3a3c; line-height: 1.75; text-align: left; }
-        .sheet-bio p { margin: 0 0 12px; }
-        .sheet-bio p:last-child { margin-bottom: 0; }
+        .sheet-role { font-size: 0.76rem; color: var(--orange); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
     </style>
 </head>
 <body>
@@ -65,7 +61,7 @@
 
     <div class="intro-card">
         <div class="intro-label">Ministry Info</div>
-        <div class="intro-copy">{{ scene.description or 'Tap a team member to learn more.' }}</div>
+        <div class="intro-copy">{{ scene.description or 'Tap a team member to see their name and role.' }}</div>
     </div>
 
     {% if members %}
@@ -98,8 +94,6 @@
         <div class="sheet-avatar" id="sheet-avatar-wrap"></div>
         <div class="sheet-name" id="sheet-name"></div>
         <div class="sheet-role" id="sheet-role"></div>
-        <div class="sheet-divider"></div>
-        <div class="sheet-bio" id="sheet-bio"></div>
     </div>
 </div>
 
@@ -109,24 +103,15 @@ const sceneMembers = [
     {
         name: {{ member.name | tojson }},
         role: {{ (member.role or 'Team Member') | tojson }},
-        bio: {{ (member.bio or '') | tojson }},
         photo: {{ ('/static/' ~ member.photo if member.photo else '') | tojson }}
     }{% if not loop.last %},{% endif %}
     {% endfor %}
 ];
 
-function bioToHtml(text) {
-    if (!text || !text.trim()) return '<p>No bio available.</p>';
-    return text.split(/\n+/).filter(p => p.trim()).map(p =>
-        '<p>' + p.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>'
-    ).join('');
-}
-
 function openMember(index) {
     const member = sceneMembers[index];
     document.getElementById('sheet-name').textContent = member.name;
     document.getElementById('sheet-role').textContent = member.role;
-    document.getElementById('sheet-bio').innerHTML = bioToHtml(member.bio);
     const avatarWrap = document.getElementById('sheet-avatar-wrap');
     if (member.photo) {
         avatarWrap.innerHTML = '<img src="' + member.photo + '" alt="' + member.name + '">';

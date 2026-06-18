@@ -105,6 +105,47 @@
         </div>
       </div>
 
+      <div style="border-top:1px solid #ececf1;padding-top:22px;margin-top:6px;margin-bottom:20px;">
+        <div style="font-size:0.95rem;font-weight:700;margin-bottom:4px;">Card Notice</div>
+        <div style="font-size:0.78rem;color:#6e6e73;margin-bottom:16px;">When enabled, tapping this card opens a Hub Notice-style popup before any navigation.</div>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.84rem;font-weight:500;text-transform:none;letter-spacing:0;margin:0 0 10px;">
+          <input type="checkbox" name="card_notice_enabled" value="1" {% if card and card.card_notice_enabled %}checked{% endif %} style="accent-color:#f05123;width:16px;height:16px;">
+          Enable notice popup for this card
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.84rem;font-weight:500;text-transform:none;letter-spacing:0;margin:0 0 16px;">
+          <input type="checkbox" name="card_notice_block" value="1" {% if card and card.card_notice_block %}checked{% endif %} style="accent-color:#c0392b;width:16px;height:16px;">
+          <span>Block access <span style="font-weight:400;color:#6e6e73;">— "Got it" closes the notice but does not open the card (maintenance mode)</span></span>
+        </label>
+        <div class="form-group">
+          <label class="form-label">Notice Title</label>
+          <input type="text" name="card_notice_title" class="form-control" value="{{ card.card_notice_title if card else '' }}" placeholder="e.g. Heads Up">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notice Body</label>
+          <textarea name="card_notice_body" class="form-control" rows="3" placeholder="The message that appears in the popup.">{{ card.card_notice_body if card else '' }}</textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,160px);gap:12px;margin-bottom:16px;">
+          <div>
+            <label class="form-label">Notice Link <span style="font-weight:400;color:#6e6e73;">(optional)</span></label>
+            <input type="text" name="card_notice_link" class="form-control" value="{{ card.card_notice_link if card else '' }}" placeholder="/leadership or https://…">
+          </div>
+          <div>
+            <label class="form-label">Button Label</label>
+            <input type="text" name="card_notice_link_label" class="form-control" value="{{ (card.card_notice_link_label if card else '') or 'Learn More' }}" placeholder="Learn More">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Notice Image <span style="font-weight:400;color:#6e6e73;">(optional)</span></label>
+          <input type="file" name="card_notice_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          {% if card and card.card_notice_image %}
+          <div style="margin-top:10px;">
+            <img src="/static/{{ card.card_notice_image }}" alt="Notice image" style="width:140px;height:100px;border-radius:14px;object-fit:cover;display:block;">
+            <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Upload a new image to replace</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
       <div style="display:flex;gap:18px;align-items:center;margin-bottom:18px;">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.84rem;font-weight:500;text-transform:none;letter-spacing:0;margin:0;">
           <input type="checkbox" name="open_in_new_tab" value="1" {% if card and card.open_in_new_tab %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">

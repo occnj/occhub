@@ -12,10 +12,11 @@
         :root {
             --teal: {{ site_settings.get('theme_primary', '#13677A') }};
             --orange: {{ site_settings.get('theme_accent', '#F2541B') }};
-            --bg: {{ site_settings.get('theme_background', '#F5F5F7') }};
+            --bg: {{ site_settings.get('theme_background', '#F6EFE4') }};
             --card: {{ site_settings.get('theme_card', '#ffffff') }};
             --text: {{ site_settings.get('theme_text', '#1d1d1f') }};
             --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }};
+            --tile-bg: {{ site_settings.get('theme_tile_bg', '#FFFFFB') }};
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -149,31 +150,24 @@
         }
 
         .tile {
-            background: linear-gradient(145deg, var(--teal) 0%, var(--orange) 100%);
+            background: var(--tile-bg);
+            border: 1px solid rgba(18,62,60,0.09);
             border-radius: 28px;
             padding: 16px;
             text-decoration: none;
-            color: white;
+            color: var(--text);
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             align-items: flex-start;
             min-height: 146px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+            box-shadow: 0 2px 8px rgba(18,62,60,0.06);
             transition: transform 0.18s ease, box-shadow 0.18s ease;
             position: relative;
             overflow: hidden;
         }
-        .tile:active { transform: scale(0.97); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-        .tile::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(0,0,0,0.18) 100%);
-        }
+        .tile:active { transform: scale(0.97); box-shadow: 0 1px 2px rgba(18,62,60,0.04); }
         .tile-icon {
-            position: relative;
-            z-index: 1;
             width: 36px;
             height: 36px;
             border-radius: 12px;
@@ -183,25 +177,19 @@
             font-size: 1rem;
             margin-bottom: 10px;
             flex-shrink: 0;
-            background: rgba(255,255,255,0.14);
-            color: white;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: rgba(19,103,122,0.09);
+            color: var(--teal);
         }
 
         .tile-label {
-            position: relative;
-            z-index: 1;
             font-size: 0.88rem;
             font-weight: 600;
-            color: white;
+            color: var(--text);
             line-height: 1.3;
         }
         .tile-sub {
-            position: relative;
-            z-index: 1;
             font-size: 0.7rem;
-            color: rgba(255,255,255,0.74);
+            color: var(--sub);
             margin-top: 4px;
             max-width: 120px;
         }
@@ -210,8 +198,8 @@
             position: absolute;
             right: 13px;
             bottom: 14px;
-            z-index: 1;
-            color: rgba(255,255,255,0.78);
+            color: var(--sub);
+            opacity: 0.45;
             font-size: 0.75rem;
         }
 
@@ -448,9 +436,12 @@
         {% elif card.card_type in ['media', 'modal'] %}
             {% set href = '#' %}
         {% endif %}
-        <a href="{{ href }}" {% if card.open_in_new_tab and card.card_type == 'link' %}target="_blank" rel="noopener noreferrer"{% endif %}
+        <a href="{{ '#' if card.card_notice_enabled else href }}"
+           {% if card.open_in_new_tab and card.card_type == 'link' and not card.card_notice_enabled %}target="_blank" rel="noopener noreferrer"{% endif %}
            class="tile"
-           {% if card.card_type == 'media' %}onclick="openMediaCard({{ card.id }}, event)"{% elif card.card_type == 'modal' %}onclick="openInfoCard({{ card.id }}, event)"{% endif %}>
+           {% if card.card_notice_enabled %}onclick="openCardNotice({{ card.id }}, event)"
+           {% elif card.card_type == 'media' %}onclick="openMediaCard({{ card.id }}, event)"
+           {% elif card.card_type == 'modal' %}onclick="openInfoCard({{ card.id }}, event)"{% endif %}>
             <div class="tile-icon"><i class="bi {{ card.icon or 'bi-grid-fill' }}"></i></div>
             <div class="tile-label">{{ card.title }}</div>
             {% if card.subtitle %}
@@ -484,6 +475,21 @@
   </div>
 </div>
 {% endif %}
+
+<div id="card-notice-overlay" class="notice-overlay" onclick="if(event.target===this)closeCardNotice(false)">
+  <div class="notice-card">
+    <img id="card-notice-img" class="notice-image" style="display:none;" alt="">
+    <div class="notice-body">
+      <div class="notice-kicker">Quick Access</div>
+      <div class="notice-title" id="card-notice-title"></div>
+      <div class="notice-copy" id="card-notice-copy" style="display:none;"></div>
+      <div class="notice-actions">
+        <a id="card-notice-link-btn" class="notice-btn" style="display:none;" onclick="closeCardNotice(false)"></a>
+        <button type="button" class="notice-close" id="card-notice-close-btn" onclick="closeCardNotice()">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="media-card-overlay" class="card-overlay" onclick="if(event.target===this)closeMediaCard()">
   <div class="overlay-card">
@@ -737,6 +743,70 @@ if ('serviceWorker' in navigator) {
     const registrations = await navigator.serviceWorker.getRegistrations();
     await Promise.all(registrations.map(registration => registration.unregister()));
   });
+}
+const cardNotices = {
+    {% for card in hub_cards %}{% if card.card_notice_enabled %}
+    {% if card.card_type == 'group' %}{% set dest = url_for('hub_card_group', cid=card.id) %}
+    {% elif card.card_type == 'link' %}{% set dest = card.target_url or '' %}
+    {% else %}{% set dest = '' %}{% endif %}
+    {{ card.id }}: {
+        title: {{ (card.card_notice_title or card.title) | tojson }},
+        body: {{ (card.card_notice_body or '') | tojson }},
+        link: {{ (card.card_notice_link or '') | tojson }},
+        link_label: {{ (card.card_notice_link_label or 'Learn More') | tojson }},
+        image: {{ (card.card_notice_image or '') | tojson }},
+        dest: {{ dest | tojson }},
+        dest_new_tab: {{ (card.open_in_new_tab and card.card_type == 'link') | tojson }},
+        block: {{ card.card_notice_block | tojson }},
+    },
+    {% endif %}{% endfor %}
+};
+function openCardNotice(cardId, event) {
+    const n = cardNotices[cardId];
+    if (!n) return;
+    event.preventDefault();
+    const overlay = document.getElementById('card-notice-overlay');
+    overlay._dest = n.block ? '' : n.dest;
+    overlay._destNewTab = n.dest_new_tab;
+    const img = document.getElementById('card-notice-img');
+    if (n.image) {
+        img.src = '/static/' + n.image;
+        img.style.display = '';
+    } else {
+        img.style.display = 'none';
+    }
+    document.getElementById('card-notice-title').textContent = n.title;
+    const copy = document.getElementById('card-notice-copy');
+    if (n.body) {
+        copy.innerHTML = n.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        copy.style.display = '';
+    } else {
+        copy.style.display = 'none';
+    }
+    const linkBtn = document.getElementById('card-notice-link-btn');
+    const closeBtn = document.getElementById('card-notice-close-btn');
+    if (n.link) {
+        linkBtn.href = n.link;
+        linkBtn.textContent = n.link_label;
+        linkBtn.target = n.link.startsWith('http') ? '_blank' : '_self';
+        linkBtn.rel = n.link.startsWith('http') ? 'noopener noreferrer' : '';
+        linkBtn.style.display = '';
+    } else {
+        linkBtn.style.display = 'none';
+    }
+    closeBtn.textContent = 'Got it';
+    overlay.classList.add('open');
+}
+function closeCardNotice(navigate) {
+    const overlay = document.getElementById('card-notice-overlay');
+    overlay.classList.remove('open');
+    if (navigate !== false && overlay._dest) {
+        if (overlay._destNewTab) {
+            window.open(overlay._dest, '_blank', 'noopener,noreferrer');
+        } else {
+            window.location.href = overlay._dest;
+        }
+    }
 }
 function closeHubNotice() {
   const modal = document.getElementById('hub-notice');

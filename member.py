@@ -70,9 +70,10 @@ def sync_behind_scenes_with_ministries(conn):
             "INSERT OR IGNORE INTO behind_scenes (id,name,description,photo,sort_order) VALUES (?,?,?,?,?)",
             (ministry['id'], ministry['name'], ministry['description'], ministry['photo'] or '', ministry['sort_order'])
         )
+        # only sync name/description/sort_order — photo is managed independently in Oasis Crew admin
         conn.execute(
-            "UPDATE behind_scenes SET name=?,description=?,photo=?,sort_order=? WHERE id=?",
-            (ministry['name'], ministry['description'], ministry['photo'] or '', ministry['sort_order'], ministry['id'])
+            "UPDATE behind_scenes SET name=?,description=?,sort_order=? WHERE id=?",
+            (ministry['name'], ministry['description'], ministry['sort_order'], ministry['id'])
         )
     if ministry_ids:
         placeholders = ",".join("?" for _ in ministry_ids)
@@ -106,8 +107,9 @@ def init_db():
         ('phone','7324990040'),
         ('theme_primary','#13677A'),
         ('theme_accent','#F2541B'),
-        ('theme_background','#F5F5F7'),
+        ('theme_background','#F6EFE4'),
         ('theme_card','#ffffff'),
+        ('theme_tile_bg','#FFFFFB'),
         ('theme_text','#1d1d1f'),
         ('theme_subtext','#6e6e73'),
         ('ui_background_image',''),
@@ -326,14 +328,21 @@ def init_db():
         FOREIGN KEY(parent_id) REFERENCES hub_cards(id) ON DELETE CASCADE
     )''')
     for col, defn in [
-        ("card_type", "TEXT DEFAULT 'link'"),
-        ("parent_id", "INTEGER"),
-        ("media_url", "TEXT DEFAULT ''"),
-        ("modal_title", "TEXT DEFAULT ''"),
-        ("modal_body", "TEXT DEFAULT ''"),
-        ("modal_button_label", "TEXT DEFAULT ''"),
-        ("modal_button_url", "TEXT DEFAULT ''"),
-        ("modal_image", "TEXT DEFAULT ''"),
+        ("card_type",            "TEXT DEFAULT 'link'"),
+        ("parent_id",            "INTEGER"),
+        ("media_url",            "TEXT DEFAULT ''"),
+        ("modal_title",          "TEXT DEFAULT ''"),
+        ("modal_body",           "TEXT DEFAULT ''"),
+        ("modal_button_label",   "TEXT DEFAULT ''"),
+        ("modal_button_url",     "TEXT DEFAULT ''"),
+        ("modal_image",          "TEXT DEFAULT ''"),
+        ("card_notice_enabled",  "INTEGER DEFAULT 0"),
+        ("card_notice_block",    "INTEGER DEFAULT 0"),
+        ("card_notice_title",    "TEXT DEFAULT ''"),
+        ("card_notice_body",     "TEXT DEFAULT ''"),
+        ("card_notice_link",     "TEXT DEFAULT ''"),
+        ("card_notice_link_label","TEXT DEFAULT 'Learn More'"),
+        ("card_notice_image",    "TEXT DEFAULT ''"),
     ]:
         try:
             c.execute("ALTER TABLE hub_cards ADD COLUMN " + col + " " + defn)
@@ -1055,7 +1064,6 @@ def get_people_for_scene(conn, scene_id):
         SELECT
             p.id,
             p.name,
-            p.bio,
             p.photo,
             p.sort_order,
             a.role,
@@ -1767,8 +1775,9 @@ def admin_hub_card_new():
         raw_parent = (request.form.get('parent_id') or '').strip()
         parent_id = int(raw_parent) if raw_parent else None
         conn = get_db()
+        card_notice_image = save_upload('card_notice_image') or ''
         conn.execute(
-            "INSERT INTO hub_cards (slug,title,subtitle,photo,icon,card_type,parent_id,target_url,media_url,modal_title,modal_body,modal_button_label,modal_button_url,modal_image,open_in_new_tab,sort_order,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO hub_cards (slug,title,subtitle,photo,icon,card_type,parent_id,target_url,media_url,modal_title,modal_body,modal_button_label,modal_button_url,modal_image,open_in_new_tab,sort_order,is_active,card_notice_enabled,card_notice_block,card_notice_title,card_notice_body,card_notice_link,card_notice_link_label,card_notice_image) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 slug,
                 title,
@@ -1787,6 +1796,13 @@ def admin_hub_card_new():
                 1 if request.form.get('open_in_new_tab') else 0,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
+                1 if request.form.get('card_notice_enabled') else 0,
+                1 if request.form.get('card_notice_block') else 0,
+                request.form.get('card_notice_title', '').strip(),
+                request.form.get('card_notice_body', '').strip(),
+                request.form.get('card_notice_link', '').strip(),
+                request.form.get('card_notice_link_label', '').strip() or 'Learn More',
+                card_notice_image,
             )
         )
         conn.commit()
@@ -1816,8 +1832,11 @@ def admin_hub_card_edit(cid):
             modal_image = card['modal_image']
         raw_parent = (request.form.get('parent_id') or '').strip()
         parent_id = int(raw_parent) if raw_parent else None
+        card_notice_image = save_upload('card_notice_image')
+        if card_notice_image is None:
+            card_notice_image = card['card_notice_image'] if card['card_notice_image'] else ''
         conn.execute(
-            "UPDATE hub_cards SET title=?,subtitle=?,photo=?,icon=?,card_type=?,parent_id=?,target_url=?,media_url=?,modal_title=?,modal_body=?,modal_button_label=?,modal_button_url=?,modal_image=?,open_in_new_tab=?,sort_order=?,is_active=? WHERE id=?",
+            "UPDATE hub_cards SET title=?,subtitle=?,photo=?,icon=?,card_type=?,parent_id=?,target_url=?,media_url=?,modal_title=?,modal_body=?,modal_button_label=?,modal_button_url=?,modal_image=?,open_in_new_tab=?,sort_order=?,is_active=?,card_notice_enabled=?,card_notice_block=?,card_notice_title=?,card_notice_body=?,card_notice_link=?,card_notice_link_label=?,card_notice_image=? WHERE id=?",
             (
                 request.form.get('title', '').strip(),
                 request.form.get('subtitle', '').strip(),
@@ -1835,6 +1854,13 @@ def admin_hub_card_edit(cid):
                 1 if request.form.get('open_in_new_tab') else 0,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
+                1 if request.form.get('card_notice_enabled') else 0,
+                1 if request.form.get('card_notice_block') else 0,
+                request.form.get('card_notice_title', '').strip(),
+                request.form.get('card_notice_body', '').strip(),
+                request.form.get('card_notice_link', '').strip(),
+                request.form.get('card_notice_link_label', '').strip() or 'Learn More',
+                card_notice_image,
                 cid,
             )
         )
@@ -2310,10 +2336,9 @@ def admin_behind_scene_person_new():
     if request.method == 'POST':
         photo = save_upload('photo') or ''
         conn.execute(
-            "INSERT INTO behind_scene_people (name,bio,photo,sort_order) VALUES (?,?,?,?)",
+            "INSERT INTO behind_scene_people (name,photo,sort_order) VALUES (?,?,?)",
             (
                 request.form['name'].strip(),
-                request.form.get('bio', '').strip(),
                 photo,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'behind_scene_people'),
             )
@@ -2353,10 +2378,9 @@ def admin_behind_scene_person_edit(mid):
         if photo is None:
             photo = member['photo']
         conn.execute(
-            "UPDATE behind_scene_people SET name=?,bio=?,photo=?,sort_order=? WHERE id=?",
+            "UPDATE behind_scene_people SET name=?,photo=?,sort_order=? WHERE id=?",
             (
                 request.form['name'].strip(),
-                request.form.get('bio', '').strip(),
                 photo,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else member['sort_order'],
                 mid,

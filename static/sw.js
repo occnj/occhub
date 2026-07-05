@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v3';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v3';
+const STATIC_CACHE = 'oasis-hub-static-v4';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v4';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [

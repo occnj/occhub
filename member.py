@@ -1,10 +1,10 @@
 from flask import Flask, render_template, redirect, url_for, request, session, flash
-from flask_mail import Mail, Message
 from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 import html
+import json
 import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
 from PIL import Image, ExifTags
 from urllib.parse import parse_qs, urlparse
@@ -26,16 +26,14 @@ ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif'}
 DOCUMENT_EXTENSIONS = {'pdf', 'docx'}
 
 app.config.update(
-    MAIL_SERVER='smtp.office365.com', MAIL_PORT=587,
-    MAIL_USE_TLS=True, MAIL_USE_SSL=False,
-    MAIL_USERNAME=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
-    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD',''),
-    MAIL_DEFAULT_SENDER=os.environ.get('MAIL_USERNAME','media@oasisnj.net'),
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
+    SESSION_COOKIE_SECURE=True,
 )
-mail = Mail(app)
+
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+MAIL_FROM = os.environ.get('MAIL_FROM', 'Oasis Hub <media@oasisnj.net>')
 
 DB = os.path.join(BASE_DIR,'oasis.db')
 
@@ -942,6 +940,12 @@ def latest_sermon_note(conn):
         "SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC LIMIT 1"
     ).fetchone()
 
+def client_ip():
+    forwarded_for = request.headers.get('X-Forwarded-For', '')
+    if forwarded_for:
+        return forwarded_for.split(',')[0].strip()
+    return request.headers.get('X-Real-IP') or request.remote_addr or '0.0.0.0'
+
 def track(page):
     try:
         # Never track admin sessions
@@ -956,10 +960,8 @@ def track(page):
         today = datetime.now().strftime('%Y-%m-%d')
         session['today'] = today  # persist so queries can use it
         conn = get_db()
-        forwarded_for = request.headers.get('X-Forwarded-For', '')
-        client_ip = forwarded_for.split(',')[0].strip() if forwarded_for else request.remote_addr
         conn.execute("INSERT INTO analytics (ts,page,ip,ua,sid) VALUES (?,?,?,?,?)",
-            (ts, page, client_ip, request.headers.get('User-Agent','')[:200], sid))
+            (ts, page, client_ip(), request.headers.get('User-Agent','')[:200], sid))
         conn.commit()
         conn.close()
     except Exception as e:
@@ -967,9 +969,24 @@ def track(page):
 
 def send_email(subject, to, html, reply_to=None):
     try:
-        msg=Message(subject=subject,recipients=[to] if isinstance(to,str) else to,html=html)
-        if reply_to: msg.reply_to=reply_to
-        mail.send(msg); return True
+        if not RESEND_API_KEY:
+            app.logger.warning("Email skipped: RESEND_API_KEY not set")
+            return False
+        payload = {
+            'from': MAIL_FROM,
+            'to': [to] if isinstance(to, str) else list(to),
+            'subject': subject,
+            'html': html,
+        }
+        if reply_to: payload['reply_to'] = reply_to
+        req = Request('https://api.resend.com/emails',
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Authorization': f'Bearer {RESEND_API_KEY}',
+                     'Content-Type': 'application/json'},
+            method='POST')
+        with urlopen(req, timeout=15) as response:
+            response.read()
+        return True
     except Exception as e:
         app.logger.warning(f"Email failed: {e}"); return False
 
@@ -1632,7 +1649,7 @@ def admin_login():
     if session.get('admin_logged_in'): return redirect(url_for('admin_dashboard'))
     error=None
     if request.method=='POST':
-        ip = request.headers.get('X-Real-IP') or request.remote_addr or '0.0.0.0'
+        ip = client_ip()
         allowed, wait = _check_rate_limit(ip)
         if not allowed:
             error = f'Too many failed attempts. Try again in {wait // 60 + 1} minute(s).'

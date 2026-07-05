@@ -8,12 +8,12 @@ Type=simple
 User=occnj
 WorkingDirectory=/home/occnj/occ_hub
 Environment="PATH=/home/occnj/occ_hub/venv/bin"
-Environment="SECRET_KEY=89399d8cbd557f9d012df93ebee102e7737d9a287a3ee8397a6bc292df5a28b7"
-Environment="MAIL_USERNAME=media@oasisnj.net"
-Environment="MAIL_PASSWORD=Oasis2052"
+# Secrets live in .env (not committed to git). Required keys:
+#   SECRET_KEY, RESEND_API_KEY, MAIL_FROM
+EnvironmentFile=/home/occnj/occ_hub/.env
 ExecStart=/home/occnj/occ_hub/venv/bin/gunicorn \
     --workers 2 \
-    --bind 0.0.0.0:5500 \
+    --bind 127.0.0.1:5500 \
     --timeout 60 \
     --access-logfile /home/occnj/occ_hub/access.log \
     --error-logfile /home/occnj/occ_hub/error.log \

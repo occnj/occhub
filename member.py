@@ -1287,6 +1287,18 @@ def superadmin_required(f):
 
 # ── Public routes ─────────────────────────────────────────────────────────────
 
+@app.route('/manifest.json')
+def pwa_manifest():
+    return app.send_static_file('manifest.json')
+
+@app.route('/sw.js')
+def pwa_service_worker():
+    resp = app.send_static_file('sw.js')
+    # Always revalidate so a new SW version deploys without waiting out the cache
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
+
 @app.route('/')
 def splash(): track('splash'); return render_template('splash.html')
 

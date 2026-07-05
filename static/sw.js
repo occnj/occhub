@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v2';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v2';
+const STATIC_CACHE = 'oasis-hub-static-v3';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v3';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -44,6 +44,11 @@ self.addEventListener('fetch', event => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  // Never cache admin pages or the (large, ever-growing) uploads gallery
+  if (requestUrl.pathname.startsWith('/admin') || requestUrl.pathname.startsWith('/static/uploads/')) {
     return;
   }
 

@@ -355,10 +355,11 @@ def init_db():
         ('prayer-request', 'Prayer Request', "We're here for you", '', 'bi-hand-index-thumb', 'link', None, '/prayer', '', '', '', '', '', '', 0, 5, 1),
         ('help-desk', 'Help Desk', 'Get support', '', 'bi-headset', 'link', None, 'https://www.oasisnj.net/helpdesk', '', '', '', '', '', '', 1, 6, 1),
         ('beliefs-values', 'Our Beliefs & Values', 'What shapes us', '', 'bi-book', 'link', None, '/beliefs', '', '', '', '', '', '', 0, 7, 1),
-        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'link', None, '/leadership', '', '', '', '', '', '', 0, 8, 1),
-        ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
-        ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 10, 1),
-        ('app-feedback', 'Rate the App', 'Tell us what you think', '', 'bi-stars', 'link', None, '/feedback', '', '', '', '', '', '', 0, 11, 1),
+        ('ministries', 'Ministries', 'Every age, every stage', '', 'bi-people-fill', 'link', None, '/ministries', '', '', '', '', '', '', 0, 8, 1),
+        ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'link', None, '/leadership', '', '', '', '', '', '', 0, 9, 1),
+        ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 10, 1),
+        ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 11, 1),
+        ('app-feedback', 'Rate the App', 'Tell us what you think', '', 'bi-stars', 'link', None, '/feedback', '', '', '', '', '', '', 0, 12, 1),
     ]
     for card in seeded_hub_cards:
         c.execute(
@@ -1400,7 +1401,9 @@ def beliefs_values():
 
 @app.route('/ministries')
 def ministries():
-    track('ministries'); conn=get_db(); items=conn.execute("SELECT * FROM ministries ORDER BY sort_order").fetchall(); conn.close()
+    # Only ministries with a description are public; serving teams synced from
+    # Oasis Crew have empty descriptions and stay off this page.
+    track('ministries'); conn=get_db(); items=conn.execute("SELECT * FROM ministries WHERE TRIM(COALESCE(description,''))!='' ORDER BY sort_order").fetchall(); conn.close()
     return render_template('ministries.html',ministries=items,settings=all_settings())
 
 @app.route('/leadership')

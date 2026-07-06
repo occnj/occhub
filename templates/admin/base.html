@@ -123,13 +123,17 @@
             transition: opacity 0.15s, transform 0.15s;
         }
         .btn:active { transform: scale(0.97); }
-        .btn-primary { background: var(--teal); color: #fff; }
-        .btn-orange { background: var(--orange); color: #fff; }
+        .btn-primary { background: var(--teal); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--teal) 30%, transparent); }
+        .btn-orange { background: var(--orange); color: #fff; box-shadow: 0 4px 14px color-mix(in srgb, var(--orange) 30%, transparent); }
+        .btn-primary:hover, .btn-orange:hover { filter: brightness(1.06); }
         .btn-ghost { background: var(--bg); color: var(--text); border: 1px solid var(--line); }
         .btn-danger { background: var(--danger); color: #fff; }
         .btn-sm { padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; }
 
         .content { padding: 32px; flex: 1; }
+
+        /* Responsive grid helpers */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 
         @media (max-width: 900px) {
             :root { --sidebar: 280px; }
@@ -139,7 +143,8 @@
             .topbar-right { flex-wrap: wrap; justify-content: flex-end; }
             .nav-toggle { display: inline-flex; }
             .content { padding: 16px; }
-            .stats { grid-template-columns: 1fr; }
+            .stats, .stats-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+            .grid-2 { grid-template-columns: 1fr; }
             table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
             .sidebar {
@@ -152,10 +157,32 @@
             body.nav-open .nav-overlay { display: block; }
         }
 
+        @media (max-width: 760px) {
+            /* Collapse any inline multi-column page grid to a single column.
+               Grids ending in "auto" (thumbnail + text + actions rows) are kept — they fit on phones. */
+            .content [style*="grid-template-columns"]:not([style*=" auto"]) { grid-template-columns: 1fr !important; }
+            /* 16px inputs stop iOS Safari from zooming in on focus */
+            .form-control { font-size: 16px; }
+            .btn { padding: 11px 16px; }
+            .btn-sm { padding: 9px 13px; }
+            .card-header { flex-wrap: wrap; gap: 10px; padding: 16px 18px; }
+            .card-body { padding: 18px; }
+        }
+
+        /* Scroll-reveal animation */
+        @media (prefers-reduced-motion: no-preference) {
+            .reveal { opacity: 0; transform: translateY(22px) scale(0.985); }
+            .reveal.reveal-in {
+                opacity: 1; transform: none;
+                transition: opacity 0.55s ease, transform 0.6s cubic-bezier(.22,1,.36,1);
+            }
+        }
+
         /* Cards */
         .card {
-            background: var(--card); border-radius: 16px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            background: var(--card); border-radius: 18px;
+            border: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+            box-shadow: 0 1px 2px rgba(17,24,39,0.04), 0 10px 28px rgba(17,24,39,0.05);
             overflow: hidden;
         }
         .card-header {
@@ -229,10 +256,19 @@
         .badge-orange { background: var(--orange-light); color: var(--orange); }
 
         /* Stat cards */
-        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stats-4 { grid-template-columns: repeat(4, 1fr); }
         .stat-card {
-            background: var(--card); border-radius: 16px; padding: 22px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            background: var(--card); border-radius: 18px; padding: 22px;
+            border: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+            box-shadow: 0 1px 2px rgba(17,24,39,0.04), 0 10px 28px rgba(17,24,39,0.05);
+            transition: transform 0.25s cubic-bezier(.22,1,.36,1), box-shadow 0.25s ease;
+        }
+        @media (hover:hover) and (pointer:fine) {
+            .stat-card:hover {
+                transform: translateY(-3px);
+                box-shadow: 0 2px 4px rgba(17,24,39,0.05), 0 18px 44px rgba(17,24,39,0.10);
+            }
         }
         .stat-icon {
             width: 42px; height: 42px; border-radius: 12px;
@@ -406,6 +442,43 @@
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') document.body.classList.remove('nav-open');
 });
+(function() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  // Staggered scroll-reveal for cards and stat tiles
+  const els = document.querySelectorAll('.content .card, .content .stat-card');
+  if ('IntersectionObserver' in window && els.length) {
+    els.forEach(el => el.classList.add('reveal'));
+    const io = new IntersectionObserver((entries) => {
+      let i = 0;
+      entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        const el = en.target;
+        el.style.transitionDelay = (i++ * 70) + 'ms';
+        el.classList.add('reveal-in');
+        el.addEventListener('transitionend', () => {
+          el.classList.remove('reveal', 'reveal-in');
+          el.style.transitionDelay = '';
+        }, { once: true });
+        io.unobserve(el);
+      });
+    }, { threshold: 0.08, rootMargin: '0px 0px -6% 0px' });
+    els.forEach(el => io.observe(el));
+  }
+
+  // Count-up animation for stat numbers
+  document.querySelectorAll('.stat-num').forEach(el => {
+    const target = parseInt(el.textContent.replace(/[^\d]/g, ''), 10);
+    if (isNaN(target) || target === 0) return;
+    const dur = 700, start = performance.now();
+    function tick(now) {
+      const p = Math.min((now - start) / dur, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+})();
 (function() {
   const tok = document.querySelector('meta[name="csrf-token"]').content;
   document.addEventListener('DOMContentLoaded', function() {

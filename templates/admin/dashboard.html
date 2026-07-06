@@ -4,41 +4,48 @@
 {% block page_sub %}Welcome back, {{ session.admin_user }}{% endblock %}
 {% block content %}
 
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ st.views_today }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Views Today</div>
+<div class="stats stats-4">
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="bi bi-eye-fill"></i></div>
+    <div class="stat-num">{{ st.views_today }}</div>
+    <div class="stat-label">Views Today</div>
   </div>
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:2rem;font-weight:700;color:#13677A;">{{ st.views_total }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Total Views</div>
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="bi bi-graph-up-arrow"></i></div>
+    <div class="stat-num">{{ st.views_total }}</div>
+    <div class="stat-label">Total Views</div>
   </div>
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:2rem;font-weight:700;color:#F2541B;">{{ st.sessions_today }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Unique Sessions Today</div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="bi bi-person-check-fill"></i></div>
+    <div class="stat-num">{{ st.sessions_today }}</div>
+    <div class="stat-label">Unique Sessions Today</div>
   </div>
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:2rem;font-weight:700;color:#F2541B;">{{ st.submissions }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Connect Cards</div>
-  </div>
-</div>
-
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:2rem;font-weight:700;color:#F2541B;">{{ st.prayers }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;margin-top:4px;">Prayer Requests</div>
-  </div>
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:1.5rem;font-weight:700;color:#13677A;">{{ st.events }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;">Events</div>
-  </div>
-  <div class="card" style="padding:20px;text-align:center;">
-    <div style="font-size:1.5rem;font-weight:700;color:#13677A;">{{ st.ministries }}</div>
-    <div style="font-size:0.72rem;color:#6e6e73;">Ministries</div>
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="bi bi-person-lines-fill"></i></div>
+    <div class="stat-num">{{ st.submissions }}</div>
+    <div class="stat-label">Connect Cards</div>
   </div>
 </div>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="bi bi-hand-index-thumb-fill"></i></div>
+    <div class="stat-num">{{ st.prayers }}</div>
+    <div class="stat-label">Prayer Requests</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="bi bi-calendar3"></i></div>
+    <div class="stat-num">{{ st.events }}</div>
+    <div class="stat-label">Events</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
+    <div class="stat-num">{{ st.ministries }}</div>
+    <div class="stat-label">Ministries</div>
+  </div>
+</div>
+
+<div class="grid-2">
   <div class="card">
     <div class="card-header"><div class="card-title">Recent Connect Cards</div><a href="{{ url_for('admin_submissions') }}" class="btn btn-ghost btn-sm">View All</a></div>
     {% if recent %}
@@ -47,14 +54,14 @@
       <tbody>
       {% for s in recent %}
       <tr>
-        <td><a href="{{ url_for('admin_submission_detail', sid=s.id) }}" style="color:#13677A;text-decoration:none;font-weight:600;">{{ s.full_name or 'Anonymous' }}</a></td>
-        <td style="color:#6e6e73;font-size:0.78rem;">{{ s.submitted_at }}</td>
+        <td><a href="{{ url_for('admin_submission_detail', sid=s.id) }}" style="color:var(--teal);text-decoration:none;font-weight:600;">{{ s.full_name or 'Anonymous' }}</a></td>
+        <td style="color:var(--sub);font-size:0.78rem;">{{ s.submitted_at }}</td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="card-body" style="color:#6e6e73;">No submissions yet.</div>
+    <div class="card-body" style="color:var(--sub);">No submissions yet.</div>
     {% endif %}
   </div>
 
@@ -67,13 +74,13 @@
       {% for p in top_pages %}
       <tr>
         <td><b>/{{ p.page }}</b></td>
-        <td style="color:#13677A;font-weight:600;">{{ p.cnt }}</td>
+        <td style="color:var(--teal);font-weight:600;">{{ p.cnt }}</td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="card-body" style="color:#6e6e73;">No analytics data yet.</div>
+    <div class="card-body" style="color:var(--sub);">No analytics data yet.</div>
     {% endif %}
   </div>
 </div>

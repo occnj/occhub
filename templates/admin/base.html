@@ -344,6 +344,9 @@
         <a href="{{ url_for('admin_prayers') }}" class="nav-item {% if 'prayer' in request.endpoint %}active{% endif %}">
             <i class="bi bi-hand-index-thumb-fill"></i> Prayer Requests
         </a>
+        <a href="{{ url_for('admin_feedback') }}" class="nav-item {% if 'feedback' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-stars"></i> App Feedback
+        </a>
 
         <div class="nav-section">Content</div>
         <a href="{{ url_for('admin_events') }}" class="nav-item {% if 'event' in request.endpoint %}active{% endif %}">

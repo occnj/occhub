@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}App Feedback{% endblock %}
+{% block page_title %}App Feedback{% endblock %}
+{% block page_sub %}What the congregation thinks of the app{% endblock %}
+{% block content %}
+
+<div class="stats">
+  <div class="stat-card">
+    <div class="stat-icon orange"><i class="bi bi-star-fill"></i></div>
+    <div class="stat-num">{{ avg_rating }}</div>
+    <div class="stat-label">Average Rating (of 5)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon teal"><i class="bi bi-stars"></i></div>
+    <div class="stat-num">{{ rated }}</div>
+    <div class="stat-label">Star Ratings</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue"><i class="bi bi-chat-left-text-fill"></i></div>
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Total Responses</div>
+  </div>
+</div>
+
+<div class="card">
+  {% if feedback %}
+  <table>
+    <thead><tr><th>Date</th><th>Name</th><th>Rating</th><th>Feedback</th><th></th></tr></thead>
+    <tbody>
+    {% for f in feedback %}
+    <tr>
+      <td style="color:var(--sub);font-size:0.78rem;white-space:nowrap;">{{ f.submitted_at }}</td>
+      <td><b>{{ f.full_name or 'Anonymous' }}</b></td>
+      <td style="white-space:nowrap;color:var(--orange);font-size:0.95rem;">
+        {%- if f.rating -%}
+          {%- for i in range(f.rating) -%}★{%- endfor -%}<span style="color:#d8d8dc;">{%- for i in range(5 - f.rating) -%}★{%- endfor -%}</span>
+        {%- else -%}<span style="color:var(--sub);font-size:0.75rem;">—</span>{%- endif -%}
+      </td>
+      <td style="font-size:0.82rem;color:#3a3a3c;max-width:340px;line-height:1.55;">{{ f.message or '—' }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('admin_feedback_delete', fid=f.id) }}" style="display:inline;" onsubmit="return confirm('Delete this feedback entry?')">
+          <button type="submit" class="btn btn-danger btn-sm" title="Delete"><i class="bi bi-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:var(--sub);">No feedback yet. Once members use the "Rate the App" card on the hub, their responses will appear here.</div>
+  {% endif %}
+</div>
+{% endblock %}

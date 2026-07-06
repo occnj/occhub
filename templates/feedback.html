@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="{{ site_settings.get('theme_primary', '#13677A') }}">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Oasis Hub">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}</script>
+<script defer src="/static/reveal.js?v=2"></script>
+<link rel="stylesheet" href="/static/transitions.css?v=1">
+<title>App Feedback — Oasis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:{{ site_settings.get('theme_primary', '#13677A') }};--orange:{{ site_settings.get('theme_accent', '#F2541B') }};--bg:{{ site_settings.get('theme_background', '#F5F5F7') }};--card:{{ site_settings.get('theme_card', '#ffffff') }};--text:{{ site_settings.get('theme_text', '#1d1d1f') }};--sub:{{ site_settings.get('theme_subtext', '#6e6e73') }};--line:#d2d2d7;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);{% if site_settings.get('ui_background_image') %}background-image:url('/static/{{ site_settings.get('ui_background_image') }}');background-size:cover;background-position:center;background-attachment:fixed;{% endif %}font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
+.shell{width:100%;max-width:390px;}
+.hero{background:linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);padding:56px 24px 28px;position:relative;overflow:hidden;border-radius:28px;margin:16px 16px 0;box-shadow:0 10px 30px rgba(0,0,0,0.08);}
+.hero::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.08);filter:blur(2px);pointer-events:none;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);z-index:2;}
+.hero-content{position:relative;z-index:1;padding-left:58px;}
+.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:white;}
+.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:250px;margin-top:10px;}
+.body{padding:20px 16px;}
+.form-card{background:var(--card);border-radius:20px;padding:22px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+label{display:block;font-size:0.7rem;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--sub);margin-bottom:7px;margin-top:16px;}
+label:first-child{margin-top:0;}
+input,textarea{width:100%;background:var(--bg);border:1.5px solid transparent;border-radius:12px;padding:13px 14px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--text);outline:none;transition:border-color 0.2s,background 0.2s;-webkit-appearance:none;appearance:none;}
+input:focus,textarea:focus{border-color:var(--teal);background:white;}
+textarea{min-height:130px;resize:vertical;}
+.stars{display:flex;justify-content:center;gap:10px;padding:6px 0 2px;}
+.stars button{background:none;border:none;font-size:2.1rem;color:#d8d8dc;cursor:pointer;line-height:1;padding:4px;transition:transform 0.2s cubic-bezier(.34,1.56,.64,1),color 0.15s;}
+.stars button.on{color:var(--orange);}
+.stars button:active{transform:scale(1.25);}
+.stars button.pop{animation:star-pop 0.35s cubic-bezier(.34,1.56,.64,1);}
+@keyframes star-pop{40%{transform:scale(1.35) rotate(-8deg);}}
+.rating-hint{text-align:center;font-size:0.78rem;color:var(--sub);min-height:1.2em;margin-top:2px;}
+.btn-submit{display:block;width:100%;background:var(--teal);color:white;border:none;border-radius:14px;padding:17px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;margin-top:22px;box-shadow:0 8px 25px rgba(19,103,122,0.25);transition:transform 0.15s,opacity 0.15s;}
+.btn-submit:active{transform:scale(0.98);opacity:0.9;}
+.success-card{background:var(--card);border-radius:20px;padding:40px 24px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.success-icon{width:64px;height:64px;border-radius:50%;background:rgba(242,84,27,0.1);color:var(--orange);display:flex;align-items:center;justify-content:center;font-size:1.8rem;margin:0 auto 18px;}
+.success-title{font-family:'DM Serif Display',serif;font-size:1.4rem;margin-bottom:8px;}
+.success-sub{font-size:0.88rem;color:var(--sub);line-height:1.65;}
+.back-hub{display:inline-flex;align-items:center;gap:6px;margin-top:20px;color:var(--teal);text-decoration:none;font-size:0.84rem;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="/hub" class="back-btn"><i class="bi bi-arrow-left"></i></a>
+    <div class="hero-content">
+      <div class="hero-tag">Oasis Hub</div>
+      <div class="hero-title">Rate the App</div>
+      <div class="hero-copy">{{ settings.get('feedback_page_description') or 'Loving the app? Spotted something off? Tell us — your feedback shapes what we build next.' }}</div>
+    </div>
+  </div>
+  <div class="body">
+
+  {% if sent %}
+  <div class="success-card">
+    <div class="success-icon"><i class="bi bi-stars"></i></div>
+    <div class="success-title">Thank You!</div>
+    <div class="success-sub">Your feedback has been received. Every note helps us make the Oasis Hub better for everyone.</div>
+    <a href="/hub" class="back-hub"><i class="bi bi-house"></i> Back to Hub</a>
+  </div>
+  {% else %}
+  <div class="form-card">
+    <form method="POST" id="fbForm">
+      <label>How would you rate the app?</label>
+      <div class="stars" id="stars">
+        <button type="button" data-v="1" aria-label="1 star">★</button>
+        <button type="button" data-v="2" aria-label="2 stars">★</button>
+        <button type="button" data-v="3" aria-label="3 stars">★</button>
+        <button type="button" data-v="4" aria-label="4 stars">★</button>
+        <button type="button" data-v="5" aria-label="5 stars">★</button>
+      </div>
+      <div class="rating-hint" id="ratingHint">Tap a star</div>
+      <input type="hidden" name="rating" id="ratingInput" value="0">
+
+      <label>Your Name</label>
+      <input type="text" name="full_name" placeholder="Optional">
+
+      <label>Your Feedback</label>
+      <textarea name="message" placeholder="What do you love? What could be better? Any ideas?"></textarea>
+
+      <button type="submit" class="btn-submit">Send Feedback →</button>
+    </form>
+  </div>
+  {% endif %}
+  </div>
+</div>
+<script>
+(function(){
+  var stars=document.getElementById('stars');
+  if(!stars)return;
+  var input=document.getElementById('ratingInput');
+  var hint=document.getElementById('ratingHint');
+  var labels=['Tap a star','Needs work','Could be better','Pretty good','Really good','Love it!'];
+  var btns=Array.prototype.slice.call(stars.querySelectorAll('button'));
+  stars.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-v]');
+    if(!b)return;
+    var v=parseInt(b.dataset.v,10);
+    input.value=v;
+    hint.textContent=labels[v];
+    btns.forEach(function(s,i){
+      s.classList.toggle('on',i<v);
+      s.classList.remove('pop');
+    });
+    void b.offsetWidth;
+    b.classList.add('pop');
+  });
+  document.getElementById('fbForm').addEventListener('submit',function(e){
+    if(input.value==='0' && !this.message.value.trim()){
+      e.preventDefault();
+      hint.textContent='Please tap a star or write a note first';
+      hint.style.color='var(--orange)';
+    }
+  });
+})();
+</script>
+</body></html>

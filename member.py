@@ -133,6 +133,7 @@ def init_db():
         ('leadership_page_description','Meet the pastors and leaders helping guide the vision of Oasis.'),
         ('ministries_page_description','Explore the ministries where people of every age can belong, grow, and serve.'),
         ('prayer_page_description','Share what is on your heart and let us stand with you in prayer.'),
+        ('feedback_page_description','Loving the app? Spotted something off? Tell us — your feedback shapes what we build next.'),
         ('serve_page_description','Find your place, use your gifts, and make a difference with us.'),
         ('social_page_title','Follow Along'),
         ('social_page_description','Stay connected with Oasis through every platform and every message.'),
@@ -357,6 +358,7 @@ def init_db():
         ('leadership', 'Leadership', 'Meet the team', '', 'bi-person-badge', 'link', None, '/leadership', '', '', '', '', '', '', 0, 8, 1),
         ('oasis-crew', 'Oasis Crew', 'Meet the teams', '', 'bi-people-fill', 'link', None, '/behind-the-scene', '', '', '', '', '', '', 0, 9, 1),
         ('beyond-the-walls', 'Beyond the Walls', 'Outreach & missions', '', 'bi-compass', 'link', None, '/beyond-the-walls', '', '', '', '', '', '', 0, 10, 1),
+        ('app-feedback', 'Rate the App', 'Tell us what you think', '', 'bi-stars', 'link', None, '/feedback', '', '', '', '', '', '', 0, 11, 1),
     ]
     for card in seeded_hub_cards:
         c.execute(
@@ -453,6 +455,11 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, submitted_at TEXT NOT NULL,
         full_name TEXT, email TEXT, phone TEXT,
         request_type TEXT DEFAULT 'Personal', message TEXT, is_private INTEGER DEFAULT 0
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS app_feedback (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, submitted_at TEXT NOT NULL,
+        full_name TEXT, rating INTEGER DEFAULT 0, message TEXT
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS analytics (
@@ -1601,6 +1608,30 @@ def prayer():
         sent=True
     return render_template('prayer.html',sent=sent,settings=all_settings())
 
+@app.route('/feedback',methods=['GET','POST'])
+def feedback():
+    track('feedback'); sent=False
+    if request.method=='POST':
+        fn=request.form.get('full_name','').strip()
+        try: rating=max(0,min(5,int(request.form.get('rating','0') or 0)))
+        except ValueError: rating=0
+        msg=request.form.get('message','').strip()
+        if msg or rating:
+            conn=get_db()
+            conn.execute("INSERT INTO app_feedback (submitted_at,full_name,rating,message) VALUES (?,?,?,?)",
+                (datetime.now().strftime('%Y-%m-%d %H:%M'),fn,rating,msg))
+            conn.commit(); conn.close()
+            stars=('★'*rating+'☆'*(5-rating)) if rating else 'No rating'
+            html=f"""<html><body style="font-family:Arial;color:#333;line-height:1.7">
+            <div style="background:#13677A;padding:20px;text-align:center"><h1 style="color:white;margin:0">App Feedback</h1></div>
+            <div style="padding:24px;border:1px solid #ddd;border-top:none">
+            <p><b>Name:</b> {fn or '—'}<br><b>Rating:</b> <span style="color:#F2541B;font-size:1.2em">{stars}</span></p>
+            <hr><h3 style="color:#13677A">Feedback</h3>
+            <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{msg or '—'}</p></div></body></html>"""
+            send_email(f"App Feedback: {stars}",get_setting('contact_email','Oasis@OasisNJ.net'),html)
+        sent=True
+    return render_template('feedback.html',sent=sent,settings=all_settings())
+
 @app.route('/connect',methods=['GET','POST'])
 def connect():
     track('connect')
@@ -1730,6 +1761,7 @@ def admin_page_headers():
         conn = get_db()
         for key in [
             'about_page_description',
+            'feedback_page_description',
             'beliefs_page_description',
             'values_page_description',
             'calendar_page_description',
@@ -2732,6 +2764,22 @@ def admin_submission_detail(sid):
 def admin_prayers():
     conn=get_db(); p=conn.execute("SELECT * FROM prayer_requests ORDER BY id DESC").fetchall(); conn.close()
     return render_template('admin/prayers.html',prayers=p)
+
+@app.route('/admin/feedback')
+@login_required
+def admin_feedback():
+    conn=get_db()
+    fb=conn.execute("SELECT * FROM app_feedback ORDER BY id DESC").fetchall()
+    stats=conn.execute("SELECT ROUND(AVG(rating),1) avg_rating, COUNT(*) rated FROM app_feedback WHERE rating>0").fetchone()
+    conn.close()
+    return render_template('admin/feedback.html',feedback=fb,avg_rating=stats['avg_rating'] or 0,rated=stats['rated'],total=len(fb))
+
+@app.route('/admin/feedback/<int:fid>/delete',methods=['POST'])
+@login_required
+def admin_feedback_delete(fid):
+    conn=get_db(); conn.execute("DELETE FROM app_feedback WHERE id=?",(fid,)); conn.commit(); conn.close()
+    flash('Feedback entry deleted.','success')
+    return redirect(url_for('admin_feedback'))
 
 # Analytics
 @app.route('/admin/analytics/clear', methods=['POST'])

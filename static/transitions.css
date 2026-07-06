@@ -1,0 +1,45 @@
+/* Oasis Hub — native-app page transitions (cross-document View Transitions).
+   Forward: next page slides in from the right over the current one.
+   Back: current page slides away to the right, revealing the previous page.
+   Browsers without support just navigate normally. */
+
+@view-transition { navigation: auto; }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.34s;
+    animation-timing-function: cubic-bezier(0.25, 0.8, 0.35, 1);
+    animation-fill-mode: both;
+  }
+
+  /* Forward: incoming page on top, sliding in from the right;
+     outgoing page drifts left underneath, like an iOS push. */
+  ::view-transition-new(root) { z-index: 2; animation-name: vt-in-right; }
+  ::view-transition-old(root) { z-index: 1; animation-name: vt-out-left; }
+
+  /* Back: outgoing page on top, sliding away to the right (iOS pop). */
+  html.vt-back::view-transition-old(root) { z-index: 2; animation-name: vt-out-right; }
+  html.vt-back::view-transition-new(root) { z-index: 1; animation-name: vt-in-left; }
+
+  @keyframes vt-in-right {
+    from { transform: translateX(100%); box-shadow: -18px 0 40px rgba(0,0,0,0.22); }
+    to   { transform: translateX(0);    box-shadow: -18px 0 40px rgba(0,0,0,0.22); }
+  }
+  @keyframes vt-out-left {
+    to { transform: translateX(-26%); filter: brightness(0.94); }
+  }
+  @keyframes vt-out-right {
+    from { transform: translateX(0);    box-shadow: -18px 0 40px rgba(0,0,0,0.22); }
+    to   { transform: translateX(100%); box-shadow: -18px 0 40px rgba(0,0,0,0.22); }
+  }
+  @keyframes vt-in-left {
+    from { transform: translateX(-26%); filter: brightness(0.94); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) { animation: none !important; }
+}

@@ -103,3 +103,31 @@
     init();
   }
 })();
+
+/* Page-slide direction for the View Transitions in transitions.css.
+   Runs unconditionally (deferred, so before first paint): the incoming page
+   must carry html.vt-back BEFORE the transition starts to slide right instead
+   of left. Back is flagged two ways: a tap on a back button on the previous
+   page, or a browser back/forward navigation (button or swipe gesture). */
+(function () {
+  var back = false;
+  try {
+    back = sessionStorage.getItem('vtdir') === 'back';
+    sessionStorage.removeItem('vtdir');
+  } catch (e) {}
+  var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+  if (nav && nav.type === 'back_forward') back = true;
+  if (back) document.documentElement.classList.add('vt-back');
+
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    try {
+      if (a.classList.contains('back-btn') || a.hasAttribute('data-back')) {
+        sessionStorage.setItem('vtdir', 'back');
+      } else {
+        sessionStorage.removeItem('vtdir');
+      }
+    } catch (err) {}
+  }, true);
+})();

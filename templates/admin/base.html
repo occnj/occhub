@@ -171,10 +171,10 @@
 
         /* Scroll-reveal animation */
         @media (prefers-reduced-motion: no-preference) {
-            .reveal { opacity: 0; transform: translateY(22px) scale(0.985); }
+            .reveal { opacity: 0; transform: translateY(36px) scale(0.97); }
             .reveal.reveal-in {
                 opacity: 1; transform: none;
-                transition: opacity 0.55s ease, transform 0.6s cubic-bezier(.22,1,.36,1);
+                transition: opacity 0.7s ease, transform 0.7s cubic-bezier(.22,1,.36,1);
             }
         }
 
@@ -454,7 +454,7 @@ window.addEventListener('keydown', (e) => {
       entries.forEach(en => {
         if (!en.isIntersecting) return;
         const el = en.target;
-        el.style.transitionDelay = (i++ * 70) + 'ms';
+        el.style.transitionDelay = (i++ * 90) + 'ms';
         el.classList.add('reveal-in');
         el.addEventListener('transitionend', () => {
           el.classList.remove('reveal', 'reveal-in');
@@ -463,7 +463,11 @@ window.addEventListener('keydown', (e) => {
         io.unobserve(el);
       });
     }, { threshold: 0.08, rootMargin: '0px 0px -6% 0px' });
-    els.forEach(el => io.observe(el));
+    // Double rAF: the hidden state must be painted first, otherwise the
+    // browser skips the transition and cards appear with no motion.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      els.forEach(el => io.observe(el));
+    }));
   }
 
   // Count-up animation for stat numbers

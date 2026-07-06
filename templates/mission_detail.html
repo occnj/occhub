@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Oasis Hub">
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
 <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}</script>
+<script defer src="/static/reveal.js?v=1"></script>
 <title>{{ mission.title }} — Mission</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -142,12 +143,6 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowLeft') lbStep(-1);
   if (e.key === 'ArrowRight') lbStep(1);
 });
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(registration => registration.unregister()));
-  });
-}
 </script>
 </body>
 </html>

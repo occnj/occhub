@@ -11,6 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Oasis Hub">
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}</script>
+<script defer src="/static/reveal.js?v=1"></script>
     <title>Beliefs — Oasis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -164,14 +165,6 @@ function moveGallery(direction) {
 function closeSheet() {
     document.getElementById('overlay').classList.remove('open');
     document.getElementById('sheet').classList.remove('open');
-}
-</script>
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    await Promise.all(registrations.map(registration => registration.unregister()));
-  });
 }
 </script>
 </body>

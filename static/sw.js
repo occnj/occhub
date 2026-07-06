@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v4';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v4';
+const STATIC_CACHE = 'oasis-hub-static-v5';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v5';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -11,6 +11,7 @@ const PRECACHE = [
   '/about',
   '/social',
   '/manifest.json',
+  '/static/reveal.js?v=1',
   '/static/apple-touch-icon.png',
   '/static/icon-192x192.png',
   '/static/icon-512x512.png',

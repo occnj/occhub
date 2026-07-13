@@ -990,7 +990,8 @@ def send_email(subject, to, html, reply_to=None):
         req = Request('https://api.resend.com/emails',
             data=json.dumps(payload).encode('utf-8'),
             headers={'Authorization': f'Bearer {RESEND_API_KEY}',
-                     'Content-Type': 'application/json'},
+                     'Content-Type': 'application/json',
+                     'User-Agent': 'occ-hub/1.0'},
             method='POST')
         with urlopen(req, timeout=15) as response:
             response.read()

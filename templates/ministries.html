@@ -87,7 +87,7 @@
         <button class="row" onclick="openSheet({{ loop.index0 }})">
             <div class="row-left">
                 {% if m.photo %}
-                <img src="/static/{{ m.photo }}" alt="{{ m.name }}" class="row-icon" style="object-fit:cover;border-radius:10px;">
+                <img src="/static/{{ m.photo }}" alt="{{ m.name }}" class="row-icon" style="object-fit:cover;border-radius:10px;" loading="lazy">
                 {% else %}
                 <div class="row-icon {% if loop.index is even %}alt{% endif %}">
                     <i class="bi {{ m.icon }}"></i>

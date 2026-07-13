@@ -32,6 +32,16 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,
 )
 
+@app.after_request
+def _cache_static_assets(resp):
+    # Uploaded images/docs get a random filename and are never overwritten,
+    # so browsers can cache them indefinitely instead of revalidating every load.
+    if request.path.startswith('/static/uploads/'):
+        resp.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif request.path.startswith('/static/') and request.path not in ('/static/sw.js', '/static/manifest.json'):
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
 MAIL_FROM = os.environ.get('MAIL_FROM', 'Oasis Hub <media@oasisnj.net>')
 

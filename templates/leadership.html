@@ -93,7 +93,7 @@
         <button class="leader-card" onclick="openLeader({{ loop.index0 }})">
             <div class="avatar">
                 {% if l.photo %}
-                <img src="/static/{{ l.photo }}" alt="{{ l.name }}">
+                <img src="/static/{{ l.photo }}" alt="{{ l.name }}" loading="lazy">
                 {% else %}
                 <div class="avatar-placeholder"><i class="bi bi-person"></i></div>
                 {% endif %}

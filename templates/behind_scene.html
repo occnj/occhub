@@ -100,7 +100,7 @@
         <a href="{{ url_for('behind_scene_detail', sid=scene.id) }}" class="group-card">
             <div class="group-cover">
                 {% if scene.photo %}
-                <img src="/static/{{ scene.photo }}" alt="{{ scene.name }}">
+                <img src="/static/{{ scene.photo }}" alt="{{ scene.name }}" loading="lazy">
                 {% else %}
                 <div class="group-icon"><i class="bi bi-people-fill"></i></div>
                 {% endif %}

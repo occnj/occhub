@@ -61,7 +61,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
       {% for mission in missions %}
       <a href="{{ url_for('mission_detail', mid=mission.id) }}" class="mission-card">
         {% if mission.cover_photo %}
-        <img src="/static/{{ mission.cover_photo }}" alt="{{ mission.title }}" class="mission-cover">
+        <img src="/static/{{ mission.cover_photo }}" alt="{{ mission.title }}" class="mission-cover" loading="lazy">
         {% else %}
         <div class="mission-fallback"><i class="bi bi-globe2"></i></div>
         {% endif %}

@@ -80,7 +80,7 @@
         <button class="member-card" onclick="openMember({{ loop.index0 }})">
             <div class="avatar">
                 {% if member.photo %}
-                <img src="/static/{{ member.photo }}" alt="{{ member.name }}">
+                <img src="/static/{{ member.photo }}" alt="{{ member.name }}" loading="lazy">
                 {% else %}
                 <div class="avatar-placeholder"><i class="bi bi-person"></i></div>
                 {% endif %}

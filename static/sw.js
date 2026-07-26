@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v6';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v6';
+const STATIC_CACHE = 'oasis-hub-static-v7';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v7';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -24,8 +24,18 @@ const PRECACHE = [
 ];
 
 self.addEventListener('install', event => {
+  // Precache requests carry X-SW-Precache so the server's analytics tracker
+  // (member.py track()) can tell them apart from real page visits.
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+    caches.open(STATIC_CACHE).then(cache =>
+      Promise.all(PRECACHE.map(url =>
+        fetch(new Request(url, { headers: { 'X-SW-Precache': '1' } }))
+          .then(response => {
+            if (!response.ok) throw new Error('Precache failed for ' + url);
+            return cache.put(url, response);
+          })
+      ))
+    ).then(() => self.skipWaiting())
   );
 });
 

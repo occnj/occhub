@@ -969,10 +969,14 @@ def track(page):
         # Never track admin sessions
         if session.get('admin_logged_in'):
             return
+        # Skip service-worker precache fetches (not real visits)
+        if request.headers.get('X-SW-Precache'):
+            return
         sid = session.get('sid')
         if not sid:
             sid = str(uuid.uuid4())[:16]
             session['sid'] = sid
+        session.permanent = True
         # Store timestamp as local date string for correct "today" queries
         ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         today = datetime.now().strftime('%Y-%m-%d')

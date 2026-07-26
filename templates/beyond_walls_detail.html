@@ -40,7 +40,8 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .story{padding:18px 18px 20px;}
 .lb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:1000;align-items:center;justify-content:center;flex-direction:column;padding:0 52px;}
 .lb-overlay.open{display:flex;}
-.lb-img{max-width:100%;max-height:78vh;object-fit:contain;border-radius:12px;}
+.lb-img-wrap{max-width:100%;max-height:78vh;}
+.lb-img{display:block;max-width:100%;max-height:78vh;object-fit:contain;border-radius:12px;}
 .lb-cap{color:rgba(255,255,255,0.65);font-size:0.85rem;margin-top:14px;text-align:center;max-width:320px;line-height:1.5;}
 .lb-count{color:rgba(255,255,255,0.38);font-size:0.72rem;letter-spacing:0.12em;text-transform:uppercase;margin-top:6px;}
 .lb-close{position:absolute;top:18px;right:18px;color:#fff;background:rgba(255,255,255,0.12);border:none;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;cursor:pointer;}
@@ -87,7 +88,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 <div class="lb-overlay" id="lb-overlay">
   <button class="lb-close" id="lb-close"><i class="bi bi-x-lg"></i></button>
   <button class="lb-nav lb-prev" id="lb-prev"><i class="bi bi-arrow-left"></i></button>
-  <img class="lb-img" id="lb-img" src="" alt="">
+  <div class="lb-img-wrap"><img class="lb-img" id="lb-img" src="" alt=""></div>
   <div class="lb-cap" id="lb-cap"></div>
   <div class="lb-count" id="lb-count"></div>
   <button class="lb-nav lb-next" id="lb-next"><i class="bi bi-arrow-right"></i></button>

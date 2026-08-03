@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% block title %}Security{% endblock %}
+{% block page_title %}Security{% endblock %}
+{% block page_sub %}Banned IPs from honeypot traps{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><div class="card-title">Currently Banned ({{ banned|length }})</div></div>
+  <table>
+    <thead><tr><th>IP</th><th>Reason</th><th>Banned At</th><th>Expires</th><th></th></tr></thead>
+    <tbody>
+    {% for b in banned %}
+    <tr>
+      <td style="font-weight:600;">{{ b.ip }}</td>
+      <td style="font-size:0.82rem;color:#6e6e73;">{{ b.reason }}</td>
+      <td style="font-size:0.8rem;">{{ b.banned_at }}</td>
+      <td style="font-size:0.8rem;">{{ b.expires_at }}</td>
+      <td>
+        <form method="POST" action="{{ url_for('admin_security_unban') }}" onsubmit="return confirm('Unban {{ b.ip }}?')">
+          <input type="hidden" name="ip" value="{{ b.ip }}">
+          <button type="submit" class="btn btn-ghost" style="font-size:0.78rem;padding:4px 10px;">Unban</button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="color:#6e6e73;">No banned IPs right now.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title">How this works</div></div>
+  <div class="card-body" style="font-size:0.85rem;line-height:1.7;color:#3a3a3c;">
+    A set of fake admin/CMS paths (e.g. <code>/wp-admin</code>, <code>/.env</code>, <code>/phpmyadmin</code>) are wired
+    to a trap &mdash; no real page uses them, so any request to one is a scanning bot, not a visitor.
+    Tripping one auto-bans the IP for {{ ban_days }} days from the entire site. Bans expire automatically;
+    unban early from this page if a ban ever looks wrong.
+  </div>
+</div>
+{% endblock %}

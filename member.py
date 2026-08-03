@@ -479,6 +479,11 @@ def init_db():
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_analytics_sid_page_ts ON analytics(sid, page, ts)')
 
+    c.execute('''CREATE TABLE IF NOT EXISTS banned_ips (
+        ip TEXT PRIMARY KEY, banned_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL, reason TEXT
+    )''')
+
     c.execute('''CREATE TABLE IF NOT EXISTS sermon_notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
@@ -1258,6 +1263,62 @@ def ensure_admin_password_hash(conn, user_row, raw_password):
         (hash_password(raw_password), user_row['id'])
     )
     conn.commit()
+
+# ── IP bans & honeypot ────────────────────────────────────────────────────────
+
+BAN_DAYS = 7
+HONEYPOT_PATHS = [
+    '/wp-admin', '/wp-login.php', '/wp-config.php', '/wp-content/uploads',
+    '/xmlrpc.php', '/.env', '/.env.bak', '/.env.production',
+    '/.git/config', '/.aws/credentials', '/.ssh/id_rsa',
+    '/phpmyadmin', '/phpMyAdmin', '/pma', '/admin.php', '/administrator',
+    '/administrator/index.php', '/config.php', '/config.json.bak',
+    '/vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php',
+    '/.docker/config.json', '/server-status', '/actuator/env',
+]
+
+def is_ip_banned(ip):
+    try:
+        conn = get_db()
+        row = conn.execute(
+            "SELECT 1 FROM banned_ips WHERE ip=? AND expires_at > ?",
+            (ip, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        ).fetchone()
+        conn.close()
+        return bool(row)
+    except Exception as e:
+        app.logger.warning(f"is_ip_banned() error: {e}")
+        return False
+
+def ban_ip(ip, reason=''):
+    try:
+        now = datetime.now()
+        expires = now + timedelta(days=BAN_DAYS)
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO banned_ips (ip,banned_at,expires_at,reason) VALUES (?,?,?,?) "
+            "ON CONFLICT(ip) DO UPDATE SET banned_at=excluded.banned_at, "
+            "expires_at=excluded.expires_at, reason=excluded.reason",
+            (ip, now.strftime('%Y-%m-%d %H:%M:%S'), expires.strftime('%Y-%m-%d %H:%M:%S'), reason)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        app.logger.warning(f"ban_ip() error: {e}")
+
+@app.before_request
+def block_banned_ips():
+    if is_ip_banned(client_ip()):
+        from flask import abort
+        abort(403)
+
+def _honeypot_hit():
+    ban_ip(client_ip(), reason=f'honeypot:{request.path}')
+    app.logger.warning(f"Honeypot tripped by {client_ip()}: {request.path}")
+    return ('Not Found', 404)
+
+for _i, _path in enumerate(HONEYPOT_PATHS):
+    app.add_url_rule(_path, endpoint=f'honeypot_{_i}', view_func=_honeypot_hit)
 
 # ── CSRF ─────────────────────────────────────────────────────────────────────
 
@@ -2866,6 +2927,30 @@ def admin_analytics_device(sid):
         flash('No analytics data found for that device.', 'error')
         return redirect(url_for('admin_analytics'))
     return render_template('admin/analytics_device.html', sid=sid, rows=rows)
+
+@app.route('/admin/security')
+@superadmin_required
+def admin_security():
+    conn = get_db()
+    now = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    banned = conn.execute(
+        "SELECT ip,banned_at,expires_at,reason FROM banned_ips WHERE expires_at > ? ORDER BY banned_at DESC",
+        (now,)
+    ).fetchall()
+    conn.close()
+    return render_template('admin/security.html', banned=banned, ban_days=BAN_DAYS)
+
+@app.route('/admin/security/unban', methods=['POST'])
+@superadmin_required
+def admin_security_unban():
+    ip = request.form.get('ip', '').strip()
+    if ip:
+        conn = get_db()
+        conn.execute("DELETE FROM banned_ips WHERE ip=?", (ip,))
+        conn.commit()
+        conn.close()
+        flash(f'{ip} unbanned.', 'success')
+    return redirect(url_for('admin_security'))
 
 # Users
 @app.route('/admin/users')

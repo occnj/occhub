@@ -397,6 +397,9 @@
         <a href="{{ url_for('admin_users') }}" class="nav-item {% if 'user' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Users
         </a>
+        <a href="{{ url_for('admin_security') }}" class="nav-item {% if request.endpoint and 'security' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-shield-lock-fill"></i> Security
+        </a>
         {% endif %}
         <a href="{{ url_for('admin_password') }}" class="nav-item {% if request.endpoint == 'admin_password' %}active{% endif %}">
             <i class="bi bi-lock-fill"></i> Password

@@ -477,6 +477,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL,
         page TEXT NOT NULL, ip TEXT, ua TEXT, sid TEXT
     )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_analytics_sid_page_ts ON analytics(sid, page, ts)')
 
     c.execute('''CREATE TABLE IF NOT EXISTS sermon_notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -978,13 +979,22 @@ def track(page):
             session['sid'] = sid
         session.permanent = True
         # Store timestamp as local date string for correct "today" queries
-        ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        today = datetime.now().strftime('%Y-%m-%d')
+        now = datetime.now()
+        ts = now.strftime('%Y-%m-%d %H:%M:%S')
+        today = now.strftime('%Y-%m-%d')
         session['today'] = today  # persist so queries can use it
         conn = get_db()
-        conn.execute("INSERT INTO analytics (ts,page,ip,ua,sid) VALUES (?,?,?,?,?)",
-            (ts, page, client_ip(), request.headers.get('User-Agent','')[:200], sid))
-        conn.commit()
+        # Dedupe: same device reloading the same page within the last hour
+        # doesn't count as a new view (avoids refresh-inflated counts).
+        hour_ago = (now - timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
+        dup = conn.execute(
+            "SELECT 1 FROM analytics WHERE sid=? AND page=? AND ts>=? LIMIT 1",
+            (sid, page, hour_ago)
+        ).fetchone()
+        if not dup:
+            conn.execute("INSERT INTO analytics (ts,page,ip,ua,sid) VALUES (?,?,?,?,?)",
+                (ts, page, client_ip(), request.headers.get('User-Agent','')[:200], sid))
+            conn.commit()
         conn.close()
     except Exception as e:
         app.logger.warning(f"track() error: {e}")
@@ -2817,6 +2827,19 @@ def admin_analytics():
     snapshot = get_analytics_snapshot(conn)
     by_page=conn.execute("SELECT page,COUNT(*) cnt FROM analytics GROUP BY page ORDER BY cnt DESC").fetchall()
     by_day=conn.execute("SELECT substr(ts,1,10) day,COUNT(*) cnt FROM analytics GROUP BY day ORDER BY day DESC LIMIT 30").fetchall()
+    by_device=conn.execute("""
+        SELECT sid,
+               COUNT(*) views,
+               COUNT(DISTINCT page) pages,
+               MIN(ts) first_seen,
+               MAX(ts) last_seen,
+               (SELECT ip FROM analytics a2 WHERE a2.sid=a1.sid ORDER BY a2.ts DESC LIMIT 1) ip,
+               (SELECT ua FROM analytics a3 WHERE a3.sid=a1.sid ORDER BY a3.ts DESC LIMIT 1) ua
+        FROM analytics a1
+        GROUP BY sid
+        ORDER BY last_seen DESC
+        LIMIT 50
+    """).fetchall()
     conn.close()
     return render_template(
         'admin/analytics.html',
@@ -2828,7 +2851,22 @@ def admin_analytics():
         sessions_week=snapshot['sessions_week'],
         by_page=by_page,
         by_day=by_day,
+        by_device=by_device,
     )
+
+@app.route('/admin/analytics/device/<sid>')
+@login_required
+def admin_analytics_device(sid):
+    conn=get_db()
+    rows=conn.execute(
+        "SELECT ts,page,ip,ua FROM analytics WHERE sid=? ORDER BY ts DESC LIMIT 300",
+        (sid,)
+    ).fetchall()
+    conn.close()
+    if not rows:
+        flash('No analytics data found for that device.', 'error')
+        return redirect(url_for('admin_analytics'))
+    return render_template('admin/analytics_device.html', sid=sid, rows=rows)
 
 # Users
 @app.route('/admin/users')

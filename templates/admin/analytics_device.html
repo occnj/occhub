@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% block title %}Device Activity{% endblock %}
+{% block page_title %}Device Activity{% endblock %}
+{% block page_sub %}{{ sid }}{% endblock %}
+{% block topbar_actions %}
+  <a href="{{ url_for('admin_analytics') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><div class="card-title">Views (most recent 300)</div></div>
+  <table>
+    <thead><tr><th>Time</th><th>Page</th><th>IP</th><th>User Agent</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td style="font-size:0.82rem;white-space:nowrap;">{{ r.ts }}</td>
+      <td><b>/{{ r.page }}</b></td>
+      <td style="font-size:0.82rem;">{{ r.ip }}</td>
+      <td style="font-size:0.78rem;color:#6e6e73;">{{ r.ua }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="color:#6e6e73;">No data yet</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

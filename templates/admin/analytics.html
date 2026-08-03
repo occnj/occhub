@@ -90,7 +90,7 @@
 <div class="card" style="margin-top:20px;">
   <div class="card-header"><div class="card-title">By Device</div></div>
   <table>
-    <thead><tr><th>Device</th><th>Views</th><th>Pages</th><th>First Seen</th><th>Last Seen</th><th>IP</th><th>User Agent</th></tr></thead>
+    <thead><tr><th>Device</th><th>Views</th><th>Pages</th><th>First Seen</th><th>Last Seen</th><th>User Agent</th></tr></thead>
     <tbody>
     {% for d in by_device %}
     <tr>
@@ -99,11 +99,10 @@
       <td>{{ d.pages }}</td>
       <td style="font-size:0.8rem;">{{ d.first_seen }}</td>
       <td style="font-size:0.8rem;">{{ d.last_seen }}</td>
-      <td style="font-size:0.8rem;">{{ d.ip }}</td>
       <td style="font-size:0.75rem;color:#6e6e73;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.ua }}</td>
     </tr>
     {% else %}
-    <tr><td colspan="7" style="color:#6e6e73;">No data yet</td></tr>
+    <tr><td colspan="6" style="color:#6e6e73;">No data yet</td></tr>
     {% endfor %}
     </tbody>
   </table>

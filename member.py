@@ -2833,7 +2833,6 @@ def admin_analytics():
                COUNT(DISTINCT page) pages,
                MIN(ts) first_seen,
                MAX(ts) last_seen,
-               (SELECT ip FROM analytics a2 WHERE a2.sid=a1.sid ORDER BY a2.ts DESC LIMIT 1) ip,
                (SELECT ua FROM analytics a3 WHERE a3.sid=a1.sid ORDER BY a3.ts DESC LIMIT 1) ua
         FROM analytics a1
         GROUP BY sid
@@ -2859,7 +2858,7 @@ def admin_analytics():
 def admin_analytics_device(sid):
     conn=get_db()
     rows=conn.execute(
-        "SELECT ts,page,ip,ua FROM analytics WHERE sid=? ORDER BY ts DESC LIMIT 300",
+        "SELECT ts,page,ua FROM analytics WHERE sid=? ORDER BY ts DESC LIMIT 300",
         (sid,)
     ).fetchall()
     conn.close()

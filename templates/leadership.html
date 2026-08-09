@@ -48,20 +48,21 @@
         .leader-role { font-size: 0.72rem; color: var(--orange); font-weight: 500; }
 
         /* Bottom sheet */
-        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         .overlay.open { opacity: 1; pointer-events: all; }
 
         .sheet {
-            position: fixed; bottom: 0; left: 50%;
-            transform: translateX(-50%) translateY(100%);
-            width: 100%; max-width: 390px;
-            background: var(--card); border-radius: 24px 24px 0 0;
-            z-index: 101; padding-bottom: 48px;
-            max-height: 85vh; overflow-y: auto;
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%,-50%) scale(0.92);
+            width: calc(100% - 40px); max-width: 380px;
+            background: var(--card); border-radius: 24px;
+            z-index: 101; padding: 28px 0 28px;
+            max-height: 80vh; overflow-y: auto;
+            opacity: 0; pointer-events: none;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.28);
         }
-        .sheet.open { transform: translateX(-50%) translateY(0); }
-        .sheet-handle { width: 36px; height: 4px; background: #e0e0e5; border-radius: 4px; margin: 12px auto 24px; }
+        .sheet.open { transform: translate(-50%,-50%) scale(1); opacity: 1; pointer-events: all; }
 
         .sheet-content { padding: 0 24px; text-align: center; }
         .sheet-avatar { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; margin: 0 auto 16px; border: 3px solid rgba(19,103,122,0.2); background: var(--bg); }
@@ -111,7 +112,6 @@
 <!-- Sheet -->
 <div class="sheet" id="sheet">
     <button class="sheet-close" onclick="closeLeader()"><i class="bi bi-x"></i></button>
-    <div class="sheet-handle"></div>
     <div class="sheet-content">
         <div class="sheet-avatar" id="sheet-avatar-wrap">
             <img id="sheet-img" src="" alt="">
@@ -173,5 +173,6 @@ function closeLeader() {
     document.getElementById('sheet').classList.remove('open');
 }
 </script>
+{% include '_primary_cta.html' %}
 </body>
 </html>

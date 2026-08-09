@@ -162,6 +162,10 @@ def init_db():
         ('hub_notice_link',''),
         ('hub_notice_link_label','Learn More'),
         ('hub_notice_image',''),
+        ('primary_cta_enabled','1'),
+        ('primary_cta_label','Give'),
+        ('primary_cta_icon','bi-heart-fill'),
+        ('primary_cta_url','https://thekingdomledger.com/donate?code=2335'),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
     for slot in range(1, 11):
@@ -1839,6 +1843,8 @@ def admin_settings():
         if hero: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('about_hero',?)",(hero,))
         custom_bg=save_upload('custom_bg_file')
         if custom_bg: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('ui_background_image',?)",(custom_bg,))
+        conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('primary_cta_enabled',?)",
+                     ('1' if request.form.get('primary_cta_enabled') else '0',))
         conn.commit(); conn.close(); flash('Settings saved!','success')
         return redirect(url_for('admin_settings'))
     return render_template('admin/settings.html',settings=all_settings())

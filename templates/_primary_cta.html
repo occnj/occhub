@@ -1,0 +1,38 @@
+{% if site_settings.get('primary_cta_enabled', '1') == '1' and site_settings.get('primary_cta_url') %}
+<a href="{{ site_settings.get('primary_cta_url') }}"
+   {% if site_settings.get('primary_cta_url', '').startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %}
+   class="global-cta-pill">
+  <i class="bi {{ site_settings.get('primary_cta_icon', 'bi-heart-fill') }}"></i>
+  <span>{{ site_settings.get('primary_cta_label', 'Give') }}</span>
+</a>
+<style>
+  .global-cta-pill {
+    position: fixed;
+    right: 18px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 200;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--orange);
+    color: #fff;
+    text-decoration: none;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.86rem;
+    padding: 13px 18px;
+    border-radius: 999px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.24);
+    transform: translateY(80px);
+    opacity: 0;
+    animation: ctaPopIn 0.5s cubic-bezier(0.16,1,0.3,1) 0.35s forwards;
+  }
+  .global-cta-pill i { font-size: 1.05rem; }
+  .global-cta-pill:active { transform: scale(0.94); }
+  @keyframes ctaPopIn { to { transform: translateY(0); opacity: 1; } }
+  @media (max-width: 400px) {
+    .global-cta-pill span { display: none; }
+    .global-cta-pill { padding: 14px; }
+  }
+</style>
+{% endif %}

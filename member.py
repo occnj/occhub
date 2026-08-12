@@ -742,6 +742,7 @@ _EXIF_TRANSPOSE = {
     8: Image.ROTATE_90,
 }
 MAX_IMAGE_PX = 1400
+MAX_BEYOND_WALL_IMAGES = 100
 
 def _save_file_obj(f):
     try:
@@ -2389,6 +2390,14 @@ def admin_beyond_wall_image_new(bid):
         conn.close()
         flash('Choose at least one image.', 'info')
         return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+    remaining = MAX_BEYOND_WALL_IMAGES - image_count
+    if remaining <= 0:
+        conn.close()
+        flash(f'This story already has the max of {MAX_BEYOND_WALL_IMAGES} images.', 'info')
+        return redirect(url_for('admin_beyond_wall_edit', bid=bid))
+    if len(files) > remaining:
+        flash(f'Only {remaining} more image{"s" if remaining != 1 else ""} fit under the {MAX_BEYOND_WALL_IMAGES}-image cap — the rest were skipped.', 'info')
+        files = files[:remaining]
     caption = request.form.get('caption', '').strip()
     next_sort = (conn.execute("SELECT COALESCE(MAX(sort_order),0) FROM beyond_wall_images WHERE beyond_id=?", (bid,)).fetchone()[0] or 0) + 1
     saved = 0

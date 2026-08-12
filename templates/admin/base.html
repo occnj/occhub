@@ -653,7 +653,8 @@ window.addEventListener('keydown', (e) => {
     { cmd: 'h3', label: 'H3', title: 'Subheading', before: '<h3>', after: '</h3>', placeholder: 'Subheading', block: true },
     { cmd: 'p', label: '¶', title: 'Paragraph', before: '<p>', after: '</p>', placeholder: 'Paragraph text', block: true },
     { sep: true },
-    { cmd: 'ul', label: '<i class="bi bi-list-ul"></i>', title: 'Bullet list', list: true },
+    { cmd: 'ul', label: '<i class="bi bi-list-ul"></i>', title: 'Bullet list', list: true, listTag: 'ul' },
+    { cmd: 'ol', label: '<i class="bi bi-list-ol"></i>', title: 'Numbered list', list: true, listTag: 'ol' },
   ];
 
   function wrapSelection(ta, before, after, placeholder, block) {
@@ -672,11 +673,11 @@ window.addEventListener('keydown', (e) => {
     ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
-  function wrapList(ta) {
+  function wrapList(ta, tag) {
     const start = ta.selectionStart, end = ta.selectionEnd;
     const selected = ta.value.slice(start, end);
     const items = (selected || 'List item').split('\n').filter(l => l.trim());
-    const insert = '<ul>\n' + items.map(i => '  <li>' + i.trim() + '</li>').join('\n') + '\n</ul>';
+    const insert = '<' + tag + '>\n' + items.map(i => '  <li>' + i.trim() + '</li>').join('\n') + '\n</' + tag + '>';
     ta.focus();
     ta.setRangeText(insert, start, end, 'end');
     ta.dispatchEvent(new Event('input', { bubbles: true }));
@@ -697,7 +698,7 @@ window.addEventListener('keydown', (e) => {
       btn.title = b.title;
       btn.innerHTML = b.label;
       btn.addEventListener('click', function() {
-        if (b.list) wrapList(ta);
+        if (b.list) wrapList(ta, b.listTag);
         else wrapSelection(ta, b.before, b.after, b.placeholder, b.block);
       });
       bar.appendChild(btn);

@@ -2409,7 +2409,7 @@ def admin_beyond_wall_image_new(bid):
                 (bid, photo, caption, next_sort + saved)
             )
             saved += 1
-    conn.commit()
+            conn.commit()  # commit per image so a slow/interrupted batch keeps whatever finished
     conn.close()
     flash(f'{saved} image{"s" if saved != 1 else ""} added!', 'success')
     return redirect(url_for('admin_beyond_wall_edit', bid=bid))

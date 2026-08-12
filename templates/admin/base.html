@@ -311,6 +311,29 @@
             font-size: 0.78rem; color: var(--teal); text-decoration: none;
             padding: 6px 12px; background: var(--teal-light); border-radius: 8px;
         }
+
+        /* Upload progress */
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        #upload-progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px; width: 0%;
+            background: linear-gradient(90deg, var(--teal), var(--orange));
+            z-index: 999; opacity: 0; transition: width 0.15s ease, opacity 0.2s ease;
+        }
+        .upload-progress-inline {
+            display: none; align-items: center; gap: 10px;
+            margin-top: 10px; font-size: 0.78rem; color: var(--sub);
+        }
+        .upload-progress-inline.active { display: flex; }
+        .upload-progress-inline .track {
+            flex: 1; height: 6px; border-radius: 999px; background: var(--bg);
+            overflow: hidden; border: 1px solid var(--line);
+        }
+        .upload-progress-inline .fill {
+            height: 100%; width: 0%; border-radius: 999px;
+            background: linear-gradient(90deg, var(--teal), var(--orange));
+            transition: width 0.15s ease;
+        }
+        .upload-progress-inline .pct { min-width: 34px; text-align: right; font-weight: 700; color: var(--text); }
     </style>
     {% block head %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -499,6 +522,103 @@ window.addEventListener('keydown', (e) => {
         f.appendChild(h);
       }
     });
+  });
+})();
+(function() {
+  // Real-time progress bar for single/bulk file uploads on any multipart form.
+  // Plain form posts give no upload feedback, so intercept via XHR (which exposes
+  // upload.onprogress) only when a file input actually has files selected —
+  // forms with no file chosen submit normally.
+  function fmtBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function ensureTopBar() {
+    let bar = document.getElementById('upload-progress-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'upload-progress-bar';
+      document.body.appendChild(bar);
+    }
+    return bar;
+  }
+
+  function ensureInlineBar(form) {
+    let wrap = form.querySelector(':scope > .upload-progress-inline');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'upload-progress-inline';
+      wrap.innerHTML = '<div class="track"><div class="fill"></div></div>' +
+        '<span class="pct">0%</span>';
+      form.appendChild(wrap);
+    }
+    return wrap;
+  }
+
+  function bindForm(form) {
+    if (form.dataset.progressBound) return;
+    form.dataset.progressBound = '1';
+    form.addEventListener('submit', function(e) {
+      const fileInputs = form.querySelectorAll('input[type="file"]');
+      let fileCount = 0, totalBytes = 0;
+      fileInputs.forEach(function(fi) {
+        if (fi.files) {
+          fileCount += fi.files.length;
+          for (let i = 0; i < fi.files.length; i++) totalBytes += fi.files[i].size;
+        }
+      });
+      if (!fileCount) return; // nothing to upload, let the normal submit happen
+
+      e.preventDefault();
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
+      if (submitBtn) submitBtn.disabled = true;
+
+      const topBar = ensureTopBar();
+      topBar.style.opacity = '1';
+      topBar.style.width = '0%';
+
+      const inline = ensureInlineBar(form);
+      inline.classList.add('active');
+      const fill = inline.querySelector('.fill');
+      const pctEl = inline.querySelector('.pct');
+      const label = fileCount > 1 ? (fileCount + ' files, ' + fmtBytes(totalBytes)) : fmtBytes(totalBytes);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open(form.method || 'POST', form.getAttribute('action') || window.location.href, true);
+      xhr.upload.addEventListener('progress', function(ev) {
+        if (!ev.lengthComputable) return;
+        const pct = Math.round((ev.loaded / ev.total) * 100);
+        topBar.style.width = pct + '%';
+        fill.style.width = pct + '%';
+        pctEl.textContent = pct + '%';
+        if (submitBtn) submitBtn.innerHTML = 'Uploading ' + label + '… ' + pct + '%';
+      });
+      xhr.addEventListener('load', function() {
+        if (xhr.status >= 200 && xhr.status < 400) {
+          topBar.style.width = '100%';
+          window.location.href = xhr.responseURL || window.location.href;
+        } else {
+          topBar.style.opacity = '0';
+          inline.classList.remove('active');
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHTML; }
+          alert('Upload failed (server error). Please try again.');
+        }
+      });
+      xhr.addEventListener('error', function() {
+        topBar.style.opacity = '0';
+        inline.classList.remove('active');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalBtnHTML; }
+        alert('Upload failed. Check your connection and try again.');
+      });
+      xhr.send(new FormData(form));
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[enctype="multipart/form-data"]').forEach(bindForm);
   });
 })();
 </script>

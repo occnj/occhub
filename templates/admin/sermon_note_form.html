@@ -34,7 +34,7 @@
         {% if note %}
         <div class="form-group">
           <label class="form-label">Converted Body</label>
-          <textarea name="body_html" class="form-control" style="min-height:320px;">{{ note.body_html }}</textarea>
+          <textarea name="body_html" class="form-control rich-editor" style="min-height:320px;">{{ note.body_html }}</textarea>
           <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">You can fine-tune the converted HTML here after import if you want cleaner spacing or headings.</div>
         </div>
         {% endif %}

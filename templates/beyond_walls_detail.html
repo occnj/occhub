@@ -28,7 +28,6 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .hero-content{position:relative;z-index:1;padding:56px 24px 28px 78px;}
 .hero-tag{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.62);margin-bottom:8px;}
 .hero-title{font-family:'DM Serif Display',serif;font-size:2.2rem;color:#fff;line-height:1.08;margin-bottom:10px;}
-.hero-copy{font-size:0.92rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:260px;}
 .cover{position:absolute;inset:0;opacity:0.22;filter:saturate(1.1) contrast(1.05);background-size:cover;background-position:center;}
 .cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.52) 100%);}
 .body{padding:18px 16px 0;display:grid;gap:14px;}
@@ -49,7 +48,16 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .lb-prev{left:10px;}
 .lb-next{right:10px;}
 .story h2{font-family:'DM Serif Display',serif;font-size:1.6rem;line-height:1.15;margin-bottom:10px;}
-.story p{color:var(--sub);font-size:0.96rem;line-height:1.8;margin-bottom:12px;white-space:pre-wrap;}
+.story .content{color:var(--sub);font-size:0.96rem;line-height:1.8;}
+.story .content p{margin:0 0 12px;}
+.story .content h2{font-family:'DM Serif Display',serif;font-size:1.3rem;line-height:1.2;color:var(--text);margin:18px 0 8px;}
+.story .content h3{font-size:1.05rem;font-weight:700;color:var(--text);margin:16px 0 8px;}
+.story .content h4{font-size:0.94rem;font-weight:700;color:var(--text);margin:14px 0 6px;}
+.story .content strong{font-weight:700;color:var(--text);}
+.story .content em{font-style:italic;}
+.story .content ul,.story .content ol{margin:0 0 12px 20px;}
+.story .content li{margin-bottom:6px;}
+.story .content blockquote{border-left:3px solid var(--orange);padding-left:12px;margin:0 0 12px;color:var(--text);font-style:italic;}
 .video-embed{position:relative;width:100%;padding-top:56.25%;background:#000;}
 .video-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
 .video-yt-link{display:flex;align-items:center;gap:8px;padding:12px 14px;color:var(--teal);font-size:0.82rem;font-weight:600;text-decoration:none;}
@@ -64,7 +72,6 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
     <div class="hero-content">
       <div class="hero-tag">Beyond the Walls</div>
       <div class="hero-title">{{ item.title }}</div>
-      {% if item.summary %}<div class="hero-copy">{{ item.summary }}</div>{% endif %}
     </div>
   </div>
 
@@ -94,7 +101,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 
     <div class="card story">
       <h2>{{ item.title }}</h2>
-      <p>{{ item.body or '' }}</p>
+      <div class="content">{{ item.body|richtext }}</div>
     </div>
   </div>
 </div>

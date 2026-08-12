@@ -35,9 +35,14 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .summary{font-size:0.95rem;line-height:1.75;color:var(--sub);margin-bottom:18px;}
 .content{font-size:0.96rem;line-height:1.9;color:#343438;}
 .content h2{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1.2;color:var(--text);margin:22px 0 10px;}
+.content h3{font-size:1.08rem;font-weight:700;color:var(--text);margin:18px 0 8px;}
+.content h4{font-size:0.98rem;font-weight:700;color:var(--text);margin:16px 0 6px;}
 .content p{margin:0 0 14px;}
 .content strong{font-weight:700;color:var(--text);}
 .content em{font-style:italic;}
+.content ul,.content ol{margin:0 0 14px 20px;}
+.content li{margin-bottom:6px;}
+.content blockquote{border-left:3px solid var(--orange);padding-left:12px;margin:0 0 14px;color:var(--text);font-style:italic;}
 </style>
 </head>
 <body>
@@ -53,7 +58,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
   <div class="body">
     <div class="card">
       {% if note.summary %}<div class="summary">{{ note.summary }}</div>{% endif %}
-      <div class="content">{{ note.body_html|safe }}</div>
+      <div class="content">{{ note.body_html|richtext }}</div>
     </div>
   </div>
 </div>

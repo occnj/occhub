@@ -11,6 +11,8 @@ from pillow_heif import register_heif_opener
 register_heif_opener()
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
+import bleach
+from markupsafe import Markup
 import xml.etree.ElementTree as ET
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -930,6 +932,24 @@ def extract_docx_html(abs_path, skip_first=False):
     except Exception as e:
         app.logger.warning(f"extract_docx_html() error: {e}")
         return ''
+
+RICH_TEXT_TAGS = ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote']
+_RICH_TEXT_TAG_RE = re.compile(r'<(' + '|'.join(RICH_TEXT_TAGS) + r')[ >/]', re.I)
+
+def sanitize_rich_html(raw):
+    return bleach.clean(raw or '', tags=RICH_TEXT_TAGS, attributes={}, strip=True)
+
+@app.template_filter('richtext')
+def richtext_filter(raw):
+    """Render admin-entered story/notes text as HTML: sanitizes it if it already
+    contains our rich-text tags (from the admin formatting toolbar), otherwise
+    treats it as legacy plain text and auto-wraps blank-line-separated paragraphs."""
+    raw = raw or ''
+    if not _RICH_TEXT_TAG_RE.search(raw):
+        escaped = html.escape(raw)
+        paragraphs = [p.strip() for p in escaped.split('\n\n') if p.strip()] or ([escaped.strip()] if escaped.strip() else [])
+        return Markup(''.join(f'<p>{p.replace(chr(10), "<br>")}</p>' for p in paragraphs))
+    return Markup(sanitize_rich_html(raw))
 
 def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
     abs_path = os.path.join(BASE_DIR, 'static', path_rel)

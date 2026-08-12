@@ -21,7 +21,8 @@
 
         <div class="form-group">
           <label class="form-label">Story</label>
-          <textarea name="body" class="form-control" style="min-height:220px;" placeholder="Write the full story here.">{{ item.body if item else '' }}</textarea>
+          <textarea name="body" class="form-control rich-editor" style="min-height:220px;" placeholder="Write the full story here.">{{ item.body if item else '' }}</textarea>
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:6px;">Use the toolbar to bold, italicize, or add headings. Plain text still works — it's shown as normal paragraphs.</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 180px;gap:16px;">

@@ -334,6 +334,24 @@
             transition: width 0.15s ease;
         }
         .upload-progress-inline .pct { min-width: 34px; text-align: right; font-weight: 700; color: var(--text); }
+
+        /* Rich text toolbar */
+        .rte-toolbar {
+            display: flex; flex-wrap: wrap; gap: 4px;
+            padding: 6px; margin-bottom: 6px;
+            background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+        }
+        .rte-toolbar button {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 32px; height: 32px; padding: 0 8px;
+            border: none; border-radius: 7px; background: transparent;
+            color: var(--text); font-family: 'DM Sans', sans-serif;
+            font-size: 0.8rem; font-weight: 700; cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+        }
+        .rte-toolbar button:hover { background: var(--teal-light); color: var(--teal); }
+        .rte-toolbar .rte-sep { width: 1px; margin: 4px 2px; background: var(--line); }
+        textarea.rich-editor { font-family: 'DM Sans', sans-serif; }
     </style>
     {% block head %}{% endblock %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -619,6 +637,78 @@ window.addEventListener('keydown', (e) => {
 
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('form[enctype="multipart/form-data"]').forEach(bindForm);
+  });
+})();
+(function() {
+  // Lightweight HTML formatting toolbar for any <textarea class="rich-editor">.
+  // Wraps the current selection in the tag (or inserts placeholder text), using
+  // the native textarea.setRangeText API rather than a contenteditable/execCommand
+  // WYSIWYG, so the field stays a plain, inspectable HTML source the admin can
+  // still hand-edit directly (matches how sermon note import already works).
+  const BUTTONS = [
+    { cmd: 'bold', label: '<i class="bi bi-type-bold"></i>', title: 'Bold', before: '<strong>', after: '</strong>', placeholder: 'bold text' },
+    { cmd: 'italic', label: '<i class="bi bi-type-italic"></i>', title: 'Italic', before: '<em>', after: '</em>', placeholder: 'italic text' },
+    { sep: true },
+    { cmd: 'h2', label: 'H2', title: 'Heading', before: '<h2>', after: '</h2>', placeholder: 'Heading', block: true },
+    { cmd: 'h3', label: 'H3', title: 'Subheading', before: '<h3>', after: '</h3>', placeholder: 'Subheading', block: true },
+    { cmd: 'p', label: '¶', title: 'Paragraph', before: '<p>', after: '</p>', placeholder: 'Paragraph text', block: true },
+    { sep: true },
+    { cmd: 'ul', label: '<i class="bi bi-list-ul"></i>', title: 'Bullet list', list: true },
+  ];
+
+  function wrapSelection(ta, before, after, placeholder, block) {
+    let start = ta.selectionStart, end = ta.selectionEnd;
+    if (block) {
+      // expand to the surrounding line so a heading/paragraph wraps the whole line
+      while (start > 0 && ta.value[start - 1] !== '\n') start--;
+      while (end < ta.value.length && ta.value[end] !== '\n') end++;
+    }
+    const selected = ta.value.slice(start, end) || placeholder;
+    const insert = before + selected + after;
+    ta.focus();
+    ta.setRangeText(insert, start, end, 'select');
+    ta.selectionStart = start + before.length;
+    ta.selectionEnd = start + before.length + selected.length;
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function wrapList(ta) {
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const selected = ta.value.slice(start, end);
+    const items = (selected || 'List item').split('\n').filter(l => l.trim());
+    const insert = '<ul>\n' + items.map(i => '  <li>' + i.trim() + '</li>').join('\n') + '\n</ul>';
+    ta.focus();
+    ta.setRangeText(insert, start, end, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function buildToolbar(ta) {
+    const bar = document.createElement('div');
+    bar.className = 'rte-toolbar';
+    BUTTONS.forEach(function(b) {
+      if (b.sep) {
+        const sep = document.createElement('div');
+        sep.className = 'rte-sep';
+        bar.appendChild(sep);
+        return;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.title = b.title;
+      btn.innerHTML = b.label;
+      btn.addEventListener('click', function() {
+        if (b.list) wrapList(ta);
+        else wrapSelection(ta, b.before, b.after, b.placeholder, b.block);
+      });
+      bar.appendChild(btn);
+    });
+    return bar;
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('textarea.rich-editor').forEach(function(ta) {
+      ta.parentNode.insertBefore(buildToolbar(ta), ta);
+    });
   });
 })();
 </script>

@@ -495,7 +495,12 @@ window.addEventListener('keydown', (e) => {
   // Staggered scroll-reveal for cards and stat tiles
   const els = document.querySelectorAll('.content .card, .content .stat-card');
   if ('IntersectionObserver' in window && els.length) {
-    els.forEach(el => el.classList.add('reveal'));
+    // A card taller than the viewport (e.g. a gallery with 80+ images) can
+    // never satisfy the intersection threshold below, leaving it stuck at
+    // opacity:0 forever - skip the fade-in for those, show them as-is.
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    const revealEls = Array.from(els).filter(el => el.offsetHeight <= vh * 1.2);
+    revealEls.forEach(el => el.classList.add('reveal'));
     const io = new IntersectionObserver((entries) => {
       let i = 0;
       entries.forEach(en => {
@@ -513,7 +518,7 @@ window.addEventListener('keydown', (e) => {
     // Double rAF: the hidden state must be painted first, otherwise the
     // browser skips the transition and cards appear with no motion.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      els.forEach(el => io.observe(el));
+      revealEls.forEach(el => io.observe(el));
     }));
   }
 

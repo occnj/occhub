@@ -82,7 +82,7 @@
       {% if images %}
         {% for image in images %}
         <div style="display:grid;grid-template-columns:84px 1fr auto;gap:14px;align-items:center;padding:12px;border:1px solid #ececf0;border-radius:16px;margin-bottom:12px;">
-          <img src="/static/{{ image.photo }}" alt="Image {{ loop.index }}" style="width:84px;height:84px;border-radius:16px;object-fit:cover;">
+          <img src="/static/{{ image.photo }}" alt="Image {{ loop.index }}" style="width:84px;height:84px;border-radius:16px;object-fit:cover;" loading="lazy" decoding="async">
           <div>
             <div style="font-size:0.76rem;font-weight:700;color:#13677A;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Image {{ loop.index }}</div>
             <div style="font-size:0.84rem;color:#1d1d1f;">{{ image.caption or 'No caption' }}</div>

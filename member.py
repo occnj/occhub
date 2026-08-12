@@ -264,8 +264,13 @@ def init_db():
         summary TEXT DEFAULT '',
         body TEXT DEFAULT '',
         cover_photo TEXT DEFAULT '',
-        sort_order INTEGER DEFAULT 0
+        sort_order INTEGER DEFAULT 0,
+        youtube_video_id TEXT DEFAULT ''
     )''')
+    try:
+        c.execute("ALTER TABLE beyond_walls ADD COLUMN youtube_video_id TEXT DEFAULT ''")
+    except Exception:
+        pass
     c.execute('''CREATE TABLE IF NOT EXISTS beyond_wall_images (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         beyond_id INTEGER NOT NULL,
@@ -2278,15 +2283,20 @@ def admin_beyond_walls():
 def admin_beyond_wall_new():
     if request.method == 'POST':
         cover = save_upload('cover_photo') or ''
+        youtube_url = request.form.get('youtube_url', '').strip()
+        youtube_video_id = extract_youtube_video_id(youtube_url)
+        if youtube_url and not youtube_video_id:
+            flash("Couldn't recognize that YouTube link — video not saved.", 'info')
         conn = get_db()
         conn.execute(
-            "INSERT INTO beyond_walls (title,summary,body,cover_photo,sort_order) VALUES (?,?,?,?,?)",
+            "INSERT INTO beyond_walls (title,summary,body,cover_photo,sort_order,youtube_video_id) VALUES (?,?,?,?,?,?)",
             (
                 request.form.get('title', '').strip(),
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beyond_walls'),
+                youtube_video_id,
             )
         )
         conn.commit()
@@ -2308,14 +2318,20 @@ def admin_beyond_wall_edit(bid):
         cover = save_upload('cover_photo')
         if cover is None:
             cover = item['cover_photo']
+        youtube_url = request.form.get('youtube_url', '').strip()
+        youtube_video_id = extract_youtube_video_id(youtube_url) if youtube_url else ''
+        if youtube_url and not youtube_video_id:
+            flash("Couldn't recognize that YouTube link — video not saved.", 'info')
+            youtube_video_id = item['youtube_video_id']
         conn.execute(
-            "UPDATE beyond_walls SET title=?,summary=?,body=?,cover_photo=?,sort_order=? WHERE id=?",
+            "UPDATE beyond_walls SET title=?,summary=?,body=?,cover_photo=?,sort_order=?,youtube_video_id=? WHERE id=?",
             (
                 request.form.get('title', '').strip(),
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else item['sort_order'],
+                youtube_video_id,
                 bid,
             )
         )

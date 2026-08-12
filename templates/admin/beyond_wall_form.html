@@ -40,6 +40,12 @@
         <img src="/static/{{ item.cover_photo }}" alt="{{ item.title }}" style="width:100%;max-width:260px;border-radius:18px;display:block;margin:0 0 16px;">
         {% endif %}
 
+        <div class="form-group">
+          <label class="form-label">YouTube Video Link <span style="font-weight:400;color:#6e6e73;">(optional)</span></label>
+          <input type="url" name="youtube_url" class="form-control" placeholder="https://www.youtube.com/watch?v=..." value="{{ 'https://www.youtube.com/watch?v=' + item.youtube_video_id if item and item.youtube_video_id else '' }}">
+          <div style="font-size:0.72rem;color:#6e6e73;margin-top:6px;">Shows on the story page with a player, plus a link to open it on YouTube. Leave blank to remove.</div>
+        </div>
+
         <div style="display:flex;gap:10px;">
           <button type="submit" class="btn btn-primary">{{ 'Save Changes' if item else 'Create Story' }}</button>
           <a href="{{ url_for('admin_beyond_walls') }}" class="btn btn-ghost">Cancel</a>

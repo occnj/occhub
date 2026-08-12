@@ -17,7 +17,7 @@
       </div>
       <div class="form-group">
         <label class="form-label">Category Image</label>
-        <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+        <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
         {% if cat.photo %}
         <div style="margin-top:10px;">
           <img src="/static/{{ cat.photo }}" alt="{{ cat.name }}" style="width:120px;height:120px;border-radius:18px;object-fit:cover;display:block;">

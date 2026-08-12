@@ -7,6 +7,8 @@ import html
 import json
 import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
 from PIL import Image, ExifTags
+from pillow_heif import register_heif_opener
+register_heif_opener()
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import xml.etree.ElementTree as ET
@@ -22,7 +24,7 @@ if not app.secret_key:
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR,'static','uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif'}
+ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif','heic','heif'}
 DOCUMENT_EXTENSIONS = {'pdf', 'docx'}
 
 app.config.update(

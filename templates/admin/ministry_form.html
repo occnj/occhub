@@ -24,7 +24,7 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Thumbnail Image</label>
-                <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+                <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
                 {% if ministry and ministry.photo %}
                 <img src="/static/{{ ministry.photo }}" alt="{{ ministry.name }}" style="width:140px;height:140px;border-radius:20px;object-fit:cover;margin-top:10px;border:2px solid #ececf0;">
                 {% endif %}

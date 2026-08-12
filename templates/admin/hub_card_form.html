@@ -59,7 +59,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div class="form-group">
           <label class="form-label">Card Image</label>
-          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <input type="file" name="photo" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
           {% if card and card.photo %}
           <div style="margin-top:10px;">
             <img src="/static/{{ card.photo }}" alt="{{ card.title }}" style="width:140px;height:120px;border-radius:18px;object-fit:cover;display:block;">
@@ -80,7 +80,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Modal Image</label>
-          <input type="file" name="modal_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <input type="file" name="modal_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
           {% if card and card.modal_image %}
           <div style="margin-top:10px;">
             <img src="/static/{{ card.modal_image }}" alt="{{ card.title }}" style="width:140px;height:120px;border-radius:18px;object-fit:cover;display:block;">
@@ -136,7 +136,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Notice Image <span style="font-weight:400;color:#6e6e73;">(optional)</span></label>
-          <input type="file" name="card_notice_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif">
+          <input type="file" name="card_notice_image" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
           {% if card and card.card_notice_image %}
           <div style="margin-top:10px;">
             <img src="/static/{{ card.card_notice_image }}" alt="Notice image" style="width:140px;height:100px;border-radius:14px;object-fit:cover;display:block;">

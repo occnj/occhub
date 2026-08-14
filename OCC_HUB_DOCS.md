@@ -29,6 +29,8 @@ The app is entirely self-hosted — no monthly software fees, no third-party app
 |---|---|
 | **Hub (Dashboard)** | Home screen with quick-access tiles and bottom navigation |
 | **You Said Yes** | Downloads the "You Said Yes" PDF for new believers |
+| **Sermon Notes** | Read the latest message notes in a phone-friendly format, plus the archive |
+| **Oasis Next Steps** | Download the take-home sheet attached to a sermon note; asks before saving and shows iPhone/Android instructions |
 | **Ministries** | Tap any ministry to see its description and website link |
 | **Upcoming Events** | Calendar view of upcoming and past church events |
 | **Prayer Request** | Submit a prayer with type, optional privacy flag, sent to pastoral team |
@@ -64,6 +66,7 @@ Default login: `admin` / `oasis2025` ← **change this immediately**
 - **Ministries** — Add/edit/delete ministry listings with icon, description, link
 - **Beliefs** — Add/edit/delete belief statements with scripture references
 - **Serve** — Add/edit/delete volunteer categories; add/remove roles within each
+- **Sermon Notes** — Import a PDF or DOCX and it becomes a mobile reading page. Use **Add Homework** on a note to attach an **Oasis Next Steps** sheet people can download to their phones
 
 **Config**
 - **Settings** — Upload logo, set all URLs, customize About page, set all email destinations, manage social media links

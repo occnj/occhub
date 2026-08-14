@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v7';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v7';
+const STATIC_CACHE = 'oasis-hub-static-v8';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v8';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -59,8 +59,12 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Never cache admin pages or the (large, ever-growing) uploads gallery
-  if (requestUrl.pathname.startsWith('/admin') || requestUrl.pathname.startsWith('/static/uploads/')) {
+  // Never cache admin pages or the (large, ever-growing) uploads gallery.
+  // Oasis Next Steps downloads are file attachments, not pages — caching one
+  // would hand a stale sheet back on the next tap and waste the runtime cache.
+  if (requestUrl.pathname.startsWith('/admin')
+      || requestUrl.pathname.startsWith('/static/uploads/')
+      || requestUrl.pathname.endsWith('/next-steps')) {
     return;
   }
 

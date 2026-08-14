@@ -31,6 +31,47 @@
           <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF and DOCX supported. The app will extract the text and turn it into a mobile reading page saved by date.</div>
         </div>
 
+        {% set has_homework = note and note.next_steps_file %}
+        <div class="form-group" style="border-top:1px solid #e8e8ed;padding-top:18px;">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;">
+            <i class="bi bi-journal-check" style="color:#F2541B;"></i> Oasis Next Steps
+          </label>
+          <div style="font-size:0.74rem;color:#6e6e73;margin:-4px 0 10px;">A take-home sheet people can download to their phone after the message.</div>
+
+          <button type="button" class="btn btn-ghost btn-sm" id="addHomeworkBtn" {% if has_homework %}hidden{% endif %}>
+            <i class="bi bi-plus-lg"></i> Add Homework
+          </button>
+
+          <div id="homeworkPanel" {% if not has_homework %}hidden{% endif %} style="background:#fafafa;border:1px solid #e8e8ed;border-radius:12px;padding:16px;">
+            {% if has_homework %}
+            <div style="display:flex;align-items:center;gap:10px;font-size:0.82rem;margin-bottom:14px;">
+              <i class="bi bi-file-earmark-arrow-down" style="color:#13677A;"></i>
+              <a href="/static/{{ note.next_steps_file }}" target="_blank" style="color:#13677A;">{{ note.next_steps_file.split('/')[-1] }}</a>
+              <label style="margin-left:auto;color:#c0392b;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" name="next_steps_remove" value="1"> Remove
+              </label>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+              <label class="form-label">{{ 'Replace Homework File' if has_homework else 'Homework File' }}</label>
+              <input type="file" name="next_steps_file" class="form-control" accept=".pdf,.docx">
+              <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF works best — it downloads and opens cleanly on both iPhone and Android. DOCX is also accepted.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Button Label</label>
+              <input type="text" name="next_steps_title" class="form-control" value="{{ note.next_steps_title if note else '' }}" placeholder="Oasis Next Steps">
+              <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Leave blank to use "Oasis Next Steps".</div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Short Instruction</label>
+              <textarea name="next_steps_note" class="form-control" style="min-height:70px;" placeholder="e.g. Work through these five questions with your family this week.">{{ note.next_steps_note if note else '' }}</textarea>
+            </div>
+          </div>
+        </div>
+
         {% if note %}
         <div class="form-group">
           <label class="form-label">Converted Body</label>
@@ -47,4 +88,18 @@
     </div>
   </div>
 </div>
+
+<script>
+(function(){
+  var btn = document.getElementById('addHomeworkBtn');
+  var panel = document.getElementById('homeworkPanel');
+  if (!btn || !panel) return;
+  btn.addEventListener('click', function(){
+    panel.hidden = false;
+    btn.hidden = true;
+    var file = panel.querySelector('input[type="file"]');
+    if (file) file.focus();
+  });
+})();
+</script>
 {% endblock %}

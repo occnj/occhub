@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, session, flash
+from flask import Flask, render_template, redirect, url_for, request, session, flash, send_from_directory
 from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -506,8 +506,17 @@ def init_db():
         summary TEXT DEFAULT '',
         body_html TEXT DEFAULT '',
         source_file TEXT DEFAULT '',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        next_steps_file TEXT DEFAULT '',
+        next_steps_title TEXT DEFAULT '',
+        next_steps_note TEXT DEFAULT ''
     )''')
+    # "Oasis Next Steps" — the optional take-home homework document attached to a note.
+    for col in ('next_steps_file', 'next_steps_title', 'next_steps_note'):
+        try:
+            c.execute("ALTER TABLE sermon_notes ADD COLUMN " + col + " TEXT DEFAULT ''")
+        except Exception:
+            pass
 
     conn.commit(); conn.close()
 
@@ -1278,6 +1287,33 @@ def latest_sermon_note(conn):
         "SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC LIMIT 1"
     ).fetchone()
 
+NEXT_STEPS_LABEL = 'Oasis Next Steps'
+
+def row_value(row, key, default=''):
+    """Read a column off a sqlite3.Row without blowing up on rows that predate
+    a migration (sqlite3.Row raises IndexError for unknown keys)."""
+    if row is None:
+        return default
+    try:
+        value = row[key]
+    except (IndexError, KeyError):
+        return default
+    return default if value is None else value
+
+def next_steps_label(note):
+    return (row_value(note, 'next_steps_title') or '').strip() or NEXT_STEPS_LABEL
+
+def next_steps_download_name(note):
+    """Filename the phone saves it under — the uploaded file keeps a uuid stem on
+    disk, which is useless to someone hunting for it later in their Files app."""
+    ext = os.path.splitext(row_value(note, 'next_steps_file'))[1].lower() or '.pdf'
+    stem = re.sub(r'[^A-Za-z0-9]+', '-', f"{next_steps_label(note)} {row_value(note, 'note_date')}").strip('-')
+    return (stem or 'oasis-next-steps') + ext
+
+@app.template_filter('next_steps_label')
+def next_steps_label_filter(note):
+    return next_steps_label(note)
+
 def client_ip():
     forwarded_for = request.headers.get('X-Forwarded-For', '')
     if forwarded_for:
@@ -1765,6 +1801,29 @@ def sermon_note_detail(nid):
     if not note:
         return redirect(url_for('sermon_notes'))
     return render_template('sermon_note_detail.html', note=note, latest=latest, settings=all_settings())
+
+@app.route('/sermon-notes/<int:nid>/next-steps')
+def sermon_next_steps(nid):
+    """Hand the Oasis Next Steps take-home document to the visitor's phone.
+    ?view=1 opens it inline instead, which is the friendlier path on iOS where a
+    forced download drops the file into Files rather than showing it."""
+    conn = get_db()
+    note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+    conn.close()
+    stored = row_value(note, 'next_steps_file')
+    if not stored:
+        return redirect(url_for('sermon_note_detail', nid=nid))
+    fname = os.path.basename(stored)
+    if not os.path.isfile(os.path.join(UPLOAD_FOLDER, fname)):
+        app.logger.warning(f"sermon_next_steps: missing file for note {nid} ({stored})")
+        return redirect(url_for('sermon_note_detail', nid=nid))
+    inline = request.args.get('view') == '1'
+    track('sermon_next_steps_view' if inline else 'sermon_next_steps_download')
+    return send_from_directory(
+        UPLOAD_FOLDER, fname,
+        as_attachment=not inline,
+        download_name=next_steps_download_name(note),
+    )
 
 @app.route('/beliefs')
 def beliefs():
@@ -2354,6 +2413,24 @@ def admin_sermon_notes():
     conn.close()
     return render_template('admin/sermon_notes.html', notes=notes)
 
+def next_steps_form_values(note=None):
+    """Pull the Oasis Next Steps ("Add Homework") fields off an admin form.
+    Returns the (file, title, note) triple to store on the sermon note."""
+    uploaded, _ext = save_document_upload('next_steps_file')
+    stored = uploaded or ('' if request.form.get('next_steps_remove') == '1'
+                          else row_value(note, 'next_steps_file'))
+    if not stored:
+        return '', '', ''
+
+    def field(name):
+        # A submit that never rendered the homework panel must not silently wipe
+        # the label/instruction already stored against the note.
+        if name not in request.form:
+            return row_value(note, name)
+        return request.form.get(name, '').strip()
+
+    return stored, field('next_steps_title'), field('next_steps_note')
+
 @app.route('/admin/sermon-notes/new', methods=['GET', 'POST'])
 @login_required
 def admin_sermon_note_new():
@@ -2369,10 +2446,13 @@ def admin_sermon_note_new():
             fallback_title=request.form.get('title', '').strip(),
             summary=request.form.get('summary', '').strip(),
         )
+        ns_file, ns_title, ns_note = next_steps_form_values()
         conn = get_db()
         conn.execute(
-            "INSERT INTO sermon_notes (title,note_date,summary,body_html,source_file) VALUES (?,?,?,?,?)",
-            (payload['title'], note_date, payload['summary'], payload['body_html'], payload['source_file'])
+            "INSERT INTO sermon_notes (title,note_date,summary,body_html,source_file,"
+            "next_steps_file,next_steps_title,next_steps_note) VALUES (?,?,?,?,?,?,?,?)",
+            (payload['title'], note_date, payload['summary'], payload['body_html'], payload['source_file'],
+             ns_file, ns_title, ns_note)
         )
         conn.commit()
         conn.close()
@@ -2406,14 +2486,19 @@ def admin_sermon_note_edit(nid):
             summary = request.form.get('summary', '').strip()
             body_html = request.form.get('body_html', '').strip()
             stored_file = note['source_file']
+        ns_file, ns_title, ns_note = next_steps_form_values(note)
         conn.execute(
-            "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=? WHERE id=?",
+            "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=?,"
+            " next_steps_file=?, next_steps_title=?, next_steps_note=? WHERE id=?",
             (
                 title,
                 request.form.get('note_date', '').strip() or note['note_date'],
                 summary,
                 body_html,
                 stored_file,
+                ns_file,
+                ns_title,
+                ns_note,
                 nid,
             )
         )

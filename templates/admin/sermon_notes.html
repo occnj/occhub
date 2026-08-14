@@ -8,13 +8,18 @@
 <div class="card">
   {% if notes %}
   <table>
-    <thead><tr><th>Date</th><th>Title</th><th>Summary</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Date</th><th>Title</th><th>Summary</th><th>Next Steps</th><th>Actions</th></tr></thead>
     <tbody>
     {% for note in notes %}
     <tr>
       <td><b>{{ note.note_date }}</b></td>
       <td>{{ note.title }}</td>
       <td style="color:#6e6e73;font-size:0.82rem;">{{ note.summary or '—' }}</td>
+      <td>
+        {% if note.next_steps_file %}
+        <a href="{{ url_for('sermon_next_steps', nid=note.id) }}?view=1" target="_blank" style="color:#F2541B;font-size:0.82rem;white-space:nowrap;"><i class="bi bi-journal-check"></i> Attached</a>
+        {% else %}<span style="color:#c7c7cc;">—</span>{% endif %}
+      </td>
       <td>
         <a href="{{ url_for('sermon_note_detail', nid=note.id) }}" class="btn btn-ghost btn-sm" target="_blank"><i class="bi bi-eye"></i> View</a>
         <a href="{{ url_for('admin_sermon_note_edit', nid=note.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>

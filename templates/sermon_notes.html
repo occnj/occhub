@@ -41,6 +41,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .note-card{padding:18px 18px 20px;}
 .note-title{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1.15;margin:8px 0 10px;color:var(--text);}
 .empty{background:var(--card);border-radius:24px;padding:22px;color:var(--sub);line-height:1.7;box-shadow:0 8px 24px rgba(0,0,0,0.05);}
+.ns-badge{display:inline-flex;align-items:center;gap:6px;margin-top:12px;background:rgba(242,84,27,0.1);color:var(--orange);font-size:0.72rem;font-weight:600;letter-spacing:0.04em;padding:6px 11px;border-radius:999px;}
 </style>
 </head>
 <body>
@@ -59,6 +60,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
       <div class="latest-kicker">{{ latest.note_date }}</div>
       <div class="latest-title">{{ latest.title }}</div>
       <div class="latest-copy">{{ latest.summary or 'Tap to read the latest sermon notes.' }}</div>
+      {% if latest.next_steps_file %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ latest|next_steps_label }}</div>{% endif %}
       <div class="latest-row"><span>Open latest notes</span><i class="bi bi-arrow-right"></i></div>
     </a>
     {% endif %}
@@ -71,6 +73,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
         <div class="note-date">{{ note.note_date }}</div>
         <div class="note-title">{{ note.title }}</div>
         <div class="note-copy">{{ note.summary or 'Read this sermon note.' }}</div>
+        {% if note.next_steps_file %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ note|next_steps_label }}</div>{% endif %}
       </a>
       {% endfor %}
     </div>

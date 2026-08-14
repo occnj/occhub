@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 import html
 import json
 import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
+from collections import Counter
 from PIL import Image, ExifTags
 from pillow_heif import register_heif_opener
 register_heif_opener()
@@ -13,6 +14,7 @@ from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import bleach
 from markupsafe import Markup
+import pdfplumber
 import xml.etree.ElementTree as ET
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -831,11 +833,8 @@ def extract_docx_paragraphs(abs_path):
         ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
         paragraphs = []
         for paragraph in root.findall('.//w:p', ns):
-            parts = []
-            for node in paragraph.findall('.//w:t', ns):
-                if node.text:
-                    parts.append(node.text)
-            text = ''.join(parts).strip()
+            runs = _docx_para_runs(paragraph, ns)
+            text = re.sub(r'[\n\t]+', ' ', ''.join(r[0] for r in runs)).strip()
             if text:
                 paragraphs.append(text)
         return paragraphs
@@ -874,64 +873,318 @@ def sermon_title_from_filename(path):
     base = re.sub(r'[_-]+', ' ', base).strip()
     return base.title() if base else 'Sermon Notes'
 
-def html_from_lines(lines):
-    if not lines:
-        return ''
-    blocks = []
-    for index, line in enumerate(lines):
-        escaped = html.escape(line)
-        if len(line) <= 70 and (line.isupper() or line.endswith(':') or (index == 0 and len(line.split()) <= 8)):
-            blocks.append(f'<h2>{escaped.rstrip(":")}</h2>')
-        else:
-            blocks.append(f'<p>{escaped}</p>')
-    return '\n'.join(blocks)
+_DOCX_W_NS = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+_BULLET_MARKER_RE = re.compile(r'^[\-\*•●▪‣⁃◦]\s+')
+_NUM_MARKER_RE = re.compile(r'^(\d+|[a-zA-Z])[\.\)]\s+')
+
+def _docx_numbering_kinds(docx_zip):
+    """Map numId -> 'ul'/'ol' by reading numbering.xml's level-0 numFmt. Best-effort."""
+    ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+    W = _DOCX_W_NS
+    try:
+        xml_data = docx_zip.read('word/numbering.xml')
+    except KeyError:
+        return {}
+    try:
+        root = ET.fromstring(xml_data)
+        abstract_fmt = {}
+        for abstract_num in root.findall('w:abstractNum', ns):
+            abs_id = abstract_num.get(W + 'abstractNumId')
+            for lvl in abstract_num.findall('w:lvl', ns):
+                if lvl.get(W + 'ilvl') == '0':
+                    num_fmt_el = lvl.find('w:numFmt', ns)
+                    if num_fmt_el is not None:
+                        abstract_fmt[abs_id] = num_fmt_el.get(W + 'val')
+                    break
+        num_kinds = {}
+        for num in root.findall('w:num', ns):
+            num_id = num.get(W + 'numId')
+            abstract_id_el = num.find('w:abstractNumId', ns)
+            if abstract_id_el is not None:
+                fmt = abstract_fmt.get(abstract_id_el.get(W + 'val'), 'bullet')
+                num_kinds[num_id] = 'ul' if fmt in ('bullet', 'none') else 'ol'
+        return num_kinds
+    except Exception:
+        return {}
+
+def _docx_para_runs(para, ns):
+    """Return [raw_text, is_bold, is_italic] per run, expanding w:br to '\\n' and w:tab to '\\t'."""
+    runs = []
+    for run in para.findall('w:r', ns):
+        rPr = run.find('w:rPr', ns)
+        is_bold = is_italic = False
+        if rPr is not None:
+            is_bold = rPr.find('w:b', ns) is not None
+            is_italic = rPr.find('w:i', ns) is not None
+        text_parts = []
+        for child in run:
+            tag = child.tag.split('}')[-1]
+            if tag == 't' and child.text:
+                text_parts.append(child.text)
+            elif tag == 'br':
+                text_parts.append('\n')
+            elif tag == 'tab':
+                text_parts.append('\t')
+        raw_text = ''.join(text_parts)
+        if raw_text:
+            runs.append([raw_text, is_bold, is_italic])
+    return runs
+
+def _docx_runs_to_html(runs):
+    parts = []
+    for raw_text, is_bold, is_italic in runs:
+        if not raw_text:
+            continue
+        escaped = html.escape(raw_text).replace('\n', '<br>').replace('\t', '&emsp;')
+        if is_bold and is_italic:
+            escaped = f'<strong><em>{escaped}</em></strong>'
+        elif is_bold:
+            escaped = f'<strong>{escaped}</strong>'
+        elif is_italic:
+            escaped = f'<em>{escaped}</em>'
+        parts.append(escaped)
+    return ''.join(parts)
 
 def extract_docx_html(abs_path, skip_first=False):
-    """Extract rich HTML from a DOCX preserving bold, italic, and heading paragraph styles."""
+    """Extract rich HTML from a DOCX preserving bold, italic, headings, manual line
+    breaks, and bullet/numbered lists (both native Word lists and typed markers)."""
+    W = _DOCX_W_NS
     try:
         with zipfile.ZipFile(abs_path) as docx:
             xml_data = docx.read('word/document.xml')
+            num_kinds = _docx_numbering_kinds(docx)
         root = ET.fromstring(xml_data)
         ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
         blocks = []
         skipped = False
+        list_kind = None
+        list_items = []
+
+        def flush_list():
+            nonlocal list_kind, list_items
+            if list_items:
+                items_html = ''.join(f'<li>{item}</li>' for item in list_items)
+                blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
+            list_kind = None
+            list_items = []
+
         for para in root.findall('.//w:p', ns):
             pPr = para.find('w:pPr', ns)
             style_val = ''
+            numPr_kind = None
             if pPr is not None:
                 pStyle = pPr.find('w:pStyle', ns)
                 if pStyle is not None:
-                    style_val = (pStyle.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val') or '').lower()
-            runs_html = []
-            for run in para.findall('w:r', ns):
-                rPr = run.find('w:rPr', ns)
-                is_bold = is_italic = False
-                if rPr is not None:
-                    is_bold = rPr.find('w:b', ns) is not None
-                    is_italic = rPr.find('w:i', ns) is not None
-                text = ''.join(t.text for t in run.findall('w:t', ns) if t.text)
-                if not text:
-                    continue
-                text = html.escape(text)
-                if is_bold and is_italic:
-                    text = f'<strong><em>{text}</em></strong>'
-                elif is_bold:
-                    text = f'<strong>{text}</strong>'
-                elif is_italic:
-                    text = f'<em>{text}</em>'
-                runs_html.append(text)
-            para_html = ''.join(runs_html).strip()
-            if not para_html:
+                    style_val = (pStyle.get(W + 'val') or '').lower()
+                numPr = pPr.find('w:numPr', ns)
+                if numPr is not None:
+                    numId_el = numPr.find('w:numId', ns)
+                    num_id = numId_el.get(W + 'val') if numId_el is not None else None
+                    numPr_kind = num_kinds.get(num_id, 'ul')
+
+            runs = _docx_para_runs(para, ns)
+            if not runs:
                 continue
             if skip_first and not skipped:
                 skipped = True
                 continue
+
+            list_item_kind = numPr_kind
+            if not list_item_kind and style_val.startswith('listbullet'):
+                list_item_kind = 'ul'
+            elif not list_item_kind and style_val.startswith('listnumber'):
+                list_item_kind = 'ol'
+            if not list_item_kind:
+                first_text = runs[0][0]
+                stripped = first_text.lstrip('\n\t ')
+                lead_len = len(first_text) - len(stripped)
+                bullet_match = _BULLET_MARKER_RE.match(stripped)
+                num_match = None if bullet_match else _NUM_MARKER_RE.match(stripped)
+                marker_match = bullet_match or num_match
+                if marker_match:
+                    list_item_kind = 'ul' if bullet_match else 'ol'
+                    runs[0][0] = first_text[:lead_len] + stripped[marker_match.end():]
+
+            para_html = _docx_runs_to_html(runs).strip()
+            if not para_html:
+                continue
+
+            if list_item_kind:
+                if list_kind and list_kind != list_item_kind:
+                    flush_list()
+                list_kind = list_item_kind
+                list_items.append(para_html)
+                continue
+
+            flush_list()
             is_heading = style_val.startswith('heading') or style_val in ('title', 'subtitle')
             tag = 'h2' if is_heading else 'p'
             blocks.append(f'<{tag}>{para_html}</{tag}>')
+
+        flush_list()
         return '\n'.join(blocks)
     except Exception as e:
         app.logger.warning(f"extract_docx_html() error: {e}")
+        return ''
+
+def _pdf_cluster_words_into_lines(words, tol=2.0):
+    lines = []
+    current = []
+    current_top = None
+    for w in sorted(words, key=lambda w: (round(w['top'], 1), w['x0'])):
+        top = w['top']
+        if current_top is None or abs(top - current_top) <= tol:
+            current.append(w)
+            if current_top is None:
+                current_top = top
+        else:
+            lines.append(current)
+            current = [w]
+            current_top = top
+    if current:
+        lines.append(current)
+    return lines
+
+def _pdf_line_size(words):
+    sizes = Counter(round(w.get('size') or 0) for w in words)
+    return sizes.most_common(1)[0][0] if sizes else 0
+
+def _pdf_line_is_bold(words):
+    return bool(words) and all('bold' in (w.get('fontname') or '').lower() for w in words)
+
+def _pdf_runs_html(words):
+    if not words:
+        return ''
+    runs = []
+    current_words = []
+    current_style = None
+    for w in words:
+        fname = (w.get('fontname') or '').lower()
+        style = ('bold' in fname, 'italic' in fname or 'oblique' in fname)
+        if current_style is None or style == current_style:
+            current_words.append(w['text'])
+            current_style = style
+        else:
+            runs.append((current_style, current_words))
+            current_words = [w['text']]
+            current_style = style
+    if current_words:
+        runs.append((current_style, current_words))
+    parts = []
+    for (is_bold, is_italic), run_words in runs:
+        text = html.escape(' '.join(run_words))
+        if is_bold and is_italic:
+            text = f'<strong><em>{text}</em></strong>'
+        elif is_bold:
+            text = f'<strong>{text}</strong>'
+        elif is_italic:
+            text = f'<em>{text}</em>'
+        parts.append(text)
+    return ' '.join(parts)
+
+def extract_pdf_html(abs_path, skip_first=False):
+    """Extract rich HTML from a PDF preserving bold text, headings (by font size),
+    bullet/numbered lists, and paragraph breaks (detected from line spacing)."""
+    try:
+        all_lines = []
+        with pdfplumber.open(abs_path) as pdf:
+            for page_index, page in enumerate(pdf.pages):
+                words = page.extract_words(extra_attrs=['fontname', 'size'], use_text_flow=False)
+                if not words:
+                    continue
+                page_lines = _pdf_cluster_words_into_lines(words)
+                for i, line_words in enumerate(page_lines):
+                    all_lines.append({
+                        'words': line_words,
+                        'top': line_words[0]['top'],
+                        'new_page': i == 0 and page_index > 0,
+                    })
+
+        if skip_first and all_lines:
+            all_lines = all_lines[1:]
+        if not all_lines:
+            return ''
+
+        size_counter = Counter()
+        for line in all_lines:
+            for w in line['words']:
+                size_counter[round(w.get('size') or 0)] += 1
+        body_size = size_counter.most_common(1)[0][0] if size_counter else 12
+
+        gaps = []
+        prev = None
+        for line in all_lines:
+            if prev is not None and not line['new_page']:
+                if _pdf_line_size(prev['words']) == body_size and _pdf_line_size(line['words']) == body_size:
+                    gap = line['top'] - prev['top']
+                    if gap > 0:
+                        gaps.append(gap)
+            prev = line
+        gaps.sort()
+        base_gap = gaps[len(gaps) // 2] if gaps else None
+        para_break_gap = base_gap * 1.3 if base_gap else 0
+
+        blocks = []
+        list_kind = None
+        list_items = []
+        para_words = []
+        prev_line = None
+
+        def flush_list():
+            nonlocal list_kind, list_items
+            if list_items:
+                items_html = ''.join(f'<li>{item}</li>' for item in list_items)
+                blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
+            list_kind = None
+            list_items = []
+
+        def flush_para():
+            nonlocal para_words
+            if para_words:
+                blocks.append(f'<p>{_pdf_runs_html(para_words)}</p>')
+            para_words = []
+
+        for line in all_lines:
+            words = line['words']
+            text = ' '.join(w['text'] for w in words)
+            size = _pdf_line_size(words)
+            is_heading = size >= body_size * 1.15 and len(text) <= 90
+
+            bullet_match = words and _BULLET_MARKER_RE.match(words[0]['text'] + ' ')
+            num_match = None if bullet_match else (words and _NUM_MARKER_RE.match(words[0]['text'] + ' '))
+
+            if is_heading:
+                flush_list()
+                flush_para()
+                tag = 'h2' if size >= body_size * 1.4 else 'h3'
+                blocks.append(f'<{tag}>{_pdf_runs_html(words)}</{tag}>')
+                prev_line = line
+                continue
+
+            if bullet_match or num_match:
+                flush_para()
+                kind = 'ol' if num_match else 'ul'
+                if list_kind and list_kind != kind:
+                    flush_list()
+                list_kind = kind
+                list_items.append(_pdf_runs_html(words[1:]))
+                prev_line = line
+                continue
+
+            flush_list()
+            gap = (line['top'] - prev_line['top']) if (prev_line and not line['new_page']) else None
+            if para_words and gap is not None and gap <= para_break_gap:
+                para_words.extend(words)
+            else:
+                flush_para()
+                para_words.extend(words)
+            prev_line = line
+
+        flush_list()
+        flush_para()
+        return '\n'.join(blocks)
+    except Exception as e:
+        app.logger.warning(f"extract_pdf_html() error: {e}")
         return ''
 
 RICH_TEXT_TAGS = ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote']
@@ -973,15 +1226,17 @@ def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
     else:
         lines = extract_pdf_lines(abs_path)
         lines = normalize_text_lines('\n'.join(lines))
+        skip_first = False
         if not title and lines:
             title = lines[0][:120].strip()
             lines = lines[1:] if len(lines) > 1 else lines
+            skip_first = True
         if not title:
             title = sermon_title_from_filename(path_rel)
         if not summary:
             source_line = next((l for l in lines if len(l.split()) > 6), '')
             summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
-        body_html = html_from_lines(lines)
+        body_html = extract_pdf_html(abs_path, skip_first=skip_first)
         if not body_html and lines:
             body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in lines)
     return {

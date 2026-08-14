@@ -59,8 +59,16 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .ns-grip{width:38px;height:4px;border-radius:2px;background:#d8d8dd;margin:0 auto 16px;}
 .ns-sheet h2{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1.2;margin-bottom:8px;color:var(--text);}
 .ns-ask{font-size:0.88rem;line-height:1.65;color:var(--sub);margin-bottom:16px;}
-.ns-file{display:flex;align-items:center;gap:10px;background:#f5f5f7;border-radius:14px;padding:12px 14px;margin-bottom:16px;font-size:0.85rem;color:var(--text);word-break:break-all;}
-.ns-file i{color:var(--teal);font-size:1.2rem;flex:none;}
+.ns-list{display:grid;gap:10px;margin-bottom:14px;}
+.ns-item{display:flex;align-items:center;gap:11px;background:#f5f5f7;border-radius:14px;padding:11px 12px;}
+.ns-item > i{color:var(--teal);font-size:1.25rem;flex:none;}
+.ns-item-body{flex:1;min-width:0;}
+.ns-item-name{font-size:0.88rem;font-weight:600;color:var(--text);line-height:1.35;overflow-wrap:anywhere;}
+.ns-item-meta{font-size:0.72rem;color:var(--sub);margin-top:2px;}
+.ns-item-btn{flex:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:11px;text-decoration:none;font-family:'DM Sans',sans-serif;font-weight:600;}
+.ns-dl{background:var(--orange);color:#fff;font-size:0.82rem;padding:10px 13px;box-shadow:0 6px 14px rgba(240,81,35,0.26);}
+.ns-ghost{background:#fff;color:var(--teal);border:1px solid #e0e0e5;width:40px;height:38px;font-size:0.95rem;}
+.ns-item-btn:active{transform:scale(0.96);}
 .ns-guide{display:none;background:#fff8f5;border:1px solid #f7d9cb;border-radius:14px;padding:14px 16px;margin-bottom:16px;}
 .ns-guide.show{display:block;}
 .ns-guide-head{font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--orange);font-weight:600;margin-bottom:10px;}
@@ -70,8 +78,6 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .ns-guide b{color:var(--text);}
 .ns-tip{font-size:0.8rem;line-height:1.6;color:var(--sub);margin-top:10px;padding-top:10px;border-top:1px dashed #f0cfc0;}
 .ns-actions{display:grid;gap:10px;}
-.ns-allow{display:flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;background:var(--orange);color:#fff;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;padding:15px;border-radius:14px;text-decoration:none;}
-.ns-secondary{display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid #e0e0e5;cursor:pointer;background:#fff;color:var(--teal);font-family:'DM Sans',sans-serif;font-size:0.9rem;font-weight:600;padding:13px;border-radius:14px;text-decoration:none;}
 .ns-cancel{border:0;background:none;cursor:pointer;color:var(--sub);font-family:'DM Sans',sans-serif;font-size:0.88rem;padding:8px;}
 .ns-switch{display:block;width:100%;text-align:center;background:none;border:0;cursor:pointer;color:var(--teal);font-family:'DM Sans',sans-serif;font-size:0.8rem;text-decoration:underline;margin-bottom:16px;}
 </style>
@@ -93,42 +99,44 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
       <div class="content">{{ note.body_html|richtext }}</div>
     </div>
 
-    {% if note.next_steps_file %}
+    {% if ns_items %}
     <div class="ns-card">
       <div class="ns-kicker">Take it home</div>
       <div class="ns-title">{{ ns_label }}</div>
-      <div class="ns-copy">{{ note.next_steps_note or 'Keep walking through this message during the week — download the sheet and take it with you.' }}</div>
-      <button type="button" class="ns-btn" id="nsOpen"><i class="bi bi-download"></i> Get the sheet</button>
+      <div class="ns-copy">{{ note.next_steps_note or ('Keep walking through this message during the week — download the sheets and take them with you.' if ns_items|length > 1 else 'Keep walking through this message during the week — download the sheet and take it with you.') }}</div>
+      <button type="button" class="ns-btn" id="nsOpen">
+        <i class="bi bi-download"></i>
+        {% if ns_items|length > 1 %}Get the {{ ns_items|length }} sheets{% else %}Get the sheet{% endif %}
+      </button>
     </div>
     {% endif %}
   </div>
 </div>
 
-{% if note.next_steps_file %}
+{% if ns_items %}
+{% set many = ns_items|length > 1 %}
 <div class="ns-scrim" id="nsScrim" role="dialog" aria-modal="true" aria-labelledby="nsHeading" hidden>
   <div class="ns-sheet" role="document">
     <div class="ns-grip"></div>
-    <h2 id="nsHeading">Save this to your phone?</h2>
-    <div class="ns-ask">Oasis Hub would like to download a file to your device. Nothing is saved unless you tap Allow.</div>
-
-    <div class="ns-file"><i class="bi bi-file-earmark-arrow-down"></i><span>{{ ns_label }} — {{ note.note_date }}</span></div>
+    <h2 id="nsHeading">Save {{ 'these to' if many else 'this to' }} your phone?</h2>
+    <div class="ns-ask">Oasis Hub would like to download {{ 'these files' if many else 'a file' }} to your device. Nothing is saved unless you tap <b>Save</b>.</div>
 
     <div class="ns-guide" data-os="ios">
       <div class="ns-guide-head"><i class="bi bi-apple"></i> On iPhone / iPad</div>
       <ol>
-        <li>Tap <b>Allow &amp; Download</b>. Safari will ask <b>"Download this file?"</b> — tap <b>Download</b>.</li>
-        <li>Tap the blue <b>⌄ download arrow</b> next to the address bar to see it.</li>
-        <li>It is saved in the <b>Files</b> app under <b>Downloads</b>.</li>
+        <li>Tap <b>Save</b>{% if many %} on each sheet you want{% endif %}. Safari will ask <b>"Download this file?"</b> — tap <b>Download</b>.</li>
+        <li>Tap the blue <b>⌄ download arrow</b> next to the address bar to see {{ 'them' if many else 'it' }}.</li>
+        <li>{{ 'They are' if many else 'It is' }} saved in the <b>Files</b> app under <b>Downloads</b>.</li>
       </ol>
-      <div class="ns-tip">Opened this from Instagram or Facebook? Tap <b>•••</b> → <b>Open in Safari</b> first, or the download will not stick. If nothing happens at all, use <b>Just open it</b> below, then tap the share icon → <b>Save to Files</b>.</div>
+      <div class="ns-tip">Opened this from Instagram or Facebook? Tap <b>•••</b> → <b>Open in Safari</b> first, or the download will not stick. If nothing happens at all, tap <b>Open</b> instead, then use the share icon → <b>Save to Files</b>.</div>
     </div>
 
     <div class="ns-guide" data-os="android">
       <div class="ns-guide-head"><i class="bi bi-android2"></i> On Android</div>
       <ol>
-        <li>Tap <b>Allow &amp; Download</b> — your browser saves it right away.</li>
+        <li>Tap <b>Save</b>{% if many %} on each sheet you want{% endif %} — your browser saves it right away.</li>
         <li>Swipe down to see the download notification, or open <b>Files</b> / <b>My Files</b>.</li>
-        <li>It is in your <b>Downloads</b> folder.</li>
+        <li>{{ 'They are' if many else 'It is' }} in your <b>Downloads</b> folder.</li>
       </ol>
       <div class="ns-tip">If your browser asks for permission to save files, tap <b>Allow</b>.</div>
     </div>
@@ -136,16 +144,28 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
     <div class="ns-guide" data-os="desktop">
       <div class="ns-guide-head"><i class="bi bi-laptop"></i> On computer</div>
       <ol>
-        <li>Click <b>Allow &amp; Download</b>.</li>
-        <li>The file lands in your <b>Downloads</b> folder.</li>
+        <li>Click <b>Save</b>{% if many %} on each sheet you want{% endif %}.</li>
+        <li>{{ 'They land' if many else 'The file lands' }} in your <b>Downloads</b> folder.</li>
       </ol>
     </div>
 
     <button type="button" class="ns-switch" id="nsSwitch">Using a different device? Show all steps</button>
 
+    <div class="ns-list">
+      {% for item in ns_items %}
+      <div class="ns-item">
+        <i class="bi bi-file-earmark-text"></i>
+        <div class="ns-item-body">
+          <div class="ns-item-name">{{ item|next_steps_item_label }}</div>
+          <div class="ns-item-meta">{{ item|next_steps_file_meta }}</div>
+        </div>
+        <a class="ns-item-btn ns-dl" href="{{ url_for('sermon_next_steps', nid=note.id, fid=item.id) }}"><i class="bi bi-download"></i> Save</a>
+        <a class="ns-item-btn ns-ghost" href="{{ url_for('sermon_next_steps', nid=note.id, fid=item.id) }}?view=1" target="_blank" rel="noopener" aria-label="Open {{ item|next_steps_item_label }} without downloading"><i class="bi bi-box-arrow-up-right"></i></a>
+      </div>
+      {% endfor %}
+    </div>
+
     <div class="ns-actions">
-      <a class="ns-allow" id="nsAllow" href="{{ url_for('sermon_next_steps', nid=note.id) }}"><i class="bi bi-check-lg"></i> Allow &amp; Download</a>
-      <a class="ns-secondary" href="{{ url_for('sermon_next_steps', nid=note.id) }}?view=1" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> Just open it (no download)</a>
       <button type="button" class="ns-cancel" id="nsCancel">Not now</button>
     </div>
   </div>
@@ -186,8 +206,18 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
   });
   scrim.addEventListener('click', function(e){ if (e.target === scrim) close(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && !scrim.hidden) close(); });
-  // The download is served as an attachment, so the page stays put — just tidy up.
-  document.getElementById('nsAllow').addEventListener('click', function(){ setTimeout(close, 600); });
+  // Downloads are served as attachments, so the page stays put. With several sheets
+  // on offer the sheet has to stay open — closing it after the first tap would hide
+  // the rest — so confirm the save inline instead.
+  var singleFile = scrim.querySelectorAll('.ns-item').length === 1;
+  scrim.querySelectorAll('.ns-dl').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var original = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Saved';
+      if (singleFile) { setTimeout(close, 1200); return; }
+      setTimeout(function(){ btn.innerHTML = original; }, 2500);
+    });
+  });
 })();
 </script>
 {% endif %}

@@ -31,36 +31,55 @@
           <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF and DOCX supported. The app will extract the text and turn it into a mobile reading page saved by date.</div>
         </div>
 
-        {% set has_homework = note and note.next_steps_file %}
+        {% set ns_items = ns_items or [] %}
+        {% set has_homework = ns_items|length > 0 %}
+        {% set ns_room = max_next_steps - ns_items|length %}
         <div class="form-group" style="border-top:1px solid #e8e8ed;padding-top:18px;">
           <label class="form-label" style="display:flex;align-items:center;gap:8px;">
             <i class="bi bi-journal-check" style="color:#F2541B;"></i> Oasis Next Steps
           </label>
-          <div style="font-size:0.74rem;color:#6e6e73;margin:-4px 0 10px;">A take-home sheet people can download to their phone after the message.</div>
+          <div style="font-size:0.74rem;color:#6e6e73;margin:-4px 0 10px;">Take-home sheets people can download to their phone after the message. You can attach up to {{ max_next_steps }}.</div>
 
           <button type="button" class="btn btn-ghost btn-sm" id="addHomeworkBtn" {% if has_homework %}hidden{% endif %}>
             <i class="bi bi-plus-lg"></i> Add Homework
           </button>
 
           <div id="homeworkPanel" {% if not has_homework %}hidden{% endif %} style="background:#fafafa;border:1px solid #e8e8ed;border-radius:12px;padding:16px;">
-            {% if has_homework %}
-            <div style="display:flex;align-items:center;gap:10px;font-size:0.82rem;margin-bottom:14px;">
-              <i class="bi bi-file-earmark-arrow-down" style="color:#13677A;"></i>
-              <a href="/static/{{ note.next_steps_file }}" target="_blank" style="color:#13677A;">{{ note.next_steps_file.split('/')[-1] }}</a>
-              <label style="margin-left:auto;color:#c0392b;display:flex;align-items:center;gap:6px;cursor:pointer;">
-                <input type="checkbox" name="next_steps_remove" value="1"> Remove
-              </label>
+            {% if ns_items %}
+            <div class="form-group">
+              <label class="form-label">Attached Files ({{ ns_items|length }})</label>
+              <div style="display:grid;gap:10px;">
+                {% for item in ns_items %}
+                <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #e8e8ed;border-radius:10px;padding:10px 12px;">
+                  <i class="bi bi-file-earmark-text" style="color:#13677A;font-size:1.1rem;flex:none;"></i>
+                  <input type="text" name="ns_title_{{ item.id }}" class="form-control" style="flex:1;min-width:0;"
+                         value="{{ item.title }}" placeholder="{{ item|next_steps_item_label }}">
+                  <a href="{{ url_for('sermon_next_steps', nid=note.id, fid=item.id) }}?view=1" target="_blank"
+                     title="Open this file" style="color:#13677A;flex:none;"><i class="bi bi-box-arrow-up-right"></i></a>
+                  <label style="color:#c0392b;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.8rem;flex:none;white-space:nowrap;">
+                    <input type="checkbox" name="ns_remove_{{ item.id }}" value="1"> Remove
+                  </label>
+                </div>
+                {% endfor %}
+              </div>
+              <div style="font-size:0.74rem;color:#6e6e73;margin-top:8px;">The name box is what people see in the download list — leave it blank to use the filename. Files appear in the order shown.</div>
             </div>
             {% endif %}
 
             <div class="form-group">
-              <label class="form-label">{{ 'Replace Homework File' if has_homework else 'Homework File' }}</label>
-              <input type="file" name="next_steps_file" class="form-control" accept=".pdf,.docx">
-              <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF works best — it downloads and opens cleanly on both iPhone and Android. DOCX is also accepted.</div>
+              <label class="form-label">{{ 'Add More Files' if ns_items else 'Homework Files' }}</label>
+              <input type="file" name="next_steps_file" class="form-control" accept=".pdf,.docx" multiple {% if ns_room < 1 %}disabled{% endif %}>
+              <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">
+                {% if ns_room < 1 %}
+                This note already has the maximum of {{ max_next_steps }} files. Remove one to add another.
+                {% else %}
+                Pick several at once — room for {{ ns_room }} more. PDF works best; it downloads and opens cleanly on both iPhone and Android. DOCX is also accepted.
+                {% endif %}
+              </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Button Label</label>
+              <label class="form-label">Section Heading</label>
               <input type="text" name="next_steps_title" class="form-control" value="{{ note.next_steps_title if note else '' }}" placeholder="Oasis Next Steps">
               <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Leave blank to use "Oasis Next Steps".</div>
             </div>

@@ -16,8 +16,9 @@
       <td>{{ note.title }}</td>
       <td style="color:#6e6e73;font-size:0.82rem;">{{ note.summary or '—' }}</td>
       <td>
-        {% if note.next_steps_file %}
-        <a href="{{ url_for('sermon_next_steps', nid=note.id) }}?view=1" target="_blank" style="color:#F2541B;font-size:0.82rem;white-space:nowrap;"><i class="bi bi-journal-check"></i> Attached</a>
+        {% set ns_n = ns_counts.get(note.id, 0) %}
+        {% if ns_n %}
+        <a href="{{ url_for('admin_sermon_note_edit', nid=note.id) }}" style="color:#F2541B;font-size:0.82rem;white-space:nowrap;"><i class="bi bi-journal-check"></i> {{ ns_n }} file{{ '' if ns_n == 1 else 's' }}</a>
         {% else %}<span style="color:#c7c7cc;">—</span>{% endif %}
       </td>
       <td>

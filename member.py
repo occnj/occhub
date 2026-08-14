@@ -511,12 +511,38 @@ def init_db():
         next_steps_title TEXT DEFAULT '',
         next_steps_note TEXT DEFAULT ''
     )''')
-    # "Oasis Next Steps" — the optional take-home homework document attached to a note.
+    # "Oasis Next Steps" — the take-home homework attached to a note. next_steps_title
+    # and next_steps_note hold the section heading and instruction; the documents
+    # themselves live in sermon_next_steps, one row per file.
     for col in ('next_steps_file', 'next_steps_title', 'next_steps_note'):
         try:
             c.execute("ALTER TABLE sermon_notes ADD COLUMN " + col + " TEXT DEFAULT ''")
         except Exception:
             pass
+
+    c.execute('''CREATE TABLE IF NOT EXISTS sermon_next_steps (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id INTEGER NOT NULL,
+        file TEXT NOT NULL,
+        title TEXT DEFAULT '',
+        sort_order INTEGER DEFAULT 0,
+        FOREIGN KEY(note_id) REFERENCES sermon_notes(id) ON DELETE CASCADE
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_next_steps_note ON sermon_next_steps(note_id, sort_order, id)')
+    # One-time lift of the original single-file column into the new table. The column
+    # is cleared as it is moved so the table stays the only source of truth — leaving
+    # it populated would resurrect a deleted file on the next boot.
+    # next_steps_title stays put — it was always the heading for the section, and
+    # still is. The lifted row gets a blank title so the label falls back to the
+    # filename the way any other upload does.
+    for row in c.execute(
+        "SELECT id, next_steps_file FROM sermon_notes WHERE COALESCE(next_steps_file,'') <> ''"
+    ).fetchall():
+        c.execute(
+            "INSERT INTO sermon_next_steps (note_id, file, title, sort_order) VALUES (?,?,'',0)",
+            (row[0], row[1])
+        )
+        c.execute("UPDATE sermon_notes SET next_steps_file='' WHERE id=?", (row[0],))
 
     conn.commit(); conn.close()
 
@@ -807,12 +833,14 @@ def save_upload(field):
     return _save_file_obj(request.files.get(field))
 
 def save_document_upload(field):
+    return save_document_file(request.files.get(field))
+
+def save_document_file(f):
     try:
-        f = request.files.get(field)
         if not f or not f.filename:
             return None, None
         if not allowed_document(f.filename):
-            app.logger.warning(f"save_document_upload: rejected file type '{f.filename}'")
+            app.logger.warning(f"save_document_file: rejected file type '{f.filename}'")
             return None, None
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         original_name = secure_filename(f.filename)
@@ -820,10 +848,10 @@ def save_document_upload(field):
         fname = secure_filename(f"{stem}_{uuid.uuid4().hex[:8]}{ext.lower()}")
         dest = os.path.join(UPLOAD_FOLDER, fname)
         f.save(dest)
-        app.logger.info(f"save_document_upload: saved {dest}")
+        app.logger.info(f"save_document_file: saved {dest}")
         return 'uploads/' + fname, ext.lower().lstrip('.')
     except Exception as e:
-        app.logger.error(f"save_document_upload error ({field}): {e}")
+        app.logger.error(f"save_document_file error ({getattr(f, 'filename', '?')}): {e}")
         return None, None
 
 PDF_MAX_PAGES = 50
@@ -1300,19 +1328,59 @@ def row_value(row, key, default=''):
         return default
     return default if value is None else value
 
+MAX_NEXT_STEPS_FILES = 10
+_UPLOAD_STEM_RE = re.compile(r'_[0-9a-f]{8}$')
+
 def next_steps_label(note):
+    """Heading for the whole take-home section on a note."""
     return (row_value(note, 'next_steps_title') or '').strip() or NEXT_STEPS_LABEL
 
-def next_steps_download_name(note):
-    """Filename the phone saves it under — the uploaded file keeps a uuid stem on
-    disk, which is useless to someone hunting for it later in their Files app."""
-    ext = os.path.splitext(row_value(note, 'next_steps_file'))[1].lower() or '.pdf'
-    stem = re.sub(r'[^A-Za-z0-9]+', '-', f"{next_steps_label(note)} {row_value(note, 'note_date')}").strip('-')
+def note_next_steps(conn, nid):
+    return conn.execute(
+        "SELECT * FROM sermon_next_steps WHERE note_id=? ORDER BY sort_order, id", (nid,)
+    ).fetchall()
+
+def next_steps_counts(conn):
+    """note_id -> number of attached documents, for the archive and admin lists."""
+    return {
+        r['note_id']: r['n'] for r in conn.execute(
+            "SELECT note_id, COUNT(*) AS n FROM sermon_next_steps GROUP BY note_id"
+        ).fetchall()
+    }
+
+def next_steps_item_label(item):
+    """Name shown in the download list. Falls back to the filename with the uuid
+    that save_document_file() appends stripped back off, so a cleared name box
+    reads "Family Devotional" rather than "Family Devotional 75E0Dc29"."""
+    explicit = (row_value(item, 'title') or '').strip()
+    if explicit:
+        return explicit
+    base = os.path.splitext(os.path.basename(row_value(item, 'file')))[0]
+    return sermon_title_from_filename(_UPLOAD_STEM_RE.sub('', base))
+
+def next_steps_download_name(note, item):
+    """Filename the phone saves it under — uploads keep a uuid stem on disk, which
+    is useless to someone hunting for the file later in their Files app."""
+    ext = os.path.splitext(row_value(item, 'file'))[1].lower() or '.pdf'
+    stem = re.sub(r'[^A-Za-z0-9]+', '-', f"{next_steps_item_label(item)} {row_value(note, 'note_date')}").strip('-')
     return (stem or 'oasis-next-steps') + ext
 
-@app.template_filter('next_steps_label')
-def next_steps_label_filter(note):
-    return next_steps_label(note)
+def next_steps_file_meta(item):
+    """'PDF · 240 KB' for the download list, or just the type if the file is gone."""
+    stored = row_value(item, 'file')
+    kind = (os.path.splitext(stored)[1].lstrip('.') or 'file').upper()
+    try:
+        size = os.path.getsize(os.path.join(UPLOAD_FOLDER, os.path.basename(stored)))
+    except OSError:
+        return kind
+    if size >= 1024 * 1024:
+        return f"{kind} · {size / (1024 * 1024):.1f} MB"
+    return f"{kind} · {max(1, round(size / 1024))} KB"
+
+app.jinja_env.globals['max_next_steps'] = MAX_NEXT_STEPS_FILES
+app.jinja_env.filters['next_steps_label'] = next_steps_label
+app.jinja_env.filters['next_steps_item_label'] = next_steps_item_label
+app.jinja_env.filters['next_steps_file_meta'] = next_steps_file_meta
 
 def client_ip():
     forwarded_for = request.headers.get('X-Forwarded-For', '')
@@ -1788,8 +1856,10 @@ def sermon_notes():
     conn = get_db()
     notes = conn.execute("SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC").fetchall()
     latest = notes[0] if notes else None
+    ns_counts = next_steps_counts(conn)
     conn.close()
-    return render_template('sermon_notes.html', notes=notes, latest=latest, settings=all_settings())
+    return render_template('sermon_notes.html', notes=notes, latest=latest,
+                           ns_counts=ns_counts, settings=all_settings())
 
 @app.route('/sermon-notes/<int:nid>')
 def sermon_note_detail(nid):
@@ -1797,33 +1867,48 @@ def sermon_note_detail(nid):
     conn = get_db()
     note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
     latest = latest_sermon_note(conn)
+    ns_items = note_next_steps(conn, nid) if note else []
     conn.close()
     if not note:
         return redirect(url_for('sermon_notes'))
-    return render_template('sermon_note_detail.html', note=note, latest=latest, settings=all_settings())
+    return render_template('sermon_note_detail.html', note=note, latest=latest,
+                           ns_items=ns_items, settings=all_settings())
 
-@app.route('/sermon-notes/<int:nid>/next-steps')
-def sermon_next_steps(nid):
-    """Hand the Oasis Next Steps take-home document to the visitor's phone.
+@app.route('/sermon-notes/<int:nid>/next-steps/<int:fid>')
+def sermon_next_steps(nid, fid):
+    """Hand one Oasis Next Steps take-home document to the visitor's phone.
     ?view=1 opens it inline instead, which is the friendlier path on iOS where a
     forced download drops the file into Files rather than showing it."""
     conn = get_db()
     note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+    item = conn.execute(
+        "SELECT * FROM sermon_next_steps WHERE id=? AND note_id=?", (fid, nid)
+    ).fetchone()
     conn.close()
-    stored = row_value(note, 'next_steps_file')
-    if not stored:
+    if not note or not item:
         return redirect(url_for('sermon_note_detail', nid=nid))
-    fname = os.path.basename(stored)
-    if not os.path.isfile(os.path.join(UPLOAD_FOLDER, fname)):
-        app.logger.warning(f"sermon_next_steps: missing file for note {nid} ({stored})")
+    fname = os.path.basename(row_value(item, 'file'))
+    if not fname or not os.path.isfile(os.path.join(UPLOAD_FOLDER, fname)):
+        app.logger.warning(f"sermon_next_steps: missing file for note {nid} item {fid}")
         return redirect(url_for('sermon_note_detail', nid=nid))
     inline = request.args.get('view') == '1'
     track('sermon_next_steps_view' if inline else 'sermon_next_steps_download')
     return send_from_directory(
         UPLOAD_FOLDER, fname,
         as_attachment=not inline,
-        download_name=next_steps_download_name(note),
+        download_name=next_steps_download_name(note, item),
     )
+
+@app.route('/sermon-notes/<int:nid>/next-steps')
+def sermon_next_steps_first(nid):
+    """Kept so links handed out before multi-file support still resolve."""
+    conn = get_db()
+    items = note_next_steps(conn, nid)
+    conn.close()
+    if not items:
+        return redirect(url_for('sermon_note_detail', nid=nid))
+    return redirect(url_for('sermon_next_steps', nid=nid, fid=items[0]['id'],
+                            **({'view': '1'} if request.args.get('view') == '1' else {})))
 
 @app.route('/beliefs')
 def beliefs():
@@ -2410,26 +2495,57 @@ def admin_hub_card_delete(cid):
 def admin_sermon_notes():
     conn = get_db()
     notes = conn.execute("SELECT * FROM sermon_notes ORDER BY note_date DESC, id DESC").fetchall()
+    ns_counts = next_steps_counts(conn)
     conn.close()
-    return render_template('admin/sermon_notes.html', notes=notes)
+    return render_template('admin/sermon_notes.html', notes=notes, ns_counts=ns_counts)
 
-def next_steps_form_values(note=None):
-    """Pull the Oasis Next Steps ("Add Homework") fields off an admin form.
-    Returns the (file, title, note) triple to store on the sermon note."""
-    uploaded, _ext = save_document_upload('next_steps_file')
-    stored = uploaded or ('' if request.form.get('next_steps_remove') == '1'
-                          else row_value(note, 'next_steps_file'))
-    if not stored:
-        return '', '', ''
-
+def next_steps_heading_fields(note=None):
+    """The note-level heading and instruction for the Oasis Next Steps section.
+    A submit that never rendered the homework panel must not silently wipe them,
+    so an absent field keeps whatever is already stored."""
     def field(name):
-        # A submit that never rendered the homework panel must not silently wipe
-        # the label/instruction already stored against the note.
         if name not in request.form:
             return row_value(note, name)
         return request.form.get(name, '').strip()
 
-    return stored, field('next_steps_title'), field('next_steps_note')
+    return field('next_steps_title'), field('next_steps_note')
+
+def sync_next_steps(conn, nid):
+    """Apply the Add Homework panel to one note: rename or drop the documents
+    already attached, then append whatever was uploaded this time."""
+    kept = 0
+    for item in note_next_steps(conn, nid):
+        if request.form.get(f"ns_remove_{item['id']}") == '1':
+            conn.execute("DELETE FROM sermon_next_steps WHERE id=? AND note_id=?", (item['id'], nid))
+            continue
+        title_key = f"ns_title_{item['id']}"
+        if title_key in request.form:
+            conn.execute(
+                "UPDATE sermon_next_steps SET title=?, sort_order=? WHERE id=? AND note_id=?",
+                (request.form.get(title_key, '').strip(), kept, item['id'], nid)
+            )
+        else:
+            conn.execute("UPDATE sermon_next_steps SET sort_order=? WHERE id=? AND note_id=?",
+                         (kept, item['id'], nid))
+        kept += 1
+
+    for f in request.files.getlist('next_steps_file'):
+        if not f or not f.filename:
+            continue
+        if kept >= MAX_NEXT_STEPS_FILES:
+            flash(f'A sermon note can hold {MAX_NEXT_STEPS_FILES} Next Steps files — '
+                  f'"{f.filename}" and anything after it were skipped.', 'info')
+            break
+        stored, _ext = save_document_file(f)
+        if not stored:
+            flash(f'"{f.filename}" was skipped — only PDF and DOCX files can be attached.', 'info')
+            continue
+        conn.execute(
+            "INSERT INTO sermon_next_steps (note_id, file, title, sort_order) VALUES (?,?,?,?)",
+            (nid, stored, sermon_title_from_filename(f.filename), kept)
+        )
+        kept += 1
+    return kept
 
 @app.route('/admin/sermon-notes/new', methods=['GET', 'POST'])
 @login_required
@@ -2446,19 +2562,20 @@ def admin_sermon_note_new():
             fallback_title=request.form.get('title', '').strip(),
             summary=request.form.get('summary', '').strip(),
         )
-        ns_file, ns_title, ns_note = next_steps_form_values()
+        ns_title, ns_note = next_steps_heading_fields()
         conn = get_db()
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO sermon_notes (title,note_date,summary,body_html,source_file,"
-            "next_steps_file,next_steps_title,next_steps_note) VALUES (?,?,?,?,?,?,?,?)",
+            "next_steps_title,next_steps_note) VALUES (?,?,?,?,?,?,?)",
             (payload['title'], note_date, payload['summary'], payload['body_html'], payload['source_file'],
-             ns_file, ns_title, ns_note)
+             ns_title, ns_note)
         )
+        sync_next_steps(conn, cur.lastrowid)
         conn.commit()
         conn.close()
         flash('Sermon notes imported!', 'success')
         return redirect(url_for('admin_sermon_notes'))
-    return render_template('admin/sermon_note_form.html', note=None)
+    return render_template('admin/sermon_note_form.html', note=None, ns_items=[])
 
 @app.route('/admin/sermon-notes/<int:nid>/edit', methods=['GET', 'POST'])
 @login_required
@@ -2486,29 +2603,31 @@ def admin_sermon_note_edit(nid):
             summary = request.form.get('summary', '').strip()
             body_html = request.form.get('body_html', '').strip()
             stored_file = note['source_file']
-        ns_file, ns_title, ns_note = next_steps_form_values(note)
+        ns_title, ns_note = next_steps_heading_fields(note)
         conn.execute(
             "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=?,"
-            " next_steps_file=?, next_steps_title=?, next_steps_note=? WHERE id=?",
+            " next_steps_title=?, next_steps_note=? WHERE id=?",
             (
                 title,
                 request.form.get('note_date', '').strip() or note['note_date'],
                 summary,
                 body_html,
                 stored_file,
-                ns_file,
                 ns_title,
                 ns_note,
                 nid,
             )
         )
+        sync_next_steps(conn, nid)
         conn.commit()
         updated = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
+        ns_items = note_next_steps(conn, nid)
         conn.close()
         flash('Sermon notes updated!', 'success')
-        return render_template('admin/sermon_note_form.html', note=updated)
+        return render_template('admin/sermon_note_form.html', note=updated, ns_items=ns_items)
+    ns_items = note_next_steps(conn, nid)
     conn.close()
-    return render_template('admin/sermon_note_form.html', note=note)
+    return render_template('admin/sermon_note_form.html', note=note, ns_items=ns_items)
 
 @app.route('/admin/sermon-notes/<int:nid>/delete', methods=['POST'])
 @login_required

@@ -60,7 +60,8 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
       <div class="latest-kicker">{{ latest.note_date }}</div>
       <div class="latest-title">{{ latest.title }}</div>
       <div class="latest-copy">{{ latest.summary or 'Tap to read the latest sermon notes.' }}</div>
-      {% if latest.next_steps_file %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ latest|next_steps_label }}</div>{% endif %}
+      {% set ns_n = ns_counts.get(latest.id, 0) %}
+      {% if ns_n %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ latest|next_steps_label }}{% if ns_n > 1 %} · {{ ns_n }} files{% endif %}</div>{% endif %}
       <div class="latest-row"><span>Open latest notes</span><i class="bi bi-arrow-right"></i></div>
     </a>
     {% endif %}
@@ -73,7 +74,8 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
         <div class="note-date">{{ note.note_date }}</div>
         <div class="note-title">{{ note.title }}</div>
         <div class="note-copy">{{ note.summary or 'Read this sermon note.' }}</div>
-        {% if note.next_steps_file %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ note|next_steps_label }}</div>{% endif %}
+        {% set ns_n = ns_counts.get(note.id, 0) %}
+        {% if ns_n %}<div class="ns-badge"><i class="bi bi-journal-check"></i> {{ note|next_steps_label }}{% if ns_n > 1 %} · {{ ns_n }} files{% endif %}</div>{% endif %}
       </a>
       {% endfor %}
     </div>

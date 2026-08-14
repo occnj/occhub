@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v8';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v8';
+const STATIC_CACHE = 'oasis-hub-static-v9';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v9';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -64,7 +64,7 @@ self.addEventListener('fetch', event => {
   // would hand a stale sheet back on the next tap and waste the runtime cache.
   if (requestUrl.pathname.startsWith('/admin')
       || requestUrl.pathname.startsWith('/static/uploads/')
-      || requestUrl.pathname.endsWith('/next-steps')) {
+      || requestUrl.pathname.indexOf('/next-steps') !== -1) {
     return;
   }
 

@@ -817,70 +817,48 @@ def save_document_upload(field):
         app.logger.error(f"save_document_upload error ({field}): {e}")
         return None, None
 
-def normalize_text_lines(text):
-    lines = []
-    for raw_line in (text or '').replace('\r', '\n').split('\n'):
-        line = re.sub(r'\s+', ' ', raw_line).strip()
-        if line:
-            lines.append(line)
-    return lines
+PDF_MAX_PAGES = 50
 
-def extract_docx_paragraphs(abs_path):
-    try:
-        with zipfile.ZipFile(abs_path) as docx:
-            xml_data = docx.read('word/document.xml')
-        root = ET.fromstring(xml_data)
-        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-        paragraphs = []
-        for paragraph in root.findall('.//w:p', ns):
-            runs = _docx_para_runs(paragraph, ns)
-            text = re.sub(r'[\n\t]+', ' ', ''.join(r[0] for r in runs)).strip()
-            if text:
-                paragraphs.append(text)
-        return paragraphs
-    except Exception as e:
-        app.logger.warning(f"extract_docx_paragraphs() error: {e}")
-        return []
+_DOCX_NS = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+_DOCX_W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
+_BULLET_MARKER_RE = re.compile(r'^[\-\*•●▪‣⁃◦]\s+')
+_NUM_MARKER_RE = re.compile(r'^(?:\d{1,3}|[ivxlcdmIVXLCDM]{1,7}|[a-zA-Z])[.)]\s+')
+# "C. S. Lewis" / "A. W. Tozer" start exactly like an "A." list marker; never treat those
+# as lists, or the initial gets eaten and the sentence turns into a bogus list item.
+_INITIALS_RE = re.compile(r'^[A-Za-z]\.\s*[A-Za-z]\.')
 
-def extract_pdf_lines(abs_path):
-    try:
-        data = open(abs_path, 'rb').read()
-        streams = re.findall(rb'stream\r?\n(.*?)\r?\nendstream', data, re.S)
-        chunks = []
-        for stream in streams:
-            payload = stream
-            try:
-                payload = zlib.decompress(stream)
-            except Exception:
-                pass
-            if b'BT' not in payload:
-                continue
-            text = payload.decode('latin-1', errors='ignore')
-            text = re.sub(r'\\\)', ')', text)
-            text = re.sub(r'\\\(', '(', text)
-            text = re.sub(r'\\n', '\n', text)
-            chunks.extend(re.findall(r'\((.*?)\)\s*Tj', text, re.S))
-            tj_groups = re.findall(r'\[(.*?)\]\s*TJ', text, re.S)
-            for group in tj_groups:
-                chunks.extend(re.findall(r'\((.*?)\)', group, re.S))
-        return normalize_text_lines('\n'.join(chunks))
-    except Exception as e:
-        app.logger.warning(f"extract_pdf_lines() error: {e}")
-        return []
+def list_marker_kind(text):
+    """('ul'|'ol', marker_char_len) when text opens with a list marker, else (None, 0)."""
+    if not text or _INITIALS_RE.match(text):
+        return None, 0
+    match = _BULLET_MARKER_RE.match(text)
+    if match:
+        return 'ul', match.end()
+    match = _NUM_MARKER_RE.match(text)
+    if match:
+        return 'ol', match.end()
+    return None, 0
 
 def sermon_title_from_filename(path):
     base = os.path.splitext(os.path.basename(path or ''))[0]
     base = re.sub(r'[_-]+', ' ', base).strip()
     return base.title() if base else 'Sermon Notes'
 
-_DOCX_W_NS = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
-_BULLET_MARKER_RE = re.compile(r'^[\-\*•●▪‣⁃◦]\s+')
-_NUM_MARKER_RE = re.compile(r'^(\d+|[a-zA-Z])[\.\)]\s+')
+# ---------------------------------------------------------------- DOCX
+
+def _docx_toggle_on(rPr, name):
+    """True when a run toggle (w:b / w:i) is present and not explicitly switched off.
+    Word and Google Docs both emit <w:b w:val="0"/> to *cancel* inherited bold."""
+    if rPr is None:
+        return False
+    el = rPr.find('w:' + name, _DOCX_NS)
+    if el is None:
+        return False
+    val = (el.get(_DOCX_W + 'val') or '').strip().lower()
+    return val not in ('0', 'false', 'off')
 
 def _docx_numbering_kinds(docx_zip):
     """Map numId -> 'ul'/'ol' by reading numbering.xml's level-0 numFmt. Best-effort."""
-    ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-    W = _DOCX_W_NS
     try:
         xml_data = docx_zip.read('word/numbering.xml')
     except KeyError:
@@ -888,54 +866,127 @@ def _docx_numbering_kinds(docx_zip):
     try:
         root = ET.fromstring(xml_data)
         abstract_fmt = {}
-        for abstract_num in root.findall('w:abstractNum', ns):
-            abs_id = abstract_num.get(W + 'abstractNumId')
-            for lvl in abstract_num.findall('w:lvl', ns):
-                if lvl.get(W + 'ilvl') == '0':
-                    num_fmt_el = lvl.find('w:numFmt', ns)
+        for abstract_num in root.findall('w:abstractNum', _DOCX_NS):
+            abs_id = abstract_num.get(_DOCX_W + 'abstractNumId')
+            for lvl in abstract_num.findall('w:lvl', _DOCX_NS):
+                if lvl.get(_DOCX_W + 'ilvl') == '0':
+                    num_fmt_el = lvl.find('w:numFmt', _DOCX_NS)
                     if num_fmt_el is not None:
-                        abstract_fmt[abs_id] = num_fmt_el.get(W + 'val')
+                        abstract_fmt[abs_id] = num_fmt_el.get(_DOCX_W + 'val')
                     break
         num_kinds = {}
-        for num in root.findall('w:num', ns):
-            num_id = num.get(W + 'numId')
-            abstract_id_el = num.find('w:abstractNumId', ns)
+        for num in root.findall('w:num', _DOCX_NS):
+            num_id = num.get(_DOCX_W + 'numId')
+            abstract_id_el = num.find('w:abstractNumId', _DOCX_NS)
             if abstract_id_el is not None:
-                fmt = abstract_fmt.get(abstract_id_el.get(W + 'val'), 'bullet')
+                fmt = abstract_fmt.get(abstract_id_el.get(_DOCX_W + 'val'), 'bullet')
                 num_kinds[num_id] = 'ul' if fmt in ('bullet', 'none') else 'ol'
         return num_kinds
     except Exception:
         return {}
 
-def _docx_para_runs(para, ns):
-    """Return [raw_text, is_bold, is_italic] per run, expanding w:br to '\\n' and w:tab to '\\t'."""
+def _docx_para_runs(para):
+    """[text, bold, italic] in document order. Walks the paragraph tree rather than only
+    its direct w:r children, so text nested in w:hyperlink (scripture links), w:ins
+    (tracked changes) or w:smartTag is not lost, and w:br is honoured wherever it sits.
+    Deleted text (w:delText) is skipped because only w:t is read."""
     runs = []
-    for run in para.findall('w:r', ns):
-        rPr = run.find('w:rPr', ns)
-        is_bold = is_italic = False
-        if rPr is not None:
-            is_bold = rPr.find('w:b', ns) is not None
-            is_italic = rPr.find('w:i', ns) is not None
-        text_parts = []
-        for child in run:
-            tag = child.tag.split('}')[-1]
-            if tag == 't' and child.text:
-                text_parts.append(child.text)
-            elif tag == 'br':
-                text_parts.append('\n')
-            elif tag == 'tab':
-                text_parts.append('\t')
-        raw_text = ''.join(text_parts)
-        if raw_text:
-            runs.append([raw_text, is_bold, is_italic])
-    return runs
 
-def _docx_runs_to_html(runs):
+    def walk(node, bold, italic):
+        for child in node:
+            tag = child.tag.split('}')[-1]
+            if tag in ('pPr', 'rPr'):
+                continue
+            if tag == 'p':
+                continue  # nested text-box paragraph; emitted as its own record
+            if tag == 'r':
+                rPr = child.find('w:rPr', _DOCX_NS)
+                walk(child, _docx_toggle_on(rPr, 'b'), _docx_toggle_on(rPr, 'i'))
+            elif tag == 't':
+                if child.text:
+                    runs.append([child.text, bold, italic])
+            elif tag == 'br':
+                runs.append(['\n', bold, italic])
+            elif tag == 'tab':
+                runs.append(['\t', bold, italic])
+            else:
+                walk(child, bold, italic)
+
+    walk(para, False, False)
+
+    merged = []
+    for text, bold, italic in runs:
+        if merged and merged[-1][1] == bold and merged[-1][2] == italic:
+            merged[-1][0] += text
+        else:
+            merged.append([text, bold, italic])
+    return merged
+
+def docx_records(abs_path):
+    """Parse a DOCX once into paragraph records, so the plain-text view (title/summary)
+    and the HTML view (body) are always derived from the same list of paragraphs."""
+    try:
+        with zipfile.ZipFile(abs_path) as docx:
+            xml_data = docx.read('word/document.xml')
+            num_kinds = _docx_numbering_kinds(docx)
+        root = ET.fromstring(xml_data)
+        records = []
+        for para in root.findall('.//w:p', _DOCX_NS):
+            pPr = para.find('w:pPr', _DOCX_NS)
+            style_val = ''
+            list_kind = None
+            if pPr is not None:
+                pStyle = pPr.find('w:pStyle', _DOCX_NS)
+                if pStyle is not None:
+                    style_val = (pStyle.get(_DOCX_W + 'val') or '').lower()
+                numPr = pPr.find('w:numPr', _DOCX_NS)
+                if numPr is not None:
+                    numId_el = numPr.find('w:numId', _DOCX_NS)
+                    num_id = numId_el.get(_DOCX_W + 'val') if numId_el is not None else None
+                    list_kind = num_kinds.get(num_id, 'ul')
+            if not list_kind and style_val.startswith('listbullet'):
+                list_kind = 'ul'
+            elif not list_kind and style_val.startswith('listnumber'):
+                list_kind = 'ol'
+
+            runs = _docx_para_runs(para)
+            if not runs:
+                continue
+
+            if not list_kind:
+                first_text = runs[0][0]
+                stripped = first_text.lstrip('\n\t ')
+                lead_len = len(first_text) - len(stripped)
+                kind, marker_len = list_marker_kind(stripped)
+                if kind:
+                    list_kind = kind
+                    runs[0][0] = first_text[:lead_len] + stripped[marker_len:]
+
+            text = re.sub(r'[\n\t]+', ' ', ''.join(r[0] for r in runs)).strip()
+            if not text:
+                continue
+            records.append({
+                'runs': runs,
+                'text': text,
+                'list_kind': list_kind,
+                'heading': style_val.startswith('heading') or style_val in ('title', 'subtitle'),
+            })
+        return records
+    except Exception as e:
+        app.logger.warning(f"docx_records() error: {e}")
+        return []
+
+def extract_docx_paragraphs(abs_path):
+    return [rec['text'] for rec in docx_records(abs_path)]
+
+def _docx_runs_to_html(runs, suppress_bold=False):
     parts = []
     for raw_text, is_bold, is_italic in runs:
         if not raw_text:
             continue
         escaped = html.escape(raw_text).replace('\n', '<br>').replace('\t', '&emsp;')
+        if suppress_bold:
+            is_bold = False
         if is_bold and is_italic:
             escaped = f'<strong><em>{escaped}</em></strong>'
         elif is_bold:
@@ -945,87 +996,42 @@ def _docx_runs_to_html(runs):
         parts.append(escaped)
     return ''.join(parts)
 
-def extract_docx_html(abs_path, skip_first=False):
-    """Extract rich HTML from a DOCX preserving bold, italic, headings, manual line
-    breaks, and bullet/numbered lists (both native Word lists and typed markers)."""
-    W = _DOCX_W_NS
-    try:
-        with zipfile.ZipFile(abs_path) as docx:
-            xml_data = docx.read('word/document.xml')
-            num_kinds = _docx_numbering_kinds(docx)
-        root = ET.fromstring(xml_data)
-        ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-        blocks = []
-        skipped = False
+def docx_records_to_html(records):
+    blocks = []
+    list_kind = None
+    list_items = []
+
+    def flush_list():
+        nonlocal list_kind, list_items
+        if list_items:
+            items_html = ''.join(f'<li>{item}</li>' for item in list_items)
+            blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
         list_kind = None
         list_items = []
 
-        def flush_list():
-            nonlocal list_kind, list_items
-            if list_items:
-                items_html = ''.join(f'<li>{item}</li>' for item in list_items)
-                blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
-            list_kind = None
-            list_items = []
-
-        for para in root.findall('.//w:p', ns):
-            pPr = para.find('w:pPr', ns)
-            style_val = ''
-            numPr_kind = None
-            if pPr is not None:
-                pStyle = pPr.find('w:pStyle', ns)
-                if pStyle is not None:
-                    style_val = (pStyle.get(W + 'val') or '').lower()
-                numPr = pPr.find('w:numPr', ns)
-                if numPr is not None:
-                    numId_el = numPr.find('w:numId', ns)
-                    num_id = numId_el.get(W + 'val') if numId_el is not None else None
-                    numPr_kind = num_kinds.get(num_id, 'ul')
-
-            runs = _docx_para_runs(para, ns)
-            if not runs:
-                continue
-            if skip_first and not skipped:
-                skipped = True
-                continue
-
-            list_item_kind = numPr_kind
-            if not list_item_kind and style_val.startswith('listbullet'):
-                list_item_kind = 'ul'
-            elif not list_item_kind and style_val.startswith('listnumber'):
-                list_item_kind = 'ol'
-            if not list_item_kind:
-                first_text = runs[0][0]
-                stripped = first_text.lstrip('\n\t ')
-                lead_len = len(first_text) - len(stripped)
-                bullet_match = _BULLET_MARKER_RE.match(stripped)
-                num_match = None if bullet_match else _NUM_MARKER_RE.match(stripped)
-                marker_match = bullet_match or num_match
-                if marker_match:
-                    list_item_kind = 'ul' if bullet_match else 'ol'
-                    runs[0][0] = first_text[:lead_len] + stripped[marker_match.end():]
-
-            para_html = _docx_runs_to_html(runs).strip()
-            if not para_html:
-                continue
-
-            if list_item_kind:
-                if list_kind and list_kind != list_item_kind:
-                    flush_list()
-                list_kind = list_item_kind
-                list_items.append(para_html)
-                continue
-
-            flush_list()
-            is_heading = style_val.startswith('heading') or style_val in ('title', 'subtitle')
-            tag = 'h2' if is_heading else 'p'
-            blocks.append(f'<{tag}>{para_html}</{tag}>')
-
+    for rec in records:
+        para_html = _docx_runs_to_html(rec['runs'], suppress_bold=rec['heading']).strip()
+        if not para_html:
+            continue
+        if rec['list_kind']:
+            if list_kind and list_kind != rec['list_kind']:
+                flush_list()
+            list_kind = rec['list_kind']
+            list_items.append(para_html)
+            continue
         flush_list()
-        return '\n'.join(blocks)
-    except Exception as e:
-        app.logger.warning(f"extract_docx_html() error: {e}")
-        return ''
+        tag = 'h2' if rec['heading'] else 'p'
+        blocks.append(f'<{tag}>{para_html}</{tag}>')
+
+    flush_list()
+    return '\n'.join(blocks)
+
+def extract_docx_html(abs_path, skip_first=False):
+    """Rich HTML from a DOCX: bold, italic, headings, manual line breaks, and lists."""
+    records = docx_records(abs_path)
+    return docx_records_to_html(records[1:] if skip_first else records)
+
+# ---------------------------------------------------------------- PDF
 
 def _pdf_cluster_words_into_lines(words, tol=2.0):
     lines = []
@@ -1049,10 +1055,7 @@ def _pdf_line_size(words):
     sizes = Counter(round(w.get('size') or 0) for w in words)
     return sizes.most_common(1)[0][0] if sizes else 0
 
-def _pdf_line_is_bold(words):
-    return bool(words) and all('bold' in (w.get('fontname') or '').lower() for w in words)
-
-def _pdf_runs_html(words):
+def _pdf_runs_html(words, suppress_bold=False):
     if not words:
         return ''
     runs = []
@@ -1060,7 +1063,7 @@ def _pdf_runs_html(words):
     current_style = None
     for w in words:
         fname = (w.get('fontname') or '').lower()
-        style = ('bold' in fname, 'italic' in fname or 'oblique' in fname)
+        style = (('bold' in fname) and not suppress_bold, 'italic' in fname or 'oblique' in fname)
         if current_style is None or style == current_style:
             current_words.append(w['text'])
             current_style = style
@@ -1082,110 +1085,141 @@ def _pdf_runs_html(words):
         parts.append(text)
     return ' '.join(parts)
 
-def extract_pdf_html(abs_path, skip_first=False):
-    """Extract rich HTML from a PDF preserving bold text, headings (by font size),
-    bullet/numbered lists, and paragraph breaks (detected from line spacing)."""
+def pdf_read_lines(abs_path, max_pages=PDF_MAX_PAGES):
+    """Positioned text lines from a PDF. Single source of truth for title and body."""
+    lines = []
     try:
-        all_lines = []
         with pdfplumber.open(abs_path) as pdf:
-            for page_index, page in enumerate(pdf.pages):
+            pages = pdf.pages
+            if len(pages) > max_pages:
+                app.logger.warning(
+                    f"pdf_read_lines: {abs_path} has {len(pages)} pages, parsing first {max_pages}")
+                pages = pages[:max_pages]
+            for page_index, page in enumerate(pages):
                 words = page.extract_words(extra_attrs=['fontname', 'size'], use_text_flow=False)
                 if not words:
                     continue
-                page_lines = _pdf_cluster_words_into_lines(words)
-                for i, line_words in enumerate(page_lines):
-                    all_lines.append({
+                for i, line_words in enumerate(_pdf_cluster_words_into_lines(words)):
+                    lines.append({
                         'words': line_words,
                         'top': line_words[0]['top'],
+                        'x0': min(w['x0'] for w in line_words),
+                        'x1': max(w['x1'] for w in line_words),
+                        'page_width': float(page.width or 0),
+                        'text': ' '.join(w['text'] for w in line_words),
                         'new_page': i == 0 and page_index > 0,
                     })
+    except Exception as e:
+        app.logger.warning(f"pdf_read_lines() error: {e}")
+        return []
+    return lines
 
-        if skip_first and all_lines:
-            all_lines = all_lines[1:]
-        if not all_lines:
-            return ''
+def _pdf_layout_metrics(lines):
+    """Body font size, modal line leading, and the left/right edges of the text block."""
+    size_counter = Counter()
+    for line in lines:
+        for w in line['words']:
+            size_counter[round(w.get('size') or 0)] += 1
+    body_size = size_counter.most_common(1)[0][0] if size_counter else 12
+    body_lines = [l for l in lines if _pdf_line_size(l['words']) == body_size]
 
-        size_counter = Counter()
-        for line in all_lines:
-            for w in line['words']:
-                size_counter[round(w.get('size') or 0)] += 1
-        body_size = size_counter.most_common(1)[0][0] if size_counter else 12
+    gap_counter = Counter()
+    prev = None
+    for line in lines:
+        if (prev is not None and not line['new_page']
+                and _pdf_line_size(prev['words']) == body_size
+                and _pdf_line_size(line['words']) == body_size):
+            gap = round(line['top'] - prev['top'])
+            if gap > 0:
+                gap_counter[gap] += 1
+        prev = line
+    leading = gap_counter.most_common(1)[0][0] if gap_counter else max(body_size * 1.6, 1)
 
-        gaps = []
-        prev = None
-        for line in all_lines:
-            if prev is not None and not line['new_page']:
-                if _pdf_line_size(prev['words']) == body_size and _pdf_line_size(line['words']) == body_size:
-                    gap = line['top'] - prev['top']
-                    if gap > 0:
-                        gaps.append(gap)
-            prev = line
-        gaps.sort()
-        base_gap = gaps[len(gaps) // 2] if gaps else None
-        para_break_gap = base_gap * 1.3 if base_gap else 0
+    left_edge = min((l['x0'] for l in body_lines), default=0)
+    # Assume symmetric margins to locate the true right margin. Using the widest observed
+    # line instead would be circular: in notes where no line reaches the margin (an outline
+    # of short points) the longest point *defines* the edge, so every line looks "full" and
+    # the whole document collapses into one paragraph.
+    page_width = max((l.get('page_width') or 0) for l in lines) if lines else 0
+    observed_right = max((l['x1'] for l in body_lines), default=0)
+    right_edge = max(observed_right, page_width - left_edge) if page_width else observed_right
+    return body_size, leading, left_edge, right_edge
 
-        blocks = []
+def pdf_lines_to_html(lines):
+    """Rich HTML from positioned PDF lines: bold runs, size-based headings, lists, paragraphs."""
+    if not lines:
+        return ''
+    body_size, leading, left_edge, right_edge = _pdf_layout_metrics(lines)
+    # A wrapped line runs out to the right margin; the last line of a paragraph stops short.
+    # Spacing alone cannot separate one-line paragraphs, which all share the same gap.
+    # Ragged-right wrapping leaves up to a long word unused, so allow ~15% of the measure:
+    # across sample notes, wrapped lines fell short by <=53pt and real paragraph ends by
+    # >=151pt, so the threshold sits in open space between the two populations.
+    measure = max(right_edge - left_edge, 1)
+    fill_tol = max(measure * 0.15, body_size * 2.5)
+
+    blocks = []
+    list_kind = None
+    list_items = []
+    para_words = []
+    prev_line = None
+
+    def flush_list():
+        nonlocal list_kind, list_items
+        if list_items:
+            items_html = ''.join(f'<li>{item}</li>' for item in list_items)
+            blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
         list_kind = None
         list_items = []
+
+    def flush_para():
+        nonlocal para_words
+        if para_words:
+            blocks.append(f'<p>{_pdf_runs_html(para_words)}</p>')
         para_words = []
-        prev_line = None
 
-        def flush_list():
-            nonlocal list_kind, list_items
-            if list_items:
-                items_html = ''.join(f'<li>{item}</li>' for item in list_items)
-                blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
-            list_kind = None
-            list_items = []
+    for line in lines:
+        words = line['words']
+        size = _pdf_line_size(words)
 
-        def flush_para():
-            nonlocal para_words
-            if para_words:
-                blocks.append(f'<p>{_pdf_runs_html(para_words)}</p>')
-            para_words = []
-
-        for line in all_lines:
-            words = line['words']
-            text = ' '.join(w['text'] for w in words)
-            size = _pdf_line_size(words)
-            is_heading = size >= body_size * 1.15 and len(text) <= 90
-
-            bullet_match = words and _BULLET_MARKER_RE.match(words[0]['text'] + ' ')
-            num_match = None if bullet_match else (words and _NUM_MARKER_RE.match(words[0]['text'] + ' '))
-
-            if is_heading:
-                flush_list()
-                flush_para()
-                tag = 'h2' if size >= body_size * 1.4 else 'h3'
-                blocks.append(f'<{tag}>{_pdf_runs_html(words)}</{tag}>')
-                prev_line = line
-                continue
-
-            if bullet_match or num_match:
-                flush_para()
-                kind = 'ol' if num_match else 'ul'
-                if list_kind and list_kind != kind:
-                    flush_list()
-                list_kind = kind
-                list_items.append(_pdf_runs_html(words[1:]))
-                prev_line = line
-                continue
-
+        if size >= body_size * 1.15 and len(line['text']) <= 90:
             flush_list()
-            gap = (line['top'] - prev_line['top']) if (prev_line and not line['new_page']) else None
-            if para_words and gap is not None and gap <= para_break_gap:
-                para_words.extend(words)
-            else:
-                flush_para()
-                para_words.extend(words)
+            flush_para()
+            tag = 'h2' if size >= body_size * 1.4 else 'h3'
+            blocks.append(f'<{tag}>{_pdf_runs_html(words, suppress_bold=True)}</{tag}>')
             prev_line = line
+            continue
+
+        kind, marker_len = list_marker_kind(line['text'])
+        if kind:
+            flush_para()
+            if list_kind and list_kind != kind:
+                flush_list()
+            list_kind = kind
+            item_words = words[1:] if len(words[0]['text']) < marker_len else words
+            list_items.append(_pdf_runs_html(item_words))
+            prev_line = line
+            continue
 
         flush_list()
-        flush_para()
-        return '\n'.join(blocks)
-    except Exception as e:
-        app.logger.warning(f"extract_pdf_html() error: {e}")
-        return ''
+        continues_para = (
+            bool(para_words) and prev_line is not None and not line['new_page']
+            and (line['top'] - prev_line['top']) <= leading * 1.35
+            and prev_line['x1'] >= right_edge - fill_tol
+            and line['x0'] <= left_edge + body_size
+        )
+        if not continues_para:
+            flush_para()
+        para_words.extend(words)
+        prev_line = line
+
+    flush_list()
+    flush_para()
+    return '\n'.join(blocks)
+
+def extract_pdf_html(abs_path, skip_first=False):
+    lines = pdf_read_lines(abs_path)
+    return pdf_lines_to_html(lines[1:] if skip_first else lines)
 
 RICH_TEXT_TAGS = ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote']
 _RICH_TEXT_TAG_RE = re.compile(r'<(' + '|'.join(RICH_TEXT_TAGS) + r')[ >/]', re.I)
@@ -1208,37 +1242,30 @@ def richtext_filter(raw):
 def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
     abs_path = os.path.join(BASE_DIR, 'static', path_rel)
     title = fallback_title.strip() if fallback_title else ''
+    # Both branches parse the document once and derive the title, the summary and the
+    # body from that same parse, so the title can never be taken from one extractor
+    # while the body comes from another.
     if ext == 'docx':
-        plain_lines = [l.strip() for l in extract_docx_paragraphs(abs_path) if l.strip()]
-        skip_first = False
-        if not title and plain_lines:
-            title = plain_lines[0][:120].strip()
-            plain_lines = plain_lines[1:]
-            skip_first = True
-        if not title:
-            title = sermon_title_from_filename(path_rel)
-        if not summary:
-            source_line = next((l for l in plain_lines if len(l.split()) > 6), '')
-            summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
-        body_html = extract_docx_html(abs_path, skip_first=skip_first)
-        if not body_html and plain_lines:
-            body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in plain_lines)
+        units = docx_records(abs_path)
+        plain_lines = [rec['text'] for rec in units]
+        to_html = docx_records_to_html
     else:
-        lines = extract_pdf_lines(abs_path)
-        lines = normalize_text_lines('\n'.join(lines))
-        skip_first = False
-        if not title and lines:
-            title = lines[0][:120].strip()
-            lines = lines[1:] if len(lines) > 1 else lines
-            skip_first = True
-        if not title:
-            title = sermon_title_from_filename(path_rel)
-        if not summary:
-            source_line = next((l for l in lines if len(l.split()) > 6), '')
-            summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
-        body_html = extract_pdf_html(abs_path, skip_first=skip_first)
-        if not body_html and lines:
-            body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in lines)
+        units = pdf_read_lines(abs_path)
+        plain_lines = [line['text'] for line in units]
+        to_html = pdf_lines_to_html
+
+    if not title and plain_lines:
+        title = plain_lines[0][:120].strip()
+        units = units[1:]
+        plain_lines = plain_lines[1:]
+    if not title:
+        title = sermon_title_from_filename(path_rel)
+    if not summary:
+        source_line = next((l for l in plain_lines if len(l.split()) > 6), '')
+        summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
+    body_html = to_html(units)
+    if not body_html and plain_lines:
+        body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in plain_lines)
     return {
         'title': title,
         'summary': summary,

@@ -2168,14 +2168,7 @@ def feedback():
             conn.execute("INSERT INTO app_feedback (submitted_at,full_name,rating,message) VALUES (?,?,?,?)",
                 (datetime.now().strftime('%Y-%m-%d %H:%M'),fn,rating,msg))
             conn.commit(); conn.close()
-            stars=('★'*rating+'☆'*(5-rating)) if rating else 'No rating'
-            html=f"""<html><body style="font-family:Arial;color:#333;line-height:1.7">
-            <div style="background:#13677A;padding:20px;text-align:center"><h1 style="color:white;margin:0">App Feedback</h1></div>
-            <div style="padding:24px;border:1px solid #ddd;border-top:none">
-            <p><b>Name:</b> {fn or '—'}<br><b>Rating:</b> <span style="color:#F2541B;font-size:1.2em">{stars}</span></p>
-            <hr><h3 style="color:#13677A">Feedback</h3>
-            <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{msg or '—'}</p></div></body></html>"""
-            send_email(f"App Feedback: {stars}",get_setting('contact_email','Oasis@OasisNJ.net'),html)
+            # No email notification — app feedback/ratings stay in the admin panel only.
         sent=True
     return render_template('feedback.html',sent=sent,settings=all_settings())
 

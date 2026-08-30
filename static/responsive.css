@@ -1,0 +1,44 @@
+/* Oasis Hub — tablet and desktop layout.
+
+   The page templates are phone-first: every one of them hardcodes a 390px
+   content column and ships no breakpoints of its own, so on an iPad the whole
+   app rendered as a narrow strip down the middle of a large screen. This file
+   widens that column and lets the card grids use the extra room.
+
+   Everything is scoped under `body` purely for specificity. Each template's
+   inline <style> block comes AFTER this stylesheet in the head, so a bare
+   `.shell` rule here would lose the cascade to the template's own `.shell`;
+   `body .shell` (0,1,1) beats `.shell` (0,1,0) regardless of order. Keep that
+   prefix on any rule added here, and avoid !important. */
+
+/* iPad portrait (768pt) and up — also covers large phones in landscape. */
+@media (min-width: 700px) {
+  /* The main content column, present in every public page. */
+  body .shell { max-width: 640px; }
+
+  /* Two-column card grids get a third column rather than three very wide
+     cards: .grid (hub, watch sermon, leadership, hub card group),
+     .row2 (connect, contact, prayer), .groups (behind the scene),
+     .members (behind the scene detail). */
+  body .grid,
+  body .row2,
+  body .groups,
+  body .members { grid-template-columns: repeat(3, 1fr); }
+
+  /* Fixed bottom bars stay a comfortable floating width instead of stretching
+     the full content column: .tabbar (hub), .cta-bar (serve). */
+  body .tabbar,
+  body .cta-bar { max-width: 460px; }
+
+  /* Bottom sheets (.modal-sheet on hub, .ns-sheet on sermon note detail) and
+     centered dialogs (.sheet on beliefs, values, ministries, leadership,
+     behind the scene detail). */
+  body .modal-sheet,
+  body .ns-sheet { max-width: 520px; }
+  body .sheet { max-width: 460px; }
+}
+
+/* iPad landscape (1024pt) and up. */
+@media (min-width: 1024px) {
+  body .shell { max-width: 760px; }
+}

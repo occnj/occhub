@@ -6,7 +6,6 @@
   "start_url": "/hub",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#F5F5F7",
   "theme_color": "#13677A",
   "categories": ["lifestyle", "productivity", "utilities"],

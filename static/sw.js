@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v9';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v9';
+const STATIC_CACHE = 'oasis-hub-static-v10';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v10';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -11,7 +11,7 @@ const PRECACHE = [
   '/about',
   '/social',
   '/manifest.json',
-  '/static/reveal.js?v=2',
+  '/static/reveal.js?v=3',
   '/static/transitions.css?v=1',
   '/static/apple-touch-icon.png',
   '/static/icon-192x192.png',
@@ -26,14 +26,14 @@ const PRECACHE = [
 self.addEventListener('install', event => {
   // Precache requests carry X-SW-Precache so the server's analytics tracker
   // (member.py track()) can tell them apart from real page visits.
+  // One unreachable URL must not abort the whole install, or the worker never
+  // updates and the device stays pinned to the previously cached assets.
   event.waitUntil(
     caches.open(STATIC_CACHE).then(cache =>
       Promise.all(PRECACHE.map(url =>
         fetch(new Request(url, { headers: { 'X-SW-Precache': '1' } }))
-          .then(response => {
-            if (!response.ok) throw new Error('Precache failed for ' + url);
-            return cache.put(url, response);
-          })
+          .then(response => (response.ok ? cache.put(url, response) : null))
+          .catch(() => null)
       ))
     ).then(() => self.skipWaiting())
   );
@@ -78,7 +78,22 @@ self.addEventListener('fetch', event => {
         })
         .catch(async () => {
           const cachedPage = await caches.match(event.request);
-          return cachedPage || caches.match(OFFLINE_URL);
+          if (cachedPage) return cachedPage;
+          const offline = await caches.match(OFFLINE_URL);
+          if (offline) return offline;
+          // Resolving with undefined here aborts the navigation and leaves a
+          // blank window, so always hand back a real page.
+          return new Response(
+            '<!doctype html><meta charset="utf-8">'
+            + '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            + '<title>Oasis Hub</title>'
+            + '<body style="font-family:-apple-system,sans-serif;background:#F6EFE4;'
+            + 'color:#1d1d1f;display:flex;align-items:center;justify-content:center;'
+            + 'height:100vh;margin:0;text-align:center;padding:24px">'
+            + '<div><p>You are offline.</p>'
+            + '<p><a href="/hub" style="color:#13677A">Try again</a></p></div>',
+            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
         })
     );
     return;

@@ -4,8 +4,8 @@
 {% block page_sub %}The card shown under Today's Message on the Hub — tapping it opens the full details{% endblock %}
 
 {% block content %}
-<form method="POST" enctype="multipart/form-data">
-  <div style="display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:24px;align-items:start;">
+<form method="POST">
+  <div style="max-width:560px;">
     <div class="card">
       <div class="card-header"><div class="card-title"><i class="bi bi-people-fill"></i> Card Content</div></div>
       <div class="card-body">
@@ -21,7 +21,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Description</label>
-          <textarea name="get_involved_body" class="form-control" style="min-height:180px;" placeholder="Describe the event or opportunity. The first line shows on the card; the full text shows when it's tapped.">{{ settings.get('get_involved_body', '') }}</textarea>
+          <textarea name="get_involved_body" class="form-control" style="min-height:180px;" placeholder="Describe the event or opportunity. Shown in the popup when the card is tapped.">{{ settings.get('get_involved_body', '') }}</textarea>
         </div>
         <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;">
           <div class="form-group">
@@ -36,27 +36,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header"><div class="card-title"><i class="bi bi-image-fill"></i> Card Image</div></div>
-      <div class="card-body">
-        {% if settings.get('get_involved_image') %}
-        <img src="/static/{{ settings.get('get_involved_image') }}" alt="Get Involved" style="width:100%;border-radius:18px;display:block;margin-bottom:14px;">
-        <div class="form-group">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.85rem;text-transform:none;letter-spacing:0;">
-            <input type="checkbox" name="remove_get_involved_image" value="1" style="accent-color:#13677A;width:16px;height:16px;">
-            Remove current image
-          </label>
-        </div>
-        {% endif %}
-        <div class="form-group">
-          <label class="form-label">Upload Image</label>
-          <input type="file" name="get_involved_image_file" class="form-control" accept=".png,.jpg,.jpeg,.webp,.gif,.heic,.heif">
-        </div>
-        <div style="font-size:0.8rem;color:#6e6e73;line-height:1.7;">
-          Shown on the right side of the Hub card and at the top of the details popup. Without an image, the card shows a people icon.
-        </div>
-      </div>
-    </div>
   </div>
 
   <div style="position:sticky;bottom:16px;margin-top:20px;">

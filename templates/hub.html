@@ -135,21 +135,51 @@
             flex-shrink: 0;
         }
 
-        .involved-snippet {
+        /* Get Involved card */
+        .involved-card {
+            background: var(--orange);
+            justify-content: center;
+            container-type: inline-size;
+        }
+        .involved-watermark {
+            position: absolute;
+            top: 8px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: white;
+            opacity: 0.25;
+            font-size: 2.2rem;
+            font-size: 11cqw;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            line-height: 1;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .involved-title {
+            position: relative;
+            z-index: 2;
+            padding: 30px 48px 18px;
+            text-align: center;
+            color: white;
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.3;
             display: -webkit-box;
-            -webkit-line-clamp: 1;
+            -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .involved-icon {
-            width: 90px;
-            align-self: stretch;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: rgba(255,255,255,0.45);
-            font-size: 2.2rem;
-            flex-shrink: 0;
+        .involved-arrow {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 1.3rem;
+            z-index: 2;
         }
         #get-involved-overlay .notice-copy { white-space: pre-line; }
 
@@ -459,17 +489,10 @@
     </a>
 
     {% if get_involved.enabled and (get_involved.title or get_involved.body) %}
-    <a href="#" class="sermon-card" role="button" onclick="openGetInvolved(event)">
-        <div class="sermon-text">
-            <div class="sermon-badge">Get Involved</div>
-            <div class="sermon-title">{{ get_involved.title or 'Get Involved' }}</div>
-            <div class="sermon-date involved-snippet">{{ get_involved.body.split('\n')[0] if get_involved.body else 'Tap to learn more →' }}</div>
-        </div>
-        {% if get_involved.image %}
-        <img src="/static/{{ get_involved.image }}" class="sermon-img" alt="">
-        {% else %}
-        <div class="involved-icon"><i class="bi bi-people-fill"></i></div>
-        {% endif %}
+    <a href="#" class="sermon-card involved-card" role="button" onclick="openGetInvolved(event)">
+        <div class="involved-watermark" aria-hidden="true">GET INVOLVED</div>
+        <div class="involved-title">{{ get_involved.title or 'Get Involved' }}</div>
+        <i class="bi bi-arrow-right involved-arrow"></i>
     </a>
     {% endif %}
 
@@ -525,9 +548,6 @@
 {% if get_involved.enabled and (get_involved.title or get_involved.body) %}
 <div id="get-involved-overlay" class="notice-overlay" onclick="if(event.target===this)closeGetInvolved()">
   <div class="notice-card">
-    {% if get_involved.image %}
-    <img src="/static/{{ get_involved.image }}" alt="{{ get_involved.title or 'Get Involved' }}" class="notice-image">
-    {% endif %}
     <div class="notice-body">
       <div class="notice-kicker">Get Involved</div>
       <div class="notice-title">{{ get_involved.title or 'Get Involved' }}</div>

@@ -173,7 +173,6 @@ def init_db():
         ('get_involved_body',''),
         ('get_involved_link',''),
         ('get_involved_link_label','Sign Up'),
-        ('get_involved_image',''),
         ('primary_cta_enabled','1'),
         ('primary_cta_label','Give'),
         ('primary_cta_icon','bi-heart-fill'),
@@ -1661,7 +1660,6 @@ def get_get_involved(settings=None):
         'body': (settings.get('get_involved_body') or '').strip(),
         'link': (settings.get('get_involved_link') or '').strip(),
         'link_label': (settings.get('get_involved_link_label') or 'Sign Up').strip() or 'Sign Up',
-        'image': (settings.get('get_involved_image') or '').strip(),
     }
 
 def get_hub_cards(conn, parent_id=None):
@@ -2687,11 +2685,6 @@ def admin_get_involved():
         }
         for key, value in values.items():
             conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", (key, value))
-        if request.form.get('remove_get_involved_image'):
-            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('get_involved_image','')")
-        image = save_upload('get_involved_image_file')
-        if image:
-            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('get_involved_image',?)", (image,))
         conn.commit()
         conn.close()
         flash('Get Involved card updated!', 'success')

@@ -168,6 +168,12 @@ def init_db():
         ('hub_notice_link',''),
         ('hub_notice_link_label','Learn More'),
         ('hub_notice_image',''),
+        ('get_involved_enabled','0'),
+        ('get_involved_title',''),
+        ('get_involved_body',''),
+        ('get_involved_link',''),
+        ('get_involved_link_label','Sign Up'),
+        ('get_involved_image',''),
         ('primary_cta_enabled','1'),
         ('primary_cta_label','Give'),
         ('primary_cta_icon','bi-heart-fill'),
@@ -1647,6 +1653,17 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
+def get_get_involved(settings=None):
+    settings = settings or all_settings()
+    return {
+        'enabled': (settings.get('get_involved_enabled') or '0') == '1',
+        'title': (settings.get('get_involved_title') or '').strip(),
+        'body': (settings.get('get_involved_body') or '').strip(),
+        'link': (settings.get('get_involved_link') or '').strip(),
+        'link_label': (settings.get('get_involved_link_label') or 'Sign Up').strip() or 'Sign Up',
+        'image': (settings.get('get_involved_image') or '').strip(),
+    }
+
 def get_hub_cards(conn, parent_id=None):
     if parent_id is None:
         return conn.execute(
@@ -1840,6 +1857,7 @@ def hub():
         date=datetime.now().strftime("%b %d, %Y").upper(),
         settings=settings,
         hub_notice=get_hub_notice(settings),
+        get_involved=get_get_involved(settings),
         latest_note=latest_note,
         hub_cards=hub_cards,
     )
@@ -2654,6 +2672,31 @@ def admin_hub_notice():
         flash('Hub notice updated!', 'success')
         return redirect(url_for('admin_hub_notice'))
     return render_template('admin/hub_notice.html', settings=all_settings())
+
+@app.route('/admin/get-involved', methods=['GET', 'POST'])
+@login_required
+def admin_get_involved():
+    if request.method == 'POST':
+        conn = get_db()
+        values = {
+            'get_involved_enabled': '1' if request.form.get('get_involved_enabled') else '0',
+            'get_involved_title': request.form.get('get_involved_title', '').strip(),
+            'get_involved_body': request.form.get('get_involved_body', '').strip(),
+            'get_involved_link': request.form.get('get_involved_link', '').strip(),
+            'get_involved_link_label': request.form.get('get_involved_link_label', '').strip() or 'Sign Up',
+        }
+        for key, value in values.items():
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", (key, value))
+        if request.form.get('remove_get_involved_image'):
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('get_involved_image','')")
+        image = save_upload('get_involved_image_file')
+        if image:
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('get_involved_image',?)", (image,))
+        conn.commit()
+        conn.close()
+        flash('Get Involved card updated!', 'success')
+        return redirect(url_for('admin_get_involved'))
+    return render_template('admin/get_involved.html', settings=all_settings())
 
 @app.route('/admin/missions')
 @login_required

@@ -434,6 +434,9 @@
         <a href="{{ url_for('admin_hub_notice') }}" class="nav-item {% if request.endpoint == 'admin_hub_notice' %}active{% endif %}">
             <i class="bi bi-bell-fill"></i> Hub Notice
         </a>
+        <a href="{{ url_for('admin_get_involved') }}" class="nav-item {% if request.endpoint == 'admin_get_involved' %}active{% endif %}">
+            <i class="bi bi-people-fill"></i> Get Involved
+        </a>
         {% if session.get('admin_role') == 'superadmin' %}
         <a href="{{ url_for('admin_users') }}" class="nav-item {% if 'user' in request.endpoint %}active{% endif %}">
             <i class="bi bi-people-fill"></i> Users

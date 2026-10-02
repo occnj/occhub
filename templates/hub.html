@@ -135,6 +135,24 @@
             flex-shrink: 0;
         }
 
+        .involved-snippet {
+            display: -webkit-box;
+            -webkit-line-clamp: 1;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .involved-icon {
+            width: 90px;
+            align-self: stretch;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,255,255,0.45);
+            font-size: 2.2rem;
+            flex-shrink: 0;
+        }
+        #get-involved-overlay .notice-copy { white-space: pre-line; }
+
         .sermon-chevron {
             position: absolute;
             right: 16px;
@@ -440,6 +458,21 @@
         <img src="/static/sermon.png" class="sermon-img" alt="">
     </a>
 
+    {% if get_involved.enabled and (get_involved.title or get_involved.body) %}
+    <a href="#" class="sermon-card" role="button" onclick="openGetInvolved(event)">
+        <div class="sermon-text">
+            <div class="sermon-badge">Get Involved</div>
+            <div class="sermon-title">{{ get_involved.title or 'Get Involved' }}</div>
+            <div class="sermon-date involved-snippet">{{ get_involved.body.split('\n')[0] if get_involved.body else 'Tap to learn more →' }}</div>
+        </div>
+        {% if get_involved.image %}
+        <img src="/static/{{ get_involved.image }}" class="sermon-img" alt="">
+        {% else %}
+        <div class="involved-icon"><i class="bi bi-people-fill"></i></div>
+        {% endif %}
+    </a>
+    {% endif %}
+
     <div class="section-label">Quick Access</div>
     <div class="grid">
         {% for card in hub_cards %}
@@ -483,6 +516,29 @@
         <a href="{{ hub_notice.link }}" class="notice-btn" {% if hub_notice.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ hub_notice.link_label }}</a>
         {% endif %}
         <button type="button" class="notice-close" onclick="closeHubNotice()">{{ 'Close' if hub_notice.link else 'Got it' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if get_involved.enabled and (get_involved.title or get_involved.body) %}
+<div id="get-involved-overlay" class="notice-overlay" onclick="if(event.target===this)closeGetInvolved()">
+  <div class="notice-card">
+    {% if get_involved.image %}
+    <img src="/static/{{ get_involved.image }}" alt="{{ get_involved.title or 'Get Involved' }}" class="notice-image">
+    {% endif %}
+    <div class="notice-body">
+      <div class="notice-kicker">Get Involved</div>
+      <div class="notice-title">{{ get_involved.title or 'Get Involved' }}</div>
+      {% if get_involved.body %}
+      <div class="notice-copy">{{ get_involved.body }}</div>
+      {% endif %}
+      <div class="notice-actions">
+        {% if get_involved.link %}
+        <a href="{{ get_involved.link }}" class="notice-btn" {% if get_involved.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %} onclick="closeGetInvolved()">{{ get_involved.link_label }}</a>
+        {% endif %}
+        <button type="button" class="notice-close" onclick="closeGetInvolved()">Close</button>
       </div>
     </div>
   </div>
@@ -814,6 +870,15 @@ function closeCardNotice(navigate) {
             window.location.href = overlay._dest;
         }
     }
+}
+function openGetInvolved(e) {
+  if (e) e.preventDefault();
+  const overlay = document.getElementById('get-involved-overlay');
+  if (overlay) overlay.classList.add('open');
+}
+function closeGetInvolved() {
+  const overlay = document.getElementById('get-involved-overlay');
+  if (overlay) overlay.classList.remove('open');
 }
 function closeHubNotice() {
   const modal = document.getElementById('hub-notice');

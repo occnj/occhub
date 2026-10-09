@@ -41,6 +41,20 @@
     </div>
 
     <div class="card">
+      <div class="card-header"><div class="card-title"><i class="bi bi-grid-1x2-fill"></i> Hub Card Colors</div></div>
+      <div class="card-body">
+        {% for group, fields in hub_color_groups %}
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#6e6e73;margin:{{ '0' if loop.first else '18px' }} 0 10px;">{{ group }}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;">
+          {% for key, label, _, _ in fields %}
+          <div class="form-group" style="margin-bottom:0;"><label class="form-label">{{ label }}</label><input type="color" name="{{ key }}" class="form-control" value="{{ hub_colors[key] }}" style="height:48px;padding:6px;"></div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-header"><div class="card-title"><i class="bi bi-building"></i> Church Info</div></div>
       <div class="card-body">
         <div class="form-group"><label class="form-label">Site Name</label><input type="text" name="site_name" class="form-control" value="{{ settings.site_name }}"></div>

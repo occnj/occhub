@@ -173,6 +173,8 @@ def init_db():
         ('get_involved_body',''),
         ('get_involved_link',''),
         ('get_involved_link_label','Sign Up'),
+        ('get_involved_icon','bi-people-fill'),
+        ('get_involved_layout','row'),
         ('primary_cta_enabled','1'),
         ('primary_cta_label','Give'),
         ('primary_cta_icon','bi-heart-fill'),
@@ -188,6 +190,13 @@ def init_db():
             "INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
             (f'sermon_video_{slot}_url', '')
         )
+    for slot in range(2, GET_INVOLVED_SLOTS + 1):
+        for field, default in (('enabled', '0'), ('title', ''), ('body', ''), ('link', ''),
+                               ('link_label', 'Sign Up'), ('icon', 'bi-people-fill')):
+            c.execute(
+                "INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
+                (get_involved_key(slot, field), default)
+            )
 
     c.execute('''CREATE TABLE IF NOT EXISTS leaders (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -1652,15 +1661,30 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
+GET_INVOLVED_SLOTS = 3
+
+def get_involved_key(slot, field):
+    # Slot 1 keeps the original single-card keys so existing content carries over.
+    return f'get_involved_{field}' if slot == 1 else f'get_involved{slot}_{field}'
+
 def get_get_involved(settings=None):
     settings = settings or all_settings()
-    return {
-        'enabled': (settings.get('get_involved_enabled') or '0') == '1',
-        'title': (settings.get('get_involved_title') or '').strip(),
-        'body': (settings.get('get_involved_body') or '').strip(),
-        'link': (settings.get('get_involved_link') or '').strip(),
-        'link_label': (settings.get('get_involved_link_label') or 'Sign Up').strip() or 'Sign Up',
-    }
+    cards = []
+    for slot in range(1, GET_INVOLVED_SLOTS + 1):
+        val = lambda field, default='': (settings.get(get_involved_key(slot, field)) or default).strip() or default
+        card = {
+            'slot': slot,
+            'enabled': val('enabled', '0') == '1',
+            'title': val('title'),
+            'body': val('body'),
+            'link': val('link'),
+            'link_label': val('link_label', 'Sign Up'),
+            'icon': val('icon', 'bi-people-fill'),
+        }
+        if card['enabled'] and (card['title'] or card['body']):
+            cards.append(card)
+    layout = settings.get('get_involved_layout') or 'row'
+    return {'cards': cards, 'layout': layout if layout in ('row', 'stack') else 'row'}
 
 def get_hub_cards(conn, parent_id=None):
     if parent_id is None:
@@ -2676,20 +2700,23 @@ def admin_hub_notice():
 def admin_get_involved():
     if request.method == 'POST':
         conn = get_db()
-        values = {
-            'get_involved_enabled': '1' if request.form.get('get_involved_enabled') else '0',
-            'get_involved_title': request.form.get('get_involved_title', '').strip(),
-            'get_involved_body': request.form.get('get_involved_body', '').strip(),
-            'get_involved_link': request.form.get('get_involved_link', '').strip(),
-            'get_involved_link_label': request.form.get('get_involved_link_label', '').strip() or 'Sign Up',
-        }
+        values = {'get_involved_layout': 'stack' if request.form.get('get_involved_layout') == 'stack' else 'row'}
+        for slot in range(1, GET_INVOLVED_SLOTS + 1):
+            form = lambda field: request.form.get(get_involved_key(slot, field), '').strip()
+            values[get_involved_key(slot, 'enabled')] = '1' if form('enabled') else '0'
+            values[get_involved_key(slot, 'title')] = form('title')
+            values[get_involved_key(slot, 'body')] = form('body')
+            values[get_involved_key(slot, 'link')] = form('link')
+            values[get_involved_key(slot, 'link_label')] = form('link_label') or 'Sign Up'
+            values[get_involved_key(slot, 'icon')] = form('icon') or 'bi-people-fill'
         for key, value in values.items():
             conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", (key, value))
         conn.commit()
         conn.close()
-        flash('Get Involved card updated!', 'success')
+        flash('Get Involved cards updated!', 'success')
         return redirect(url_for('admin_get_involved'))
-    return render_template('admin/get_involved.html', settings=all_settings())
+    return render_template('admin/get_involved.html', settings=all_settings(),
+                           slots=range(1, GET_INVOLVED_SLOTS + 1), gi_key=get_involved_key)
 
 @app.route('/admin/missions')
 @login_required

@@ -1,41 +1,62 @@
 {% extends "admin/base.html" %}
 {% block title %}Get Involved{% endblock %}
 {% block page_title %}Get Involved{% endblock %}
-{% block page_sub %}The card shown under Today's Message on the Hub — tapping it opens the full details{% endblock %}
+{% block page_sub %}Up to three cards shown under Today's Message on the Hub — turn each one on or off on its own{% endblock %}
 
 {% block content %}
 <form method="POST">
   <div style="max-width:560px;">
     <div class="card">
-      <div class="card-header"><div class="card-title"><i class="bi bi-people-fill"></i> Card Content</div></div>
+      <div class="card-header"><div class="card-title"><i class="bi bi-layout-three-columns"></i> Layout</div></div>
       <div class="card-body">
-        <div class="form-group">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
-            <input type="checkbox" name="get_involved_enabled" value="1" {% if settings.get('get_involved_enabled') == '1' %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
-            Show Get Involved card on the Hub
+        <div class="form-group" style="display:flex;gap:20px;flex-wrap:wrap;">
+          {% for value, label in [('row', 'Side by side'), ('stack', 'Under each other')] %}
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
+            <input type="radio" name="get_involved_layout" value="{{ value }}" {% if (settings.get('get_involved_layout') or 'row') == value %}checked{% endif %} style="accent-color:#13677A;">
+            {{ label }}
           </label>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Title</label>
-          <input type="text" name="get_involved_title" class="form-control" value="{{ settings.get('get_involved_title', '') }}" placeholder="Serve at the Fall Outreach">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Description</label>
-          <textarea name="get_involved_body" class="form-control" style="min-height:180px;" placeholder="Describe the event or opportunity. Shown in the popup when the card is tapped.">{{ settings.get('get_involved_body', '') }}</textarea>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 220px;gap:16px;">
-          <div class="form-group">
-            <label class="form-label">Button Link</label>
-            <input type="url" name="get_involved_link" class="form-control" value="{{ settings.get('get_involved_link', '') }}" placeholder="https://...">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Button Label</label>
-            <input type="text" name="get_involved_link_label" class="form-control" value="{{ settings.get('get_involved_link_label', 'Sign Up') }}" placeholder="Sign Up">
-          </div>
+          {% endfor %}
         </div>
       </div>
     </div>
 
+    {% for slot in slots %}
+    <div class="card" style="margin-top:20px;">
+      <div class="card-header"><div class="card-title"><i class="bi bi-people-fill"></i> Card {{ slot }}</div></div>
+      <div class="card-body">
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
+            <input type="checkbox" name="{{ gi_key(slot, 'enabled') }}" value="1" {% if settings.get(gi_key(slot, 'enabled')) == '1' %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
+            Show card {{ slot }} on the Hub
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 160px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Title</label>
+            <input type="text" name="{{ gi_key(slot, 'title') }}" class="form-control" value="{{ settings.get(gi_key(slot, 'title'), '') }}" placeholder="Serve at the Fall Outreach">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Icon</label>
+            <input type="text" name="{{ gi_key(slot, 'icon') }}" class="form-control" value="{{ settings.get(gi_key(slot, 'icon')) or 'bi-people-fill' }}" placeholder="bi-people-fill">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea name="{{ gi_key(slot, 'body') }}" class="form-control" style="min-height:140px;" placeholder="Describe the event or opportunity. The first line shows on the card; the full text shows in the popup.">{{ settings.get(gi_key(slot, 'body'), '') }}</textarea>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 160px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Button Link</label>
+            <input type="url" name="{{ gi_key(slot, 'link') }}" class="form-control" value="{{ settings.get(gi_key(slot, 'link'), '') }}" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Button Label</label>
+            <input type="text" name="{{ gi_key(slot, 'link_label') }}" class="form-control" value="{{ settings.get(gi_key(slot, 'link_label')) or 'Sign Up' }}" placeholder="Sign Up">
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
   </div>
 
   <div style="position:sticky;bottom:16px;margin-top:20px;">

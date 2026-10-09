@@ -135,53 +135,85 @@
             flex-shrink: 0;
         }
 
-        /* Get Involved card */
+        /* Get Involved cards */
+        .involved-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .involved-grid.stack { grid-template-columns: 1fr; }
         .involved-card {
-            background: var(--orange);
+            background: var(--tile-bg);
+            border: 1px solid rgba(18,62,60,0.09);
+            border-radius: 24px;
+            padding: 16px;
+            text-decoration: none;
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+            min-width: 0;
+            box-shadow: 0 2px 8px rgba(18,62,60,0.06);
+            transition: transform 0.18s ease;
+        }
+        .involved-card:active { transform: scale(0.97); }
+        .involved-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
             justify-content: center;
-            container-type: inline-size;
+            font-size: 1rem;
+            margin-bottom: 6px;
+            flex-shrink: 0;
+            background: color-mix(in srgb, var(--orange) 12%, transparent);
+            color: var(--orange);
         }
-        .involved-watermark {
-            position: absolute;
-            top: 8px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            color: white;
-            opacity: 0.25;
-            font-size: 2.2rem;
-            font-size: 11cqw;
-            font-weight: 800;
-            letter-spacing: 0.02em;
-            line-height: 1;
-            white-space: nowrap;
-            pointer-events: none;
-            z-index: 1;
-        }
+        .involved-text { min-width: 0; flex: 1; }
         .involved-title {
-            position: relative;
-            z-index: 2;
-            padding: 30px 48px 18px;
-            text-align: center;
-            color: white;
-            font-size: 1.05rem;
-            font-weight: 700;
+            font-size: 0.88rem;
+            font-weight: 600;
             line-height: 1.3;
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
-        .involved-arrow {
-            position: absolute;
-            right: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: white;
-            font-size: 1.3rem;
-            z-index: 2;
+        .involved-snippet {
+            font-size: 0.7rem;
+            color: var(--sub);
+            margin-top: 3px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        #get-involved-overlay .notice-copy { white-space: pre-line; }
+        .involved-cta {
+            margin-top: auto;
+            padding-top: 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--orange);
+            white-space: nowrap;
+        }
+        /* Under each other: a slim row with the icon left and an arrow right */
+        .involved-grid.stack .involved-card {
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+        }
+        .involved-grid.stack .involved-icon { margin-bottom: 0; }
+        .involved-grid.stack .involved-snippet { -webkit-line-clamp: 1; }
+        .involved-grid.stack .involved-cta { margin-top: 0; padding-top: 0; }
+        /* Three across on a phone is tight: drop the snippet there */
+        @media (max-width: 699px) {
+            .involved-grid.row.n3 .involved-snippet { display: none; }
+        }
+        .involved-overlay .notice-copy { white-space: pre-line; }
 
         .sermon-chevron {
             position: absolute;
@@ -488,12 +520,21 @@
         <img src="/static/sermon.png" class="sermon-img" alt="">
     </a>
 
-    {% if get_involved.enabled and (get_involved.title or get_involved.body) %}
-    <a href="#" class="sermon-card involved-card" role="button" onclick="openGetInvolved(event)">
-        <div class="involved-watermark" aria-hidden="true">GET INVOLVED</div>
-        <div class="involved-title">{{ get_involved.title or 'Get Involved' }}</div>
-        <i class="bi bi-arrow-right involved-arrow"></i>
-    </a>
+    {% if get_involved.cards %}
+    {% set gi_n = get_involved.cards|length %}
+    <div class="section-label">Get Involved</div>
+    <div class="involved-grid {{ get_involved.layout }} n{{ gi_n }}" style="--n: {{ gi_n }};">
+        {% for gi in get_involved.cards %}
+        <a href="#" class="involved-card" role="button" onclick="openGetInvolved({{ gi.slot }}, event)">
+            <div class="involved-icon"><i class="bi {{ gi.icon }}"></i></div>
+            <div class="involved-text">
+                <div class="involved-title">{{ gi.title or 'Get Involved' }}</div>
+                {% if gi.body %}<div class="involved-snippet">{{ gi.body.split('\n')[0] }}</div>{% endif %}
+            </div>
+            <div class="involved-cta">{% if get_involved.layout == 'stack' %}<i class="bi bi-chevron-right"></i>{% else %}{{ gi.link_label if gi.link else 'Learn more' }} <i class="bi bi-arrow-right"></i>{% endif %}</div>
+        </a>
+        {% endfor %}
+    </div>
     {% endif %}
 
     <div class="section-label">Quick Access</div>
@@ -545,25 +586,25 @@
 </div>
 {% endif %}
 
-{% if get_involved.enabled and (get_involved.title or get_involved.body) %}
-<div id="get-involved-overlay" class="notice-overlay" onclick="if(event.target===this)closeGetInvolved()">
+{% for gi in get_involved.cards %}
+<div id="get-involved-overlay-{{ gi.slot }}" class="notice-overlay involved-overlay" onclick="if(event.target===this)closeGetInvolved()">
   <div class="notice-card">
     <div class="notice-body">
       <div class="notice-kicker">Get Involved</div>
-      <div class="notice-title">{{ get_involved.title or 'Get Involved' }}</div>
-      {% if get_involved.body %}
-      <div class="notice-copy">{{ get_involved.body }}</div>
+      <div class="notice-title">{{ gi.title or 'Get Involved' }}</div>
+      {% if gi.body %}
+      <div class="notice-copy">{{ gi.body }}</div>
       {% endif %}
       <div class="notice-actions">
-        {% if get_involved.link %}
-        <a href="{{ get_involved.link }}" class="notice-btn" {% if get_involved.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %} onclick="closeGetInvolved()">{{ get_involved.link_label }}</a>
+        {% if gi.link %}
+        <a href="{{ gi.link }}" class="notice-btn" {% if gi.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %} onclick="closeGetInvolved()">{{ gi.link_label }}</a>
         {% endif %}
         <button type="button" class="notice-close" onclick="closeGetInvolved()">Close</button>
       </div>
     </div>
   </div>
 </div>
-{% endif %}
+{% endfor %}
 
 <div id="card-notice-overlay" class="notice-overlay" onclick="if(event.target===this)closeCardNotice(false)">
   <div class="notice-card">
@@ -891,14 +932,13 @@ function closeCardNotice(navigate) {
         }
     }
 }
-function openGetInvolved(e) {
+function openGetInvolved(slot, e) {
   if (e) e.preventDefault();
-  const overlay = document.getElementById('get-involved-overlay');
+  const overlay = document.getElementById(`get-involved-overlay-${slot}`);
   if (overlay) overlay.classList.add('open');
 }
 function closeGetInvolved() {
-  const overlay = document.getElementById('get-involved-overlay');
-  if (overlay) overlay.classList.remove('open');
+  document.querySelectorAll('.involved-overlay.open').forEach(el => el.classList.remove('open'));
 }
 function closeHubNotice() {
   const modal = document.getElementById('hub-notice');

@@ -174,7 +174,7 @@ def init_db():
         ('get_involved_link',''),
         ('get_involved_link_label','Sign Up'),
         ('get_involved_icon','bi-people-fill'),
-        ('get_involved_layout','row'),
+        ('get_involved_layout','stack'),
         ('primary_cta_enabled','1'),
         ('primary_cta_label','Give'),
         ('primary_cta_icon','bi-heart-fill'),
@@ -1683,8 +1683,8 @@ def get_get_involved(settings=None):
         }
         if card['enabled'] and (card['title'] or card['body']):
             cards.append(card)
-    layout = settings.get('get_involved_layout') or 'row'
-    return {'cards': cards, 'layout': layout if layout in ('row', 'stack') else 'row'}
+    layout = settings.get('get_involved_layout') or 'stack'
+    return {'cards': cards, 'layout': layout if layout in ('row', 'stack') else 'stack'}
 
 def get_hub_cards(conn, parent_id=None):
     if parent_id is None:
@@ -2700,7 +2700,7 @@ def admin_hub_notice():
 def admin_get_involved():
     if request.method == 'POST':
         conn = get_db()
-        values = {'get_involved_layout': 'stack' if request.form.get('get_involved_layout') == 'stack' else 'row'}
+        values = {'get_involved_layout': 'row' if request.form.get('get_involved_layout') == 'row' else 'stack'}
         for slot in range(1, GET_INVOLVED_SLOTS + 1):
             form = lambda field: request.form.get(get_involved_key(slot, field), '').strip()
             values[get_involved_key(slot, 'enabled')] = '1' if form('enabled') else '0'

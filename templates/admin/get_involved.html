@@ -10,9 +10,9 @@
       <div class="card-header"><div class="card-title"><i class="bi bi-layout-three-columns"></i> Layout</div></div>
       <div class="card-body">
         <div class="form-group" style="display:flex;gap:20px;flex-wrap:wrap;">
-          {% for value, label in [('row', 'Side by side'), ('stack', 'Under each other')] %}
+          {% for value, label in [('stack', 'Under each other'), ('row', 'Side by side')] %}
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
-            <input type="radio" name="get_involved_layout" value="{{ value }}" {% if (settings.get('get_involved_layout') or 'row') == value %}checked{% endif %} style="accent-color:#13677A;">
+            <input type="radio" name="get_involved_layout" value="{{ value }}" {% if (settings.get('get_involved_layout') or 'stack') == value %}checked{% endif %} style="accent-color:#13677A;">
             {{ label }}
           </label>
           {% endfor %}

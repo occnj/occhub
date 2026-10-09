@@ -1692,7 +1692,7 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
-GET_INVOLVED_SLOTS = 3
+GET_INVOLVED_SLOTS = 5
 
 def get_involved_key(slot, field):
     # Slot 1 keeps the original single-card keys so existing content carries over.

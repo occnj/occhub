@@ -214,7 +214,7 @@
         .involved-grid.stack .involved-cta { margin-top: 0; padding-top: 0; }
         /* Three across on a phone is tight: drop the snippet there */
         @media (max-width: 699px) {
-            .involved-grid.row.n3 .involved-snippet { display: none; }
+            .involved-grid.row.cols3 .involved-snippet { display: none; }
         }
         .involved-overlay .notice-copy { white-space: pre-line; }
 
@@ -525,8 +525,10 @@
 
     {% if get_involved.cards %}
     {% set gi_n = get_involved.cards|length %}
+    {# Side by side: at most 3 per row; 4 cards wrap as 2+2, 5 as 3+2 #}
+    {% set gi_cols = 2 if gi_n == 4 else [gi_n, 3]|min %}
     <div class="section-label">Get Involved</div>
-    <div class="involved-grid {{ get_involved.layout }} n{{ gi_n }}" style="--n: {{ gi_n }};">
+    <div class="involved-grid {{ get_involved.layout }} cols{{ gi_cols }}" style="--n: {{ gi_cols }};">
         {% for gi in get_involved.cards %}
         <a href="#" class="involved-card" role="button" onclick="openGetInvolved({{ gi.slot }}, event)">
             <div class="involved-icon"><i class="bi {{ gi.icon }}"></i></div>

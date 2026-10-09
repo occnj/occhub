@@ -28,6 +28,8 @@
             --text: {{ site_settings.get('theme_text', '#1d1d1f') }};
             --sub: {{ site_settings.get('theme_subtext', '#6e6e73') }};
             --tile-bg: {{ site_settings.get('theme_tile_bg', '#FFFFFB') }};
+            {% for key, value in hub_colors.items() %}--{{ key|replace('_', '-') }}: {{ value }};
+            {% endfor %}
         }
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         a, button { outline: none; }
@@ -86,7 +88,7 @@
 
         /* Sermon hero card */
         .sermon-card {
-            background: var(--teal);
+            background: var(--hub-msg-bg);
             border-radius: 28px;
             overflow: hidden;
             display: flex;
@@ -106,8 +108,8 @@
         }
         .sermon-badge {
             display: inline-block;
-            background: rgba(255,255,255,0.15);
-            color: rgba(255,255,255,0.85);
+            background: color-mix(in srgb, var(--hub-msg-text) 15%, transparent);
+            color: color-mix(in srgb, var(--hub-msg-text) 85%, transparent);
             font-size: 0.62rem;
             letter-spacing: 0.12em;
             text-transform: uppercase;
@@ -116,14 +118,14 @@
             margin-bottom: 8px;
         }
         .sermon-title {
-            color: white;
+            color: var(--hub-msg-title);
             font-size: 1rem;
             font-weight: 600;
             line-height: 1.3;
             margin-bottom: 4px;
         }
         .sermon-date {
-            color: rgba(255,255,255,0.55);
+            color: color-mix(in srgb, var(--hub-msg-text) 55%, transparent);
             font-size: 0.78rem;
         }
 
@@ -144,7 +146,7 @@
         }
         .involved-grid.stack { grid-template-columns: 1fr; }
         .involved-card {
-            background: var(--tile-bg);
+            background: var(--hub-gi-bg);
             border: 1px solid rgba(18,62,60,0.09);
             border-radius: 24px;
             padding: 16px;
@@ -169,11 +171,12 @@
             font-size: 1rem;
             margin-bottom: 6px;
             flex-shrink: 0;
-            background: color-mix(in srgb, var(--orange) 12%, transparent);
-            color: var(--orange);
+            background: color-mix(in srgb, var(--hub-gi-accent) 12%, transparent);
+            color: var(--hub-gi-accent);
         }
         .involved-text { min-width: 0; flex: 1; }
         .involved-title {
+            color: var(--hub-gi-title);
             font-size: 0.88rem;
             font-weight: 600;
             line-height: 1.3;
@@ -184,7 +187,7 @@
         }
         .involved-snippet {
             font-size: 0.7rem;
-            color: var(--sub);
+            color: var(--hub-gi-text);
             margin-top: 3px;
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -196,7 +199,7 @@
             padding-top: 10px;
             font-size: 0.72rem;
             font-weight: 600;
-            color: var(--orange);
+            color: var(--hub-gi-accent);
             white-space: nowrap;
         }
         /* Under each other: a slim row with the icon left and an arrow right */
@@ -211,7 +214,7 @@
         .involved-grid.stack .involved-cta { margin-top: 0; padding-top: 0; }
         /* Three across on a phone is tight: drop the snippet there */
         @media (max-width: 699px) {
-            .involved-grid.row.n3 .involved-snippet { display: none; }
+            .involved-grid.row.cols3 .involved-snippet { display: none; }
         }
         .involved-overlay .notice-copy { white-space: pre-line; }
 
@@ -243,7 +246,7 @@
         }
 
         .tile {
-            background: var(--tile-bg);
+            background: var(--hub-qa-bg);
             border: 1px solid rgba(18,62,60,0.09);
             border-radius: 28px;
             padding: 16px;
@@ -270,19 +273,19 @@
             font-size: 1rem;
             margin-bottom: 10px;
             flex-shrink: 0;
-            background: rgba(19,103,122,0.09);
-            color: var(--teal);
+            background: color-mix(in srgb, var(--hub-qa-icon) 9%, transparent);
+            color: var(--hub-qa-icon);
         }
 
         .tile-label {
             font-size: 0.88rem;
             font-weight: 600;
-            color: var(--text);
+            color: var(--hub-qa-title);
             line-height: 1.3;
         }
         .tile-sub {
             font-size: 0.7rem;
-            color: var(--sub);
+            color: var(--hub-qa-text);
             margin-top: 4px;
             max-width: 120px;
         }
@@ -291,7 +294,7 @@
             position: absolute;
             right: 13px;
             bottom: 14px;
-            color: var(--sub);
+            color: var(--hub-qa-text);
             opacity: 0.45;
             font-size: 0.75rem;
         }
@@ -522,8 +525,10 @@
 
     {% if get_involved.cards %}
     {% set gi_n = get_involved.cards|length %}
+    {# Side by side: at most 3 per row; 4 cards wrap as 2+2, 5 as 3+2 #}
+    {% set gi_cols = 2 if gi_n == 4 else [gi_n, 3]|min %}
     <div class="section-label">Get Involved</div>
-    <div class="involved-grid {{ get_involved.layout }} n{{ gi_n }}" style="--n: {{ gi_n }};">
+    <div class="involved-grid {{ get_involved.layout }} cols{{ gi_cols }}" style="--n: {{ gi_cols }};">
         {% for gi in get_involved.cards %}
         <a href="#" class="involved-card" role="button" onclick="openGetInvolved({{ gi.slot }}, event)">
             <div class="involved-icon"><i class="bi {{ gi.icon }}"></i></div>

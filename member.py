@@ -572,9 +572,40 @@ def all_settings():
         return {r['key']:r['value'] for r in rows}
     except: return {}
 
+# Hub card colors: (setting key, label, fallback theme key, fallback color).
+# An unset color follows the site theme, so existing installs look the same.
+HUB_COLOR_GROUPS = [
+    ("Today's Message", [
+        ('hub_msg_bg', 'Card', 'theme_primary', '#13677A'),
+        ('hub_msg_title', 'Title', None, '#ffffff'),
+        ('hub_msg_text', 'Description', None, '#ffffff'),
+    ]),
+    ('Get Involved', [
+        ('hub_gi_bg', 'Card', 'theme_tile_bg', '#FFFFFB'),
+        ('hub_gi_title', 'Title', 'theme_text', '#1d1d1f'),
+        ('hub_gi_text', 'Description', 'theme_subtext', '#6e6e73'),
+        ('hub_gi_accent', 'Icon & Button', 'theme_accent', '#F2541B'),
+    ]),
+    ('Quick Access', [
+        ('hub_qa_bg', 'Card', 'theme_tile_bg', '#FFFFFB'),
+        ('hub_qa_title', 'Title', 'theme_text', '#1d1d1f'),
+        ('hub_qa_text', 'Description', 'theme_subtext', '#6e6e73'),
+        ('hub_qa_icon', 'Icon', 'theme_primary', '#13677A'),
+    ]),
+]
+
+def hub_colors(settings):
+    colors = {}
+    for _, fields in HUB_COLOR_GROUPS:
+        for key, _, theme_key, default in fields:
+            colors[key] = (settings.get(key) or (settings.get(theme_key) if theme_key else '') or default).strip()
+    return colors
+
 @app.context_processor
 def inject_site_settings():
-    return {'site_settings': all_settings()}
+    settings = all_settings()
+    return {'site_settings': settings, 'hub_colors': hub_colors(settings),
+            'hub_color_groups': HUB_COLOR_GROUPS}
 
 def extract_youtube_video_id(url):
     if not url:
@@ -1661,7 +1692,7 @@ def get_hub_notice(settings=None):
         'image': (settings.get('hub_notice_image') or '').strip(),
     }
 
-GET_INVOLVED_SLOTS = 3
+GET_INVOLVED_SLOTS = 5
 
 def get_involved_key(slot, field):
     # Slot 1 keeps the original single-card keys so existing content carries over.

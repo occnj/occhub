@@ -13,6 +13,7 @@ env/
 oasis.db
 *.db-shm
 *.db-wal
+*.initlock
 
 # Uploaded files (live on Pi, not in git)
 static/uploads/
@@ -35,3 +36,6 @@ access.log
 .idea/
 *.swp
 *.swo
+
+# Tests
+.pytest_cache/

@@ -444,6 +444,9 @@
         <a href="{{ url_for('admin_security') }}" class="nav-item {% if request.endpoint and 'security' in request.endpoint %}active{% endif %}">
             <i class="bi bi-shield-lock-fill"></i> Security
         </a>
+        <a href="{{ url_for('admin_storage') }}" class="nav-item {% if request.endpoint and 'storage' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-hdd-fill"></i> Storage
+        </a>
         {% endif %}
         <a href="{{ url_for('admin_password') }}" class="nav-item {% if request.endpoint == 'admin_password' %}active{% endif %}">
             <i class="bi bi-lock-fill"></i> Password

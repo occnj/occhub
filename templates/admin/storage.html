@@ -1,0 +1,53 @@
+{% extends "admin/base.html" %}
+{% block title %}Storage{% endblock %}
+{% block page_title %}Storage{% endblock %}
+{% block page_sub %}Photos and documents on the server{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><div class="card-title">Uploaded files</div></div>
+  <div class="card-body" style="font-size:0.9rem;line-height:1.9;">
+    <div><strong>{{ info.used|length }}</strong> files in use &middot; {{ info.used_bytes|human_size }}</div>
+    <div><strong>{{ info.unused|length }}</strong> unused files &middot; {{ info.unused_bytes|human_size }}</div>
+    {% if info.recent %}
+    <div style="color:#6e6e73;">{{ info.recent|length }} newer than 24 hours are left alone, in case they belong to a form you have not saved yet.</div>
+    {% endif %}
+    {% if info.missing %}
+    <div style="color:#c0392b;">{{ info.missing|length }} file(s) are referenced by the site but missing from disk:
+      {% for name in info.missing[:10] %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}{% if info.missing|length > 10 %} &hellip;{% endif %}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title">Unused files ({{ info.unused|length }})</div></div>
+  {% if info.unused %}
+  <table>
+    <thead><tr><th>File</th><th>Size</th></tr></thead>
+    <tbody>
+    {% for name, size in info.unused[:200] %}
+    <tr><td><code>{{ name }}</code></td><td style="font-size:0.82rem;color:#6e6e73;">{{ size|human_size }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% if info.unused|length > 200 %}<div class="card-body" style="color:#6e6e73;font-size:0.82rem;">Showing the first 200.</div>{% endif %}
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('admin_storage_clean') }}"
+          onsubmit="return confirm('Permanently delete {{ info.unused|length }} unused file(s)? Make sure a recent backup exists first.')">
+      <button type="submit" class="btn btn-primary">Delete {{ info.unused|length }} unused file(s)</button>
+    </form>
+  </div>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">Nothing to clean up.</div>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title">How this works</div></div>
+  <div class="card-body" style="font-size:0.85rem;line-height:1.7;color:#3a3a3c;">
+    Replacing or deleting a photo leaves the old file on disk. A file counts as <em>unused</em> when no
+    setting, card, leader, event, sermon note, gallery or other record mentions it. Deleting cannot be undone,
+    so take a backup first (see <code>docs/BACKUP_AND_MIGRATION.md</code>).
+  </div>
+</div>
+{% endblock %}

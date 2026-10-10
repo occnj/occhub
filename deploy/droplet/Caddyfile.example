@@ -1,0 +1,19 @@
+# /etc/caddy/Caddyfile on the droplet. Caddy gets the HTTPS certificate by itself.
+# Point the DNS A record for hub.oasisnj.net at the droplet first.
+hub.oasisnj.net {
+	encode zstd gzip
+
+	# A little above the app's own 64 MB upload limit
+	request_body {
+		max_size 70MB
+	}
+
+	# Caddy puts the visitor's real address in X-Forwarded-For, which is what OccHub's
+	# PROXY_HOPS=1 (the default) expects. Do not add another proxy in front without changing it.
+	reverse_proxy 127.0.0.1:5500
+}
+
+# Other projects on the same droplet each get their own block, e.g.:
+# other.oasisnj.net {
+#	reverse_proxy 127.0.0.1:5600
+# }

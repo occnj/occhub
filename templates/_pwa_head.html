@@ -1,0 +1,14 @@
+{# Shared <head> block for every visitor-facing page: PWA manifest, app-icon meta tags,
+   service worker registration and the shared scripts/styles. Bump the ?v= numbers here
+   (once) when reveal.js / transitions.css / responsive.css change. #}
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="{{ site_settings.get('theme_primary', '#13677A') }}">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Oasis Hub">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<script>if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js')})}</script>
+<script defer src="/static/reveal.js?v=3"></script>
+<link rel="stylesheet" href="/static/transitions.css?v=1">
+<link rel="stylesheet" href="/static/responsive.css?v=1">

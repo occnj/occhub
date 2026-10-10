@@ -10,6 +10,7 @@ WorkingDirectory=/home/occnj/occ_hub
 Environment="PATH=/home/occnj/occ_hub/venv/bin"
 # Secrets live in .env (not committed to git). Required keys:
 #   SECRET_KEY, RESEND_API_KEY, MAIL_FROM
+# Optional: PROXY_HOPS (default 1) = reverse proxies in front of gunicorn
 EnvironmentFile=/home/occnj/occ_hub/.env
 ExecStart=/home/occnj/occ_hub/venv/bin/gunicorn \
     --workers 2 \

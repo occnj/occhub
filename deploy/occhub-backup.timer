@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly OccHub backup to the droplet
+
+[Timer]
+# 2:30am: the church is asleep. Persistent=true runs a missed backup as soon as the Pi is back on.
+OnCalendar=*-*-* 02:30:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

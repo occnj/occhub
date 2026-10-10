@@ -48,7 +48,7 @@ The app is entirely self-hosted — no monthly software fees, no third-party app
 ## Admin Panel
 
 Access at: `https://occnj.tail812f78.ts.net/admin`
-Default login: `admin` / `oasis2025` ← **change this immediately**
+First login: username `admin`. The password is generated randomly the first time the app starts and printed once in the service log (`sudo journalctl -u oasis-hub | grep 'FIRST RUN'`). Change it right away under **Password**.
 
 ### What You Can Manage
 
@@ -84,7 +84,7 @@ Default login: `admin` / `oasis2025` ← **change this immediately**
 Every page the user visits is quietly logged with:
 - Timestamp
 - Page name
-- IP address (anonymized via X-Forwarded-For)
+- IP address (taken from the reverse proxy's `X-Forwarded-For`; see `PROXY_HOPS` below)
 - Browser/device (User-Agent string, 200 chars max)
 - Session ID (random, stored in browser session cookie)
 
@@ -101,7 +101,7 @@ No personal data is collected without the user explicitly submitting a form. The
 | Production Server | Gunicorn (2 workers) |
 | Remote Access | Tailscale (Tailnet funnel) |
 | Hardware | Raspberry Pi (hostname: occnj) |
-| Email | Office365 SMTP (media@oasisnj.net) |
+| Email | Resend API (`RESEND_API_KEY`, `MAIL_FROM` in `.env`) |
 | Fonts | DM Serif Display + DM Sans (Google Fonts) |
 | Icons | Bootstrap Icons |
 
@@ -111,30 +111,25 @@ No personal data is collected without the user explicitly submitting a form. The
 
 ```
 occ_hub/
-├── member.py           ← Flask app — all routes and logic
-├── oasis.db            ← SQLite database (auto-created)
-├── oasis-hub.service   ← Systemd service file
-├── setup_pi.sh         ← One-command Pi setup script
-├── static/
-│   ├── logo.png
-│   ├── sermon.png
-│   ├── gate.jpg
-│   ├── splash.jpg
-│   └── uploads/        ← Leader photos, logo uploads, hero images
-└── templates/
-    ├── splash.html, gate.html, hub.html
-    ├── beliefs.html, ministries.html, leadership.html
-    ├── serve.html, calendar.html, prayer.html
-    ├── connect.html, contact.html, about.html, social.html
-    └── admin/
-        ├── base.html, login.html, dashboard.html
-        ├── analytics.html, submissions.html, submission_detail.html
-        ├── prayers.html, events.html, event_form.html
-        ├── leaders.html, leader_form.html
-        ├── ministries.html, ministry_form.html
-        ├── beliefs.html, belief_form.html
-        ├── serve.html, serve_cat_form.html
-        ├── settings.html, users.html, user_form.html, password.html
+├── member.py               ← entry point (gunicorn runs member:app); imports the modules below
+├── core.py                 ← Flask app + config, database access, settings, uploads, security, admin auth
+├── schema.py               ← table definitions + migrations (init_db)
+├── routes_public.py        ← visitor-facing pages and forms
+├── routes_admin_core.py    ← admin login, dashboard, settings
+├── routes_admin_content.py ← admin: hub cards, sermon notes, missions, leaders, beliefs, events …
+├── routes_admin_system.py  ← admin: submissions, analytics, users, security, storage
+├── documents.py            ← sermon-note PDF/DOCX import and rich text
+├── youtube.py              ← Watch-page video lookups (cached)
+├── maintenance.py          ← expired events, unused uploads (also a command-line tool)
+├── tools/occhub_backup.py  ← backup / restore / verify / prune
+├── deploy/                 ← backup timer + service, droplet receiver script, droplet app templates
+├── docs/                   ← BACKUP_AND_MIGRATION.md
+├── tests/                  ← pytest suite
+├── oasis.db                ← SQLite database (auto-created; not in git)
+├── oasis-hub.service       ← systemd service file
+├── setup_pi.sh             ← one-command Pi setup script
+├── static/                 ← logo and icons, CSS/JS, uploads/ (photos and documents; not in git)
+└── templates/              ← page templates; _pwa_head.html is the shared <head>; admin/ holds the admin pages
 ```
 
 ---
@@ -173,6 +168,21 @@ cat /home/occnj/occ_hub/error.log
 ```
 
 ---
+
+## Environment Settings (`.env`)
+
+| Key | Meaning |
+|---|---|
+| `SECRET_KEY` | Required. Signs login cookies. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Outgoing email. |
+| `PROXY_HOPS` | How many reverse proxies sit in front of gunicorn (default `1`: Tailscale funnel or Caddy). It decides which `X-Forwarded-For` entry is trusted as the visitor's address, which the login limit, IP bans and analytics rely on. Use `0` only if gunicorn is exposed directly. |
+
+## Backups, Moving to a Droplet, Housekeeping, Tests
+
+- **Backups and the move to the droplet:** [docs/BACKUP_AND_MIGRATION.md](docs/BACKUP_AND_MIGRATION.md).
+  `tools/occhub_backup.py push` sends an encrypted database snapshot and the photos to the droplet every night.
+- **Housekeeping:** `python3 maintenance.py [--clean-uploads]`, or **Storage** in the admin menu.
+- **Tests:** `pip install -r requirements-dev.txt && pytest` (uses a temporary database; never touches `oasis.db`).
 
 ## Promo Video Script Ideas
 

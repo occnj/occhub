@@ -1,0 +1,24 @@
+# /etc/systemd/system/occhub.service   (on the droplet; same app, same gunicorn as on the Pi)
+[Unit]
+Description=OccHub (Flask app)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=occhub
+WorkingDirectory=/home/occhub/occ_hub
+# Required: SECRET_KEY.  Also: RESEND_API_KEY, MAIL_FROM, PROXY_HOPS (leave at 1 behind Caddy)
+EnvironmentFile=/home/occhub/occ_hub/.env
+ExecStart=/home/occhub/occ_hub/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 127.0.0.1:5500 \
+    --timeout 60 \
+    --access-logfile /home/occhub/occ_hub/access.log \
+    --error-logfile /home/occhub/occ_hub/error.log \
+    member:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

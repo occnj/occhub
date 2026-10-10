@@ -1,0 +1,16 @@
+[Unit]
+Description=OccHub backup to the droplet (database snapshot + photos)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=occnj
+WorkingDirectory=/home/occnj/occ_hub
+EnvironmentFile=/home/occnj/occ_hub/.env
+# Housekeeping first (purges finished events). The leading "-" means a problem here never blocks the backup.
+ExecStartPre=-/home/occnj/occ_hub/venv/bin/python /home/occnj/occ_hub/maintenance.py
+ExecStart=/home/occnj/occ_hub/venv/bin/python /home/occnj/occ_hub/tools/occhub_backup.py push
+# Stay out of the way of visitors on a small Pi
+Nice=10
+IOSchedulingClass=idle

@@ -39,3 +39,7 @@ access.log
 
 # Tests
 .pytest_cache/
+
+# Backup tool: local snapshots and settings (settings can name key/passphrase files)
+backups/
+.backup.env

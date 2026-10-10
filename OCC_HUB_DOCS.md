@@ -48,7 +48,7 @@ The app is entirely self-hosted — no monthly software fees, no third-party app
 ## Admin Panel
 
 Access at: `https://occnj.tail812f78.ts.net/admin`
-Default login: `admin` / `oasis2025` ← **change this immediately**
+First login: username `admin`. The password is generated randomly the first time the app starts and printed once in the service log (`sudo journalctl -u oasis-hub | grep 'FIRST RUN'`). Change it right away under **Password**.
 
 ### What You Can Manage
 
@@ -84,7 +84,7 @@ Default login: `admin` / `oasis2025` ← **change this immediately**
 Every page the user visits is quietly logged with:
 - Timestamp
 - Page name
-- IP address (anonymized via X-Forwarded-For)
+- IP address (taken from the reverse proxy's `X-Forwarded-For`; see `PROXY_HOPS` below)
 - Browser/device (User-Agent string, 200 chars max)
 - Session ID (random, stored in browser session cookie)
 
@@ -101,7 +101,7 @@ No personal data is collected without the user explicitly submitting a form. The
 | Production Server | Gunicorn (2 workers) |
 | Remote Access | Tailscale (Tailnet funnel) |
 | Hardware | Raspberry Pi (hostname: occnj) |
-| Email | Office365 SMTP (media@oasisnj.net) |
+| Email | Resend API (`RESEND_API_KEY`, `MAIL_FROM` in `.env`) |
 | Fonts | DM Serif Display + DM Sans (Google Fonts) |
 | Icons | Bootstrap Icons |
 
@@ -173,6 +173,14 @@ cat /home/occnj/occ_hub/error.log
 ```
 
 ---
+
+## Environment Settings (`.env`)
+
+| Key | Meaning |
+|---|---|
+| `SECRET_KEY` | Required. Signs login cookies. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Outgoing email. |
+| `PROXY_HOPS` | How many reverse proxies sit in front of gunicorn (default `1`: Tailscale funnel or Caddy). It decides which `X-Forwarded-For` entry is trusted as the visitor's address, which the login limit, IP bans and analytics rely on. Use `0` only if gunicorn is exposed directly. |
 
 ## Promo Video Script Ideas
 

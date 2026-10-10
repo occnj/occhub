@@ -578,7 +578,7 @@
       <div class="notice-kicker">Oasis Update</div>
       <div class="notice-title">{{ hub_notice.title or 'Notice' }}</div>
       {% if hub_notice.body %}
-      <div class="notice-copy">{{ hub_notice.body|replace('\n','<br>')|safe }}</div>
+      <div class="notice-copy">{{ hub_notice.body|nl2br }}</div>
       {% endif %}
       <div class="notice-actions">
         {% if hub_notice.link %}

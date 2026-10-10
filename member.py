@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 from functools import wraps
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 import html
 import json
 import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
@@ -26,12 +27,22 @@ app.secret_key = os.environ.get('SECRET_KEY')
 if not app.secret_key:
     raise RuntimeError('SECRET_KEY environment variable must be set')
 
+# Number of reverse proxies in front of gunicorn (Tailscale funnel / Caddy = 1).
+# ProxyFix then reads the client address from the Nth entry from the RIGHT of
+# X-Forwarded-For, i.e. the one our own proxy appended. Entries to its left are
+# supplied by the visitor and can be anything, so they are never trusted.
+# Set PROXY_HOPS=0 when gunicorn is exposed directly.
+PROXY_HOPS = int(os.environ.get('PROXY_HOPS', '1'))
+if PROXY_HOPS > 0:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=PROXY_HOPS)
+
 UPLOAD_FOLDER = os.path.join(BASE_DIR,'static','uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif','heic','heif'}
 DOCUMENT_EXTENSIONS = {'pdf', 'docx'}
 
 app.config.update(
+    MAX_CONTENT_LENGTH=64 * 1024 * 1024,  # biggest legit request is a few photos / a sermon PDF
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
@@ -508,6 +519,12 @@ def init_db():
     )''')
     c.execute('CREATE INDEX IF NOT EXISTS idx_analytics_sid_page_ts ON analytics(sid, page, ts)')
 
+    # Shared by every gunicorn worker and survives restarts, unlike an in-memory dict.
+    c.execute('''CREATE TABLE IF NOT EXISTS rate_events (
+        bucket TEXT NOT NULL, ip TEXT NOT NULL, ts REAL NOT NULL
+    )''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_rate_events ON rate_events(bucket, ip, ts)')
+
     c.execute('''CREATE TABLE IF NOT EXISTS banned_ips (
         ip TEXT PRIMARY KEY, banned_at TEXT NOT NULL,
         expires_at TEXT NOT NULL, reason TEXT
@@ -772,8 +789,33 @@ def fetch_youtube_feed_videos(channel_source, limit=10):
         app.logger.warning(f"fetch_youtube_feed_videos() error: {e}")
         return []
 
+_SERMON_CACHE = {}          # channel source -> (fetched_at, videos)
+SERMON_CACHE_SECONDS = 300  # 5 minutes
+
 def get_sermon_videos(settings=None):
+    """Sermon list for the Watch page. The YouTube lookups are slow (up to 6s each) and
+    block a gunicorn worker, so the result is kept for a few minutes per worker. If
+    YouTube is down the last good list is served instead of nothing."""
     settings = settings or all_settings()
+    key = ((settings.get('sermon_channel_url') or '').strip()
+           or (settings.get('social_youtube_url') or '').strip())
+    manual = tuple((settings.get(f'sermon_video_{i}_title'), settings.get(f'sermon_video_{i}_url')) for i in range(1, 11))
+    cache_key = (key, manual)
+    hit = _SERMON_CACHE.get(cache_key)
+    if hit and time.time() - hit[0] < SERMON_CACHE_SECONDS:
+        return hit[1]
+    videos = _load_sermon_videos(settings)
+    # Only cache a live result; if the YouTube calls failed, prefer an older good list.
+    if videos and videos[0].get('source') != 'manual':
+        _SERMON_CACHE[cache_key] = (time.time(), videos)
+    elif hit:
+        _SERMON_CACHE[cache_key] = (time.time() - SERMON_CACHE_SECONDS + 60, hit[1])  # retry in a minute
+        return hit[1]
+    else:
+        _SERMON_CACHE[cache_key] = (time.time(), videos)
+    return videos
+
+def _load_sermon_videos(settings):
     channel_source = (
         (settings.get('sermon_channel_url') or '').strip()
         or (settings.get('social_youtube_url') or '').strip()
@@ -1321,6 +1363,11 @@ def richtext_filter(raw):
         return Markup(''.join(f'<p>{p.replace(chr(10), "<br>")}</p>' for p in paragraphs))
     return Markup(sanitize_rich_html(raw))
 
+@app.template_filter('nl2br')
+def nl2br_filter(raw):
+    """Plain admin text -> HTML with line breaks. Escapes first, so it is safe to print."""
+    return Markup(html.escape(raw or '').replace('\n', '<br>'))
+
 def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
     abs_path = os.path.join(BASE_DIR, 'static', path_rel)
     title = fallback_title.strip() if fallback_title else ''
@@ -1428,10 +1475,10 @@ app.jinja_env.filters['next_steps_item_label'] = next_steps_item_label
 app.jinja_env.filters['next_steps_file_meta'] = next_steps_file_meta
 
 def client_ip():
-    forwarded_for = request.headers.get('X-Forwarded-For', '')
-    if forwarded_for:
-        return forwarded_for.split(',')[0].strip()
-    return request.headers.get('X-Real-IP') or request.remote_addr or '0.0.0.0'
+    # remote_addr is already the real client address: ProxyFix (see PROXY_HOPS)
+    # replaced it with the entry our own proxy appended. Never read
+    # X-Forwarded-For / X-Real-IP here, a visitor can set those to anything.
+    return request.remote_addr or '0.0.0.0'
 
 def track(page):
     try:
@@ -1825,43 +1872,117 @@ def csrf_protect():
             from flask import abort
             abort(403)
 
-# ── Login rate limiting ───────────────────────────────────────────────────────
+# ── Rate limiting (stored in SQLite so all workers share it) ─────────────────
 
-_login_attempts: dict = {}
 _LOGIN_MAX = 5
 _LOGIN_WINDOW = 900  # 15 minutes
 
-def _check_rate_limit(ip):
+def rate_count(bucket, ip, window):
     now = time.time()
-    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW]
-    _login_attempts[ip] = attempts
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM rate_events WHERE ts < ?", (now - 86400,))
+        rows = conn.execute(
+            "SELECT ts FROM rate_events WHERE bucket=? AND ip=? AND ts>=? ORDER BY ts",
+            (bucket, ip, now - window)
+        ).fetchall()
+        conn.commit()
+        return [r['ts'] for r in rows]
+    finally:
+        conn.close()
+
+def rate_record(bucket, ip):
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO rate_events (bucket,ip,ts) VALUES (?,?,?)", (bucket, ip, time.time()))
+        conn.commit()
+    finally:
+        conn.close()
+
+def rate_clear(bucket, ip):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM rate_events WHERE bucket=? AND ip=?", (bucket, ip))
+        conn.commit()
+    finally:
+        conn.close()
+
+def _check_rate_limit(ip):
+    attempts = rate_count('login', ip, _LOGIN_WINDOW)
     if len(attempts) >= _LOGIN_MAX:
-        wait = int(_LOGIN_WINDOW - (now - attempts[0]))
-        return False, wait
+        return False, int(_LOGIN_WINDOW - (time.time() - attempts[0]))
     return True, 0
 
 def _record_failed_login(ip):
-    now = time.time()
-    attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW]
-    attempts.append(now)
-    _login_attempts[ip] = attempts
+    rate_record('login', ip)
 
 def _clear_login_attempts(ip):
-    _login_attempts.pop(ip, None)
+    rate_clear('login', ip)
+
+def form_rate_limited(bucket, max_events=5, window=600):
+    """Throttle a public form per visitor. Counts every POST, returns True when over."""
+    ip = client_ip()
+    try:
+        if len(rate_count(bucket, ip, window)) >= max_events:
+            return True
+        rate_record(bucket, ip)
+    except Exception as e:
+        app.logger.warning(f"form_rate_limited() error: {e}")  # never block a visitor on a limiter fault
+    return False
+
+def clip(value, limit=2000):
+    """Trim visitor-supplied text so a single field can't be megabytes long."""
+    return (value or '')[:limit]
+
+def one_line(value, limit=200):
+    """For anything that ends up in an email subject: no line breaks, bounded length."""
+    return re.sub(r'[\r\n]+', ' ', value or '').strip()[:limit]
+
+def esc(value):
+    """Escape visitor-supplied text before it goes into an email's HTML body."""
+    return html.escape(str(value or ''))
+
+def form_sort_order():
+    """The admin's sort_order box as an int, or None when it is blank or not a number."""
+    return int_or(request.form.get('sort_order'), None)
+
+def int_or(value, default=0):
+    """int() for form fields: a blank or non-numeric value falls back instead of 500ing."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return default
 
 # ── Auth decorators ───────────────────────────────────────────────────────────
+
+def current_admin_still_valid():
+    """A deleted (or renamed) account must stop working at once, not when its cookie expires.
+    Also picks up a role change."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT role FROM admin_users WHERE username=?", (session.get('admin_user'),)).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return False
+    session['admin_role'] = row['role']
+    return True
 
 def login_required(f):
     @wraps(f)
     def dec(*a,**kw):
-        if not session.get('admin_logged_in'): return redirect(url_for('admin_login'))
+        if not session.get('admin_logged_in') or not current_admin_still_valid():
+            session.clear()
+            return redirect(url_for('admin_login'))
         return f(*a,**kw)
     return dec
 
 def superadmin_required(f):
     @wraps(f)
     def dec(*a,**kw):
-        if not session.get('admin_logged_in'): return redirect(url_for('admin_login'))
+        if not session.get('admin_logged_in') or not current_admin_still_valid():
+            session.clear()
+            return redirect(url_for('admin_login'))
         if session.get('admin_role')!='superadmin':
             flash('Superadmin only.','info'); return redirect(url_for('admin_dashboard'))
         return f(*a,**kw)
@@ -2207,10 +2328,12 @@ def calendar():
 @app.route('/prayer',methods=['GET','POST'])
 def prayer():
     track('prayer'); sent=False
+    if request.method=='POST' and form_rate_limited('prayer'):
+        return render_template('prayer.html',sent=False,settings=all_settings()), 429
     if request.method=='POST':
-        fn=request.form.get('full_name','').strip(); em=request.form.get('email','').strip()
-        ph=request.form.get('phone','').strip(); rt=request.form.get('request_type','Personal')
-        msg=request.form.get('message','').strip(); priv=1 if request.form.get('is_private') else 0
+        fn=clip(request.form.get('full_name','').strip(),120); em=clip(request.form.get('email','').strip(),200)
+        ph=clip(request.form.get('phone','').strip(),40); rt=clip(request.form.get('request_type','Personal'),60)
+        msg=clip(request.form.get('message','').strip(),5000); priv=1 if request.form.get('is_private') else 0
         conn=get_db()
         conn.execute("INSERT INTO prayer_requests (submitted_at,full_name,email,phone,request_type,message,is_private) VALUES (?,?,?,?,?,?,?)",
             (datetime.now().strftime('%Y-%m-%d %H:%M'),fn,em,ph,rt,msg,priv))
@@ -2219,21 +2342,23 @@ def prayer():
         html=f"""<html><body style="font-family:Arial;color:#333;line-height:1.7">
         <div style="background:#13677A;padding:20px;text-align:center"><h1 style="color:white;margin:0">Prayer Request</h1></div>
         <div style="padding:24px;border:1px solid #ddd;border-top:none">{priv_note}
-        <p><b>Name:</b> {fn or '—'}<br><b>Email:</b> {em or '—'}<br><b>Phone:</b> {ph or '—'}<br><b>Type:</b> {rt}</p>
+        <p><b>Name:</b> {esc(fn) or '—'}<br><b>Email:</b> {esc(em) or '—'}<br><b>Phone:</b> {esc(ph) or '—'}<br><b>Type:</b> {esc(rt)}</p>
         <hr><h3 style="color:#13677A">Request</h3>
-        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{msg}</p></div></body></html>"""
-        send_email(f"Prayer Request: {fn}",get_setting('prayer_email','Oasis@OasisNJ.net'),html)
+        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{esc(msg).replace(chr(10), '<br>')}</p></div></body></html>"""
+        send_email(f"Prayer Request: {one_line(fn)}",get_setting('prayer_email','Oasis@OasisNJ.net'),html)
         sent=True
     return render_template('prayer.html',sent=sent,settings=all_settings())
 
 @app.route('/feedback',methods=['GET','POST'])
 def feedback():
     track('feedback'); sent=False
+    if request.method=='POST' and form_rate_limited('feedback'):
+        return render_template('feedback.html',sent=False,settings=all_settings()), 429
     if request.method=='POST':
-        fn=request.form.get('full_name','').strip()
+        fn=clip(request.form.get('full_name','').strip(),120)
         try: rating=max(0,min(5,int(request.form.get('rating','0') or 0)))
         except ValueError: rating=0
-        msg=request.form.get('message','').strip()
+        msg=clip(request.form.get('message','').strip(),5000)
         if msg or rating:
             conn=get_db()
             conn.execute("INSERT INTO app_feedback (submitted_at,full_name,rating,message) VALUES (?,?,?,?)",
@@ -2246,14 +2371,16 @@ def feedback():
 @app.route('/connect',methods=['GET','POST'])
 def connect():
     track('connect')
+    if request.method=='POST' and form_rate_limited('connect'):
+        return render_template('connect.html',settings=all_settings()), 429
     if request.method=='POST':
-        fn=request.form.get('full_name','').strip(); em=request.form.get('email','').strip()
-        ph=request.form.get('phone','').strip(); addr=request.form.get('address','').strip()
-        mar=request.form.get('marital',''); gen=request.form.get('gender','')
-        age=request.form.get('age_group',''); sts=request.form.get('member_status','')
-        ref=request.form.get('referral','').strip()
-        kg=', '.join(request.form.getlist('kg')); fh=', '.join(request.form.getlist('fh')); md=', '.join(request.form.getlist('md'))
-        sa=request.form.get('serve_area',''); pr=request.form.get('message','').strip()
+        fn=clip(request.form.get('full_name','').strip(),120); em=clip(request.form.get('email','').strip(),200)
+        ph=clip(request.form.get('phone','').strip(),40); addr=clip(request.form.get('address','').strip(),300)
+        mar=clip(request.form.get('marital',''),60); gen=clip(request.form.get('gender',''),60)
+        age=clip(request.form.get('age_group',''),60); sts=clip(request.form.get('member_status',''),60)
+        ref=clip(request.form.get('referral','').strip(),200)
+        kg=clip(', '.join(request.form.getlist('kg')),500); fh=clip(', '.join(request.form.getlist('fh')),500); md=clip(', '.join(request.form.getlist('md')),500)
+        sa=clip(request.form.get('serve_area',''),200); pr=clip(request.form.get('message','').strip(),5000)
         conn=get_db()
         conn.execute("INSERT INTO submissions (submitted_at,full_name,email,phone,address,gender,age_group,marital,member_status,referral,know_god,find_hope,make_diff,serve_area,prayer) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (datetime.now().strftime('%Y-%m-%d %H:%M'),fn,em,ph,addr,gen,age,mar,sts,ref,kg,fh,md,sa,pr))
@@ -2261,32 +2388,36 @@ def connect():
         html=f"""<html><body style="font-family:Arial;color:#333;line-height:1.7">
         <div style="background:#F2541B;padding:20px;text-align:center"><h1 style="color:white;margin:0">New Connect Card</h1></div>
         <div style="padding:24px;border:1px solid #ddd;border-top:none">
-        <p><b>Name:</b> {fn}<br><b>Email:</b> {em}<br><b>Phone:</b> {ph}<br><b>Address:</b> {addr}<br>
-        <b>Gender:</b> {gen} | <b>Age:</b> {age}<br><b>Marital:</b> {mar} | <b>Status:</b> {sts}<br><b>Referral:</b> {ref}</p>
-        <hr><h3 style="color:#13677A">Know God</h3><p>{kg or 'None'}</p>
-        <h3 style="color:#13677A">Find Hope</h3><p>{fh or 'None'}</p>
-        <h3 style="color:#13677A">Make a Difference</h3><p>{md or 'None'}{f'<br><b>Serve Area:</b> {sa}' if sa else ''}</p>
+        <p><b>Name:</b> {esc(fn)}<br><b>Email:</b> {esc(em)}<br><b>Phone:</b> {esc(ph)}<br><b>Address:</b> {esc(addr)}<br>
+        <b>Gender:</b> {esc(gen)} | <b>Age:</b> {esc(age)}<br><b>Marital:</b> {esc(mar)} | <b>Status:</b> {esc(sts)}<br><b>Referral:</b> {esc(ref)}</p>
+        <hr><h3 style="color:#13677A">Know God</h3><p>{esc(kg) or 'None'}</p>
+        <h3 style="color:#13677A">Find Hope</h3><p>{esc(fh) or 'None'}</p>
+        <h3 style="color:#13677A">Make a Difference</h3><p>{esc(md) or 'None'}{f'<br><b>Serve Area:</b> {esc(sa)}' if sa else ''}</p>
         <hr><h3 style="color:#13677A">Prayer / Comments</h3>
-        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #F2541B">{pr or '—'}</p>
+        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #F2541B">{esc(pr).replace(chr(10), '<br>') or '—'}</p>
         </div></body></html>"""
-        send_email(f"Connect Card: {fn}",get_setting('connect_email','media@oasisnj.net'),html)
+        send_email(f"Connect Card: {one_line(fn)}",get_setting('connect_email','media@oasisnj.net'),html)
         return redirect(url_for('gate', connect='1', name=fn))
     return render_template('connect.html',settings=all_settings())
 
 @app.route('/contact',methods=['GET','POST'])
 def contact():
     track('contact'); sent=False
+    if request.method=='POST' and form_rate_limited('contact'):
+        return render_template('contact.html',sent=False,error=None,settings=all_settings()), 429
     if request.method=='POST':
-        fn=request.form.get('first_name','').strip(); ln=request.form.get('last_name','').strip()
-        em=request.form.get('email','').strip(); ph=request.form.get('phone','').strip()
-        msg=request.form.get('message','').strip()
+        fn=clip(request.form.get('first_name','').strip(),100); ln=clip(request.form.get('last_name','').strip(),100)
+        em=clip(request.form.get('email','').strip(),200); ph=clip(request.form.get('phone','').strip(),40)
+        msg=clip(request.form.get('message','').strip(),5000)
         html=f"""<html><body style="font-family:Arial;color:#333;line-height:1.7">
         <div style="background:#13677A;padding:20px;text-align:center"><h1 style="color:white;margin:0">Message from Oasis Hub</h1></div>
         <div style="padding:24px;border:1px solid #ddd;border-top:none">
-        <p><b>Name:</b> {fn} {ln}<br><b>Email:</b> {em or '—'}<br><b>Phone:</b> {ph or '—'}</p>
+        <p><b>Name:</b> {esc(fn)} {esc(ln)}<br><b>Email:</b> {esc(em) or '—'}<br><b>Phone:</b> {esc(ph) or '—'}</p>
         <hr><h3 style="color:#13677A">Message</h3>
-        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{msg}</p></div></body></html>"""
-        send_email(f"Message from {fn} {ln}",get_setting('contact_email','Oasis@OasisNJ.net'),html,reply_to=em)
+        <p style="background:#f9f9f9;padding:14px;border-left:4px solid #13677A">{esc(msg).replace(chr(10), '<br>')}</p></div></body></html>"""
+        # reply_to only when it looks like one address, so it can't be used to inject headers or extra recipients
+        reply_to = em if re.fullmatch(r'[^@\s,;<>]+@[^@\s,;<>]+\.[^@\s,;<>]+', em) else None
+        send_email(f"Message from {one_line(fn)} {one_line(ln)}",get_setting('contact_email','Oasis@OasisNJ.net'),html,reply_to=reply_to)
         sent=True
     return render_template('contact.html',sent=sent,error=None,settings=all_settings())
 
@@ -2354,6 +2485,8 @@ def admin_settings():
     if request.method=='POST':
         conn=get_db()
         for k,v in request.form.items():
+            if k == 'csrf_token':
+                continue
             conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)",(k,v.strip()))
         logo=save_upload('logo_file')
         if logo: conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES ('logo_path',?)",(logo,))
@@ -2468,7 +2601,7 @@ def admin_hub_card_new():
                 request.form.get('modal_button_url', '').strip(),
                 modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
+                form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
                 1 if request.form.get('card_notice_enabled') else 0,
                 1 if request.form.get('card_notice_block') else 0,
@@ -2526,7 +2659,7 @@ def admin_hub_card_edit(cid):
                 request.form.get('modal_button_url', '').strip(),
                 modal_image,
                 1 if request.form.get('open_in_new_tab') else 0,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'hub_cards'),
+                form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'hub_cards'),
                 1 if request.form.get('is_active') else 0,
                 1 if request.form.get('card_notice_enabled') else 0,
                 1 if request.form.get('card_notice_block') else 0,
@@ -2770,7 +2903,7 @@ def admin_mission_new():
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'missions'),
+                form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'missions'),
             )
         )
         conn.commit()
@@ -2799,7 +2932,7 @@ def admin_mission_edit(mid):
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else mission['sort_order'],
+                form_sort_order() if form_sort_order() is not None else mission['sort_order'],
                 mid,
             )
         )
@@ -2889,7 +3022,7 @@ def admin_beyond_wall_new():
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beyond_walls'),
+                form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'beyond_walls'),
                 youtube_video_id,
             )
         )
@@ -2924,7 +3057,7 @@ def admin_beyond_wall_edit(bid):
                 request.form.get('summary', '').strip(),
                 request.form.get('body', '').strip(),
                 cover,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else item['sort_order'],
+                form_sort_order() if form_sort_order() is not None else item['sort_order'],
                 youtube_video_id,
                 bid,
             )
@@ -3010,7 +3143,7 @@ def admin_leader_new():
     if request.method=='POST':
         photo=save_upload('photo') or ''
         conn=get_db(); conn.execute("INSERT INTO leaders (name,role,bio,photo,sort_order) VALUES (?,?,?,?,?)",
-            (request.form['name'].strip(),request.form['role'].strip(),request.form.get('bio','').strip(),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'leaders')))
+            (request.form['name'].strip(),request.form['role'].strip(),request.form.get('bio','').strip(),photo,form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'leaders')))
         conn.commit(); conn.close(); flash('Leader added!','success'); return redirect(url_for('admin_leaders'))
     return render_template('admin/leader_form.html',leader=None)
 
@@ -3031,7 +3164,7 @@ def admin_leader_edit(lid):
                 "UPDATE leaders SET name=?,role=?,bio=?,photo=?,sort_order=? WHERE id=?",
                 (request.form['name'].strip(), request.form['role'].strip(),
                  request.form.get('bio','').strip(), photo,
-                 int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else l['sort_order'], lid)
+                 form_sort_order() if form_sort_order() is not None else l['sort_order'], lid)
             )
             conn.commit()
             flash('Leader updated!', 'success')
@@ -3116,7 +3249,7 @@ def admin_behind_scene_person_new():
             (
                 request.form['name'].strip(),
                 photo,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'behind_scene_people'),
+                form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'behind_scene_people'),
             )
         )
         person_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -3158,7 +3291,7 @@ def admin_behind_scene_person_edit(mid):
             (
                 request.form['name'].strip(),
                 photo,
-                int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else member['sort_order'],
+                form_sort_order() if form_sort_order() is not None else member['sort_order'],
                 mid,
             )
         )
@@ -3216,7 +3349,7 @@ def admin_beliefs():
 def admin_belief_new():
     if request.method=='POST':
         conn=get_db(); conn.execute("INSERT INTO beliefs (title,body,scripture,sort_order) VALUES (?,?,?,?)",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'beliefs')))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'beliefs')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_beliefs'))
     return render_template('admin/belief_form.html',belief=None)
 
@@ -3227,7 +3360,7 @@ def admin_belief_edit(bid):
     if not b: conn.close(); return redirect(url_for('admin_beliefs'))
     if request.method=='POST':
         conn.execute("UPDATE beliefs SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else b['sort_order'],bid))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),form_sort_order() if form_sort_order() is not None else b['sort_order'],bid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_beliefs'))
     images = conn.execute("SELECT * FROM belief_images WHERE belief_id=? ORDER BY sort_order, id", (bid,)).fetchall()
     conn.close(); return render_template('admin/belief_form.html',belief=b,images=images)
@@ -3250,7 +3383,7 @@ def admin_belief_image_new(bid):
         conn.close(); flash('Choose an image first.', 'info'); return redirect(url_for('admin_belief_edit', bid=bid))
     conn.execute(
         "INSERT INTO belief_images (belief_id,photo,caption,sort_order) VALUES (?,?,?,?)",
-        (bid, photo, request.form.get('caption','').strip(), int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order_for_parent(conn, 'belief_images', 'belief_id', bid))
+        (bid, photo, request.form.get('caption','').strip(), form_sort_order() if form_sort_order() is not None else next_available_sort_order_for_parent(conn, 'belief_images', 'belief_id', bid))
     )
     conn.commit(); conn.close(); flash('Belief image added!', 'success'); return redirect(url_for('admin_belief_edit', bid=bid))
 
@@ -3271,7 +3404,7 @@ def admin_values():
 def admin_value_new():
     if request.method=='POST':
         conn=get_db(); conn.execute("INSERT INTO values_items (title,body,scripture,sort_order) VALUES (?,?,?,?)",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'values_items')))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'values_items')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_values'))
     return render_template('admin/value_form.html',value=None)
 
@@ -3282,7 +3415,7 @@ def admin_value_edit(vid):
     if not v: conn.close(); return redirect(url_for('admin_values'))
     if request.method=='POST':
         conn.execute("UPDATE values_items SET title=?,body=?,scripture=?,sort_order=? WHERE id=?",
-            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else v['sort_order'],vid))
+            (request.form['title'].strip(),request.form['body'].strip(),request.form.get('scripture','').strip(),form_sort_order() if form_sort_order() is not None else v['sort_order'],vid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_values'))
     images = conn.execute("SELECT * FROM value_images WHERE value_id=? ORDER BY sort_order, id", (vid,)).fetchall()
     conn.close(); return render_template('admin/value_form.html',value=v,images=images)
@@ -3305,7 +3438,7 @@ def admin_value_image_new(vid):
         conn.close(); flash('Choose an image first.', 'info'); return redirect(url_for('admin_value_edit', vid=vid))
     conn.execute(
         "INSERT INTO value_images (value_id,photo,caption,sort_order) VALUES (?,?,?,?)",
-        (vid, photo, request.form.get('caption','').strip(), int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order_for_parent(conn, 'value_images', 'value_id', vid))
+        (vid, photo, request.form.get('caption','').strip(), form_sort_order() if form_sort_order() is not None else next_available_sort_order_for_parent(conn, 'value_images', 'value_id', vid))
     )
     conn.commit(); conn.close(); flash('Value image added!', 'success'); return redirect(url_for('admin_value_edit', vid=vid))
 
@@ -3328,7 +3461,7 @@ def admin_ministry_new():
     if request.method=='POST':
         conn=get_db(); photo = save_upload('photo')
         conn.execute("INSERT INTO ministries (name,description,url,icon,photo,sort_order) VALUES (?,?,?,?,?,?)",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'ministries')))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'ministries')))
         conn.commit(); conn.close(); flash('Added!','success'); return redirect(url_for('admin_ministries'))
     return render_template('admin/ministry_form.html',ministry=None)
 
@@ -3342,7 +3475,7 @@ def admin_ministry_edit(mid):
         if photo is None:
             photo = m['photo'] if 'photo' in m.keys() else ''
         conn.execute("UPDATE ministries SET name=?,description=?,url=?,icon=?,photo=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else m['sort_order'],mid))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('url','').strip(),request.form.get('icon','bi-people-fill').strip(),photo or '',form_sort_order() if form_sort_order() is not None else m['sort_order'],mid))
         conn.commit(); conn.close(); flash('Updated!','success'); return redirect(url_for('admin_ministries'))
     conn.close(); return render_template('admin/ministry_form.html',ministry=m)
 
@@ -3367,7 +3500,7 @@ def admin_serve():
 def admin_serve_cat_new():
     photo = save_upload('photo') or ''
     conn=get_db(); conn.execute("INSERT INTO serve_categories (name,description,icon,color,photo,sort_order) VALUES (?,?,?,?,?,?)",
-        (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'serve_categories')))
+        (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'serve_categories')))
     conn.commit(); conn.close(); flash('Category added!','success'); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/category/<int:cid>/edit',methods=['GET','POST'])
@@ -3380,7 +3513,7 @@ def admin_serve_cat_edit(cid):
         if photo is None:
             photo = cat['photo']
         conn.execute("UPDATE serve_categories SET name=?,description=?,icon=?,color=?,photo=?,sort_order=? WHERE id=?",
-            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else cat['sort_order'],cid))
+            (request.form['name'].strip(),request.form.get('description','').strip(),request.form.get('icon','bi-people-fill').strip(),request.form.get('color','teal'),photo,form_sort_order() if form_sort_order() is not None else cat['sort_order'],cid))
         conn.commit(); conn.close(); flash('Category updated!','success'); return redirect(url_for('admin_serve'))
     conn.close(); return render_template('admin/serve_cat_form.html',cat=cat)
 
@@ -3394,7 +3527,7 @@ def admin_serve_cat_delete(cid):
 @login_required
 def admin_serve_role_new():
     conn=get_db(); conn.execute("INSERT INTO serve_roles (category_id,label,sort_order) VALUES (?,?,?)",
-        (int(request.form['category_id']),request.form['label'].strip(),int(request.form.get('sort_order')) if (request.form.get('sort_order') or '').strip() else next_available_sort_order(conn, 'serve_roles')))
+        (int(request.form['category_id']),request.form['label'].strip(),form_sort_order() if form_sort_order() is not None else next_available_sort_order(conn, 'serve_roles')))
     conn.commit(); conn.close(); return redirect(url_for('admin_serve'))
 
 @app.route('/admin/serve/role/<int:rid>/delete',methods=['POST'])
@@ -3427,7 +3560,7 @@ def admin_event_new():
              request.form.get('location','').strip(), request.form.get('signup_url','').strip(),
              1 if request.form.get('auto_delete') else 0,
              rec, rec_detail,
-             int(request.form.get('sort_order') or 0)))
+             int_or(request.form.get('sort_order'), 0)))
         conn.commit(); conn.close(); flash('Event added!','success'); return redirect(url_for('admin_events'))
     return render_template('admin/event_form.html',event=None)
 
@@ -3450,7 +3583,7 @@ def admin_event_edit(eid):
              request.form.get('location','').strip(), request.form.get('signup_url','').strip(),
              1 if request.form.get('auto_delete') else 0,
              rec, rec_detail,
-             int(request.form.get('sort_order') or 0), eid))
+             int_or(request.form.get('sort_order'), 0), eid))
         conn.commit(); conn.close(); flash('Event updated!','success'); return redirect(url_for('admin_events'))
     conn.close(); return render_template('admin/event_form.html',event=ev)
 
@@ -3591,7 +3724,7 @@ def admin_user_new():
     if request.method=='POST':
         uname=request.form.get('username','').strip(); pw=request.form.get('password','').strip()
         role=request.form.get('role','editor')
-        if not uname or not pw: flash('Username and password required.','info')
+        if not uname or len(pw)<10: flash('Username required and password must be at least 10 characters.','info')
         else:
             conn=get_db()
             try:
@@ -3616,10 +3749,15 @@ def admin_user_delete(uid):
 def admin_password():
     if request.method=='POST':
         pw=request.form.get('new_password','').strip()
-        if len(pw)<6: flash('Min 6 characters.','info')
+        current=request.form.get('current_password','')
+        conn=get_db()
+        u=conn.execute("SELECT * FROM admin_users WHERE username=?",(session['admin_user'],)).fetchone()
+        if not u or not verify_password(u['password'], current): flash('Current password is incorrect.','info')
+        elif len(pw)<10: flash('New password must be at least 10 characters.','info')
         else:
-            conn=get_db(); conn.execute("UPDATE admin_users SET password=? WHERE username=?",(hash_password(pw),session['admin_user'])); conn.commit(); conn.close()
+            conn.execute("UPDATE admin_users SET password=? WHERE username=?",(hash_password(pw),session['admin_user'])); conn.commit()
             flash('Password updated!','success')
+        conn.close()
     return render_template('admin/password.html')
 
 @app.errorhandler(404)
@@ -3630,8 +3768,8 @@ def server_error(e):
     if request.path.startswith('/admin'):
         return f"""<html><body style="font-family:sans-serif;padding:40px;color:#333;">
         <h2 style="color:#c0392b;">&#9888; Server Error</h2>
-        <p>{e}</p>
-        <p>Check <code>error.log</code> on the Pi for the full traceback.</p>
+        <p>Something went wrong saving that. Nothing was lost; go back and try again.</p>
+        <p>The details are in <code>error.log</code> on the server.</p>
         <a href="/admin" style="color:#13677A;">&larr; Back to Admin</a>
         </body></html>""", 500
     return redirect(url_for('hub'))

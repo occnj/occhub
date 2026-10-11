@@ -1,0 +1,142 @@
+{% extends "admin/base.html" %}
+{% block title %}Special Events{% endblock %}
+{% block page_title %}Special Events{% endblock %}
+{% block page_sub %}Life events (wedding, funeral, baptism, dedication, counseling, membership): requests, where they are emailed, and the page{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+
+<div class="card" id="requests">
+  <div class="card-header"><div class="card-title"><i class="bi bi-inbox-fill"></i> Requests{% if new_count %} &middot; {{ new_count }} new{% endif %}</div></div>
+  {% if requests %}
+  <table>
+    <thead><tr><th>Received</th><th>Life event(s)</th><th>Contact</th><th></th></tr></thead>
+    <tbody>
+    {% for r in requests %}
+    <tr {% if r.status == 'handled' %}style="opacity:0.55;"{% endif %}>
+      <td style="color:#6e6e73;font-size:0.78rem;white-space:nowrap;">{{ r.submitted_at }}</td>
+      <td>
+        {% for name in (r.services or '').split(', ') if name %}<span class="tag" style="margin:0 4px 4px 0;display:inline-block;">{{ name }}</span>{% endfor %}
+        {% if r.message %}
+        <details style="margin-top:6px;font-size:0.8rem;color:#3a3a3c;">
+          <summary style="cursor:pointer;">{{ r.message[:70] }}{% if r.message|length > 70 %}…{% endif %}</summary>
+          <div style="margin-top:6px;white-space:pre-wrap;">{{ r.message }}</div>
+        </details>
+        {% endif %}
+      </td>
+      <td style="font-size:0.82rem;">
+        <b>{{ r.first_name }} {{ r.last_name }}</b><br>
+        {% if r.email %}<a href="mailto:{{ r.email }}">{{ r.email }}</a><br>{% endif %}
+        {% if r.phone %}<a href="tel:{{ r.phone }}">{{ r.phone }}</a> <span style="color:#6e6e73;">({{ r.phone_type or 'Mobile' }})</span>{% endif %}
+      </td>
+      <td style="white-space:nowrap;">
+        <form method="POST" action="{{ url_for('admin_special_event_status', rid=r.id) }}" style="display:inline;">
+          {% if r.status == 'handled' %}
+          <input type="hidden" name="status" value="new">
+          <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;">Reopen</button>
+          {% else %}
+          <input type="hidden" name="status" value="handled">
+          <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;">Mark handled</button>
+          {% endif %}
+        </form>
+        <form method="POST" action="{{ url_for('admin_special_event_delete', rid=r.id) }}" style="display:inline;" onsubmit="return confirm('Delete this request?')">
+          <button type="submit" class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;color:#c0392b;">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No requests yet.</div>
+  {% endif %}
+</div>
+
+<form method="POST">
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><div class="card-title"><i class="bi bi-envelope-fill"></i> Where requests go</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
+          <input type="radio" name="special_events_mode" value="form" {% if (settings.get('special_events_mode') or 'form') == 'form' %}checked{% endif %} style="accent-color:#13677A;">
+          Use the Hub form: requests are saved here and emailed to the address below
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;margin-top:8px;">
+          <input type="radio" name="special_events_mode" value="link" {% if settings.get('special_events_mode') == 'link' %}checked{% endif %} style="accent-color:#13677A;">
+          Send people to the Church Center form instead
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email requests to</label>
+        <input type="text" name="special_events_email" class="form-control" required value="{{ settings.get('special_events_email', '') }}" placeholder="phegel@oasisnj.net">
+        <div style="font-size:0.78rem;color:#6e6e73;margin-top:6px;">Separate several addresses with commas. Used for the Hub form.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Church Center form link</label>
+        <input type="url" name="special_events_form_url" class="form-control" value="{{ settings.get('special_events_form_url', '') }}" placeholder="https://oasisnj.churchcenter.com/people/forms/...">
+        <div style="font-size:0.78rem;color:#6e6e73;margin-top:6px;">Used when "Send people to the Church Center form" is chosen. Church Center sends its own notification emails; set those up in Planning Center.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><div class="card-title"><i class="bi bi-file-text-fill"></i> Page text</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input type="text" name="special_events_title" class="form-control" value="{{ settings.get('special_events_title', '') }}" placeholder="Special Events">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Header description</label>
+        <input type="text" name="special_events_description" class="form-control" value="{{ settings.get('special_events_description', '') }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Introduction</label>
+        <textarea name="special_events_intro" class="form-control" style="min-height:110px;">{{ settings.get('special_events_intro', '') }}</textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">"Learn more" link</label>
+        <input type="url" name="special_events_info_url" class="form-control" value="{{ settings.get('special_events_info_url', '') }}" placeholder="https://www.oasisnj.net/specialevents">
+      </div>
+    </div>
+  </div>
+
+  {% for slot in slots %}
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><div class="card-title"><i class="bi {{ settings.get(se_key(slot, 'icon')) or 'bi-calendar-heart' }}"></i> Service {{ slot }}{% if settings.get(se_key(slot, 'name')) %}: {{ settings.get(se_key(slot, 'name')) }}{% endif %}</div></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.88rem;font-weight:600;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" name="{{ se_key(slot, 'enabled') }}" value="1" {% if settings.get(se_key(slot, 'enabled')) == '1' %}checked{% endif %} style="accent-color:#13677A;width:16px;height:16px;">
+          Show this service
+        </label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 170px;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input type="text" name="{{ se_key(slot, 'name') }}" class="form-control" value="{{ settings.get(se_key(slot, 'name'), '') }}" placeholder="e.g. Child Dedication">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Icon</label>
+          <input type="text" name="{{ se_key(slot, 'icon') }}" class="form-control" value="{{ settings.get(se_key(slot, 'icon')) or 'bi-calendar-heart' }}" placeholder="bi-calendar-heart">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="{{ se_key(slot, 'description') }}" class="form-control" style="min-height:80px;">{{ settings.get(se_key(slot, 'description'), '') }}</textarea>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div style="margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+    <button type="submit" class="btn btn-primary">Save Special Events</button>
+    <a href="{{ url_for('special_events') }}" target="_blank" class="btn btn-ghost">View page</a>
+    {% if hub_card %}
+    <a href="{{ url_for('admin_hub_card_edit', cid=hub_card.id) }}" class="btn btn-ghost">Edit the Hub card{% if not hub_card.is_active %} (currently hidden){% endif %}</a>
+    {% endif %}
+  </div>
+  <div style="font-size:0.78rem;color:#6e6e73;margin-top:10px;">Icons are Bootstrap Icons names, see <a href="https://icons.getbootstrap.com" target="_blank" rel="noopener">icons.getbootstrap.com</a>.</div>
+</form>
+</div>
+{% endblock %}

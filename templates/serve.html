@@ -103,10 +103,12 @@
         }
         .tags { display: flex; flex-wrap: wrap; gap: 6px; }
         .tag { background: var(--bg); color: var(--sub); font-size: 0.72rem; font-weight: 500; padding: 5px 12px; border-radius: 20px; letter-spacing: 0.02em; }
-        .cta-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; padding: 12px 16px 28px; background: rgba(245,245,247,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.07); }
+        .cta-bar { position: fixed; z-index: 80; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; padding: 12px 16px 28px; background: rgba(245,245,247,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0,0,0,0.07); }
         .cta-btn { display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--orange); color: white; text-decoration: none; border-radius: 14px; padding: 17px; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.03em; box-shadow: 0 8px 24px rgba(242,84,27,0.35); transition: transform 0.15s; }
         .cta-btn:active { transform: scale(0.98); }
-    </style>
+            /* the Give button would otherwise sit on top of the Sign up button */
+        .global-cta-pill { bottom: calc(108px + env(safe-area-inset-bottom)) !important; }
+</style>
 </head>
 <body>
 <div class="shell">

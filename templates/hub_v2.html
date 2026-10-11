@@ -107,7 +107,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .tile b{display:block;font-size:.76rem;line-height:1.25;font-weight:600;color:var(--hub-qa-title,var(--text))}
 
 /* Bottom bar */
-.tab{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 24px);max-width:406px;height:70px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:24px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.1);z-index:1000}
+.tab{view-transition-name:hub-tabbar;position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 24px);max-width:406px;height:70px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:24px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.1);z-index:1000}
 .tab a,.tab button{text-align:center;font-size:.64rem;color:var(--sub);font-weight:600;width:60px;background:none;border:0;font-family:inherit;cursor:pointer}
 .tab i{display:block;font-size:1.25rem;margin-bottom:3px}
 .tab .on{color:var(--teal)}

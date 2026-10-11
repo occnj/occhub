@@ -8,8 +8,9 @@ init_db() is safe to run on every start and from several gunicorn workers at onc
 """
 import fcntl
 from core import *
+from special_events import setting_defaults as special_event_setting_defaults
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 def add_column(c, table, col, defn):
     """ALTER TABLE ... ADD COLUMN only when the column is missing."""
@@ -104,6 +105,8 @@ def _init_db():
         ('primary_cta_url','https://thekingdomledger.com/donate?code=2335'),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
+    for k, v in special_event_setting_defaults():
+        c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)", (k, v))
     for slot in range(1, 11):
         c.execute(
             "INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",
@@ -328,6 +331,14 @@ def _init_db():
         c.execute("UPDATE hub_cards SET card_type='link', target_url='/beyond-the-walls' WHERE slug='beyond-the-walls'")
         c.execute("UPDATE hub_cards SET card_type='link', target_url='/leadership', media_url='', modal_title='', modal_body='', modal_button_label='', modal_button_url='', modal_image='' WHERE slug='leadership'")
 
+    # v2: Special Events card on the Hub (added once; after that admins control it under Hub Cards)
+    if schema_version < 2 and not c.execute("SELECT 1 FROM hub_cards WHERE slug='special-events'").fetchone():
+        next_order = c.execute("SELECT COALESCE(MAX(sort_order),0)+1 FROM hub_cards WHERE parent_id IS NULL").fetchone()[0]
+        c.execute(
+            "INSERT INTO hub_cards (slug,title,subtitle,icon,card_type,target_url,open_in_new_tab,sort_order,is_active) "
+            "VALUES ('special-events','Special Events','Weddings, dedications & more','bi-calendar-heart','link',"
+            "'/special-events',0,?,1)", (next_order,))
+
     c.execute('''CREATE TABLE IF NOT EXISTS ministries (
         id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
         description TEXT DEFAULT '', url TEXT DEFAULT '',
@@ -398,6 +409,12 @@ def _init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, submitted_at TEXT NOT NULL,
         full_name TEXT, email TEXT, phone TEXT,
         request_type TEXT DEFAULT 'Personal', message TEXT, is_private INTEGER DEFAULT 0
+    )''')
+
+    c.execute('''CREATE TABLE IF NOT EXISTS special_event_requests (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, submitted_at TEXT NOT NULL,
+        services TEXT, first_name TEXT, last_name TEXT, email TEXT, phone TEXT, phone_type TEXT,
+        message TEXT, status TEXT DEFAULT 'new'
     )''')
 
     c.execute('''CREATE TABLE IF NOT EXISTS app_feedback (

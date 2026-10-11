@@ -1,6 +1,10 @@
 /* Oasis Hub — client-side scroll animations
-   Springy staggered card reveals + hero parallax + tactile card presses.
+   Gentle fade-up for cards further down the page + hero parallax + tactile card presses.
    Self-contained: injects its own CSS. Skipped entirely for reduced-motion users.
+
+   Nothing that is on screen when a page opens is ever hidden. Hiding it and fading it
+   back in made every page arrive blank and then "flash" its content, which the slide-in
+   page transition (transitions.css) made worse: the incoming page was captured empty.
 
    Safety rule for everything below: this file hides content before animating it
    in, so any path that hides MUST have a guaranteed path that un-hides. iOS does
@@ -28,9 +32,9 @@
 
   var css = document.createElement('style');
   css.textContent =
-    '.rv{opacity:0;transform:translateY(42px) scale(.96);}' +
+    '.rv{opacity:0;transform:translateY(16px);}' +
     '.rv.rv-in{opacity:1;transform:none;' +
-      'transition:opacity .6s ease,transform .7s cubic-bezier(.34,1.3,.64,1);}' +
+      'transition:opacity .45s ease,transform .45s cubic-bezier(.22,1,.36,1);}' +
     '.hero-content>*{will-change:transform;}' +
     '.hv{opacity:0;transform:translateY(26px);}' +
     '.hv.hv-in{opacity:1;transform:none;' +
@@ -86,13 +90,15 @@
     if (started) return;
     started = true;
 
-    /* Hero entrance: tag, title, copy cascade up on load */
-    heroBits = Array.prototype.slice.call(document.querySelectorAll('.hero-content > *'));
-    heroBits.forEach(function (el) { el.classList.add('hv'); });
+    /* The hero is the first thing on screen, so it is shown as-is (no entrance). */
+    heroBits = [];
 
-    /* Cards: hidden, then revealed with stagger as they enter the viewport */
+    /* Cards below the fold: hidden, then faded up as they scroll into view. Anything
+       already visible on load is left alone. */
+    var fold = window.innerHeight || document.documentElement.clientHeight;
     items = Array.prototype.slice.call(document.querySelectorAll(ITEMS))
-      .filter(function (el) { return !el.closest('.sheet,.overlay,.card-overlay,.notice-overlay'); });
+      .filter(function (el) { return !el.closest('.sheet,.overlay,.card-overlay,.notice-overlay,.modal-overlay'); })
+      .filter(function (el) { return el.getBoundingClientRect().top > fold; });
     items.forEach(function (el) { el.classList.add('rv'); });
 
     if ('IntersectionObserver' in window && items.length) {
@@ -101,7 +107,7 @@
         entries.forEach(function (en) {
           if (!en.isIntersecting) return;
           var el = en.target;
-          el.style.transitionDelay = (i++ * 80) + 'ms';
+          el.style.transitionDelay = (i++ * 50) + 'ms';
           el.classList.add('rv-in');
           clearAfterTransition(el, 'rv', 'rv-in');
           if (io) io.unobserve(el);

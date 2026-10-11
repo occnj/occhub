@@ -7,12 +7,12 @@ import core
 
 SEED = [
     "INSERT INTO missions(title,summary,body,cover_photo,sort_order) VALUES('M1','sum','<p>body</p>','uploads/a.jpg',1)",
-    "INSERT INTO mission_images(mission_id,photo,caption,sort_order) VALUES(1,'uploads/b.jpg','cap',1)",
+    "INSERT INTO mission_images(mission_id,photo,caption,sort_order) VALUES((SELECT MAX(id) FROM missions),'uploads/b.jpg','cap',1)",
     "INSERT INTO beyond_walls(title,summary,body,cover_photo,sort_order,youtube_video_id) VALUES('B1','s','b','',1,'abcdefghijk')",
     "INSERT INTO behind_scene_people(name,bio,photo,sort_order) VALUES('P1','bio','',1)",
-    "INSERT INTO behind_scene_assignments(person_id,scene_id,role,slot_order) VALUES(1,1,'Lead',1)",
+    "INSERT OR IGNORE INTO behind_scene_assignments(person_id,scene_id,role,slot_order) VALUES((SELECT MAX(id) FROM behind_scene_people),(SELECT MIN(id) FROM behind_scenes),'Lead',1)",
     "INSERT INTO sermon_notes(title,note_date,summary,body_html,source_file) VALUES('S1','2026-01-04','sum','<p>hi</p>','uploads/n.pdf')",
-    "INSERT INTO sermon_next_steps(note_id,file,title,sort_order) VALUES(1,'uploads/ns_12345678.pdf','NS',0)",
+    "INSERT INTO sermon_next_steps(note_id,file,title,sort_order) VALUES((SELECT MAX(id) FROM sermon_notes),'uploads/ns_12345678.pdf','NS',0)",
     "INSERT INTO events(title,description,event_date,event_time,location,signup_url,auto_delete,recurrence,recurrence_detail) VALUES('E1','d','2099-01-01','10:00','here','',0,'none','')",
     "INSERT INTO events(title,description,event_date,event_time,location,signup_url,auto_delete,recurrence,recurrence_detail) VALUES('Rec','d','2020-01-01','10:00','here','',0,'monthly','1st-Sunday')",
     "INSERT INTO submissions(submitted_at,full_name,email) VALUES('2026-01-01 10:00','Sub','s@x.com')",
@@ -34,10 +34,12 @@ def _routes(app):
 @pytest.fixture(scope='module', autouse=True)
 def seeded(app):
     conn = core.get_db()
-    for q in SEED:
-        conn.execute(q)
-    conn.commit()
-    conn.close()
+    try:
+        for q in SEED:
+            conn.execute(q)
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def test_every_public_page_renders(app, client):

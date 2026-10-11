@@ -39,6 +39,31 @@ def hub():
     conn = get_db()
     latest_note = latest_sermon_note(conn)
     hub_cards = get_hub_cards(conn)
+    if (settings.get('hub_layout') or 'new') != 'classic':
+        import hub_layout as hl
+        ns_count = len(note_next_steps(conn, latest_note['id'])) if latest_note else 0
+        today_str = date.today().isoformat()
+        events = conn.execute("SELECT * FROM events ORDER BY event_date ASC, event_time ASC").fetchall()
+        conn.close()
+        upcoming = [e for e in expand_recurring(events, today_str) if str(e['event_date']) >= today_str]
+        return render_template(
+            'hub_v2.html',
+            greeting=greeting,
+            date=datetime.now().strftime('%A · %b %-d').upper(),
+            settings=settings,
+            hub_notice=get_hub_notice(settings),
+            get_involved=get_get_involved(settings),
+            latest_note=latest_note,
+            note_is_today=bool(latest_note and latest_note['note_date'] == today_str),
+            note_points=hl.note_preview(latest_note),
+            note_date_label=hl.short_date(latest_note['note_date']) if latest_note else '',
+            ns_count=ns_count,
+            events=hl.upcoming_events(upcoming),
+            service=hl.service_info(settings),
+            quick=hl.quick_buttons(hub_cards),
+            explore=hl.explore_cards(hub_cards),
+            hub_cards=hub_cards,
+        )
     conn.close()
     return render_template(
         'hub.html',

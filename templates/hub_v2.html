@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% include '_pwa_head.html' %}
+<title>Oasis Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+{#- Admin-chosen card colours (Settings -> Hub colours) win; otherwise the new layout's defaults. -#}
+{% set msg_bg = site_settings.get('hub_msg_bg') or '' %}
+<style>
+:root{
+  --teal:{{ site_settings.get('theme_primary', '#13677A') }};
+  --orange:{{ site_settings.get('theme_accent', '#F2541B') }};
+  --bg:{{ site_settings.get('theme_background', '#F6EFE4') }};
+  --card:{{ site_settings.get('theme_card', '#ffffff') }};
+  --text:{{ site_settings.get('theme_text', '#1d1d1f') }};
+  --sub:{{ site_settings.get('theme_subtext', '#6e6e73') }};
+  {% for key, value in hub_colors.items() %}--{{ key|replace('_', '-') }}:{{ value }};
+  {% endfor %}
+  --line:rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+a{color:inherit;text-decoration:none}
+body{background:var(--bg);{% if site_settings.get('ui_background_image') %}background-image:url('/static/{{ site_settings.get('ui_background_image') }}');background-size:cover;background-position:center;background-attachment:fixed;{% endif %}
+  font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:110px}
+.shell{width:100%;max-width:430px}
+
+.top{display:flex;justify-content:space-between;align-items:center;padding:58px 20px 14px}
+.date{font-size:.68rem;letter-spacing:.16em;color:var(--sub);font-weight:600}
+.hello{font-family:'DM Serif Display',serif;font-size:1.85rem;line-height:1.1;margin-top:4px}
+.logo{width:44px;height:44px;border-radius:50%;object-fit:cover;background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+
+/* Service countdown */
+.hero{margin:6px 16px 0;border-radius:26px;padding:22px 20px 20px;color:#fff;position:relative;overflow:hidden;
+  background:radial-gradient(120% 140% at 100% 0%,#1d8197 0%,var(--teal) 45%,#0d4a58 100%);box-shadow:0 14px 30px rgba(19,103,122,.28)}
+.hero::after{content:"";position:absolute;right:-50px;bottom:-70px;width:200px;height:200px;border-radius:50%;background:rgba(242,84,27,.35);filter:blur(30px);pointer-events:none}
+.hero.soon{background:radial-gradient(120% 140% at 100% 0%,#ff8a4f 0%,var(--orange) 50%,#c63d0c 100%);box-shadow:0 14px 30px rgba(242,84,27,.35)}
+.hero.soon::after{background:rgba(255,255,255,.18)}
+.hero > *{position:relative;z-index:1}
+.pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);padding:5px 10px;border-radius:99px;font-size:.66rem;letter-spacing:.12em;font-weight:600}
+.live{width:7px;height:7px;border-radius:50%;background:#ff7a4d;box-shadow:0 0 0 3px rgba(255,122,77,.25)}
+.hero.soon .live{background:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.3)}
+.hero h2{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.65rem;margin:12px 0 4px}
+.hero .soonmsg{font-size:2.5rem;line-height:1.05;margin:14px 0 6px}
+.hero p{font-size:.86rem;opacity:.85;line-height:1.5}
+.count{display:flex;gap:8px;margin:16px 0 0}
+.count div{background:rgba(255,255,255,.12);border-radius:14px;padding:8px 0;width:62px;text-align:center}
+.count b{display:block;font-size:1.15rem}.count span{font-size:.6rem;letter-spacing:.1em;opacity:.7}
+.times{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.times span{font-size:.74rem;font-weight:600;padding:6px 11px;border-radius:99px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.85)}
+.times span.next{background:#fff;color:var(--teal)}
+.hero.soon .times span.next{color:var(--orange)}
+.times span.done{opacity:.45;text-decoration:line-through}
+
+/* Today's notes */
+.notes{display:block;margin:16px 16px 0;background:var(--card);border-radius:26px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.07)}
+.notes .band{background:{{ msg_bg or 'linear-gradient(135deg,var(--orange),#f58a3a)' }};color:{{ site_settings.get('hub_msg_title') or '#fff' }};padding:16px 18px 18px;position:relative;overflow:hidden}
+.notes .band::after{content:"";position:absolute;right:-40px;top:-50px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.14)}
+.notes .k{display:flex;justify-content:space-between;align-items:center;font-size:.64rem;letter-spacing:.16em;font-weight:700;position:relative;z-index:1}
+.notes .k a{letter-spacing:0;font-size:.76rem;text-decoration:underline}
+.notes h2{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.6rem;margin:6px 0 2px;position:relative;z-index:1}
+.notes .by{font-size:.8rem;opacity:.85;color:{{ site_settings.get('hub_msg_text') or '#fff' }};position:relative;z-index:1}
+.notes .body{padding:14px 18px 16px}
+.notes .pt{display:flex;gap:10px;font-size:.85rem;color:#3a3a3c;line-height:1.45;margin-bottom:8px}
+.notes .pt b{color:var(--orange);font-weight:700}
+.notes .row{display:flex;gap:10px;margin-top:12px}
+.notes .open{flex:1;background:var(--orange);color:#fff;border-radius:14px;padding:13px;text-align:center;font-weight:700;font-size:.88rem}
+.notes .ns{display:flex;align-items:center;gap:6px;background:rgba(19,103,122,.08);color:var(--teal);border-radius:14px;padding:13px 14px;font-weight:600;font-size:.8rem;white-space:nowrap}
+.notes .empty{font-size:.86rem;color:var(--sub);line-height:1.5}
+
+/* Quick buttons */
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 16px 0}
+.q{background:var(--card);border-radius:18px;padding:12px 2px 10px;text-align:center;font-size:.72rem;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.q i{display:flex;width:38px;height:38px;margin:0 auto 6px;border-radius:12px;align-items:center;justify-content:center;font-size:1.1rem;background:rgba(19,103,122,.09);color:var(--teal)}
+
+.sec{display:flex;justify-content:space-between;align-items:baseline;margin:24px 20px 10px}
+.sec h3{font-size:.7rem;letter-spacing:.16em;color:var(--sub);font-weight:700}
+.sec a{font-size:.78rem;color:var(--teal);font-weight:600}
+
+/* Coming up */
+.events{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.events::-webkit-scrollbar{display:none}
+.ev{flex:0 0 232px;scroll-snap-align:start;background:var(--card);border-radius:20px;padding:14px;display:flex;gap:12px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.cal{width:48px;flex-shrink:0;border-radius:12px;overflow:hidden;text-align:center;background:var(--bg);align-self:flex-start}
+.cal span{display:block;background:var(--teal);color:#fff;font-size:.6rem;font-weight:700;letter-spacing:.1em;padding:3px 0}
+.cal b{display:block;font-size:1.25rem;padding:5px 0 6px}
+.ev .t{font-weight:700;font-size:.86rem;line-height:1.3}
+.ev .s{font-size:.74rem;color:var(--sub);margin-top:4px}
+
+/* Get involved */
+.gil{margin:0 16px;background:var(--hub-gi-bg,var(--card));border-radius:22px;padding:6px 14px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.gic{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.gic:last-child{border-bottom:0}
+.gic > i{width:42px;height:42px;border-radius:14px;background:rgba(242,84,27,.1);color:var(--hub-gi-accent,var(--orange));display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0}
+.gic .t{font-weight:700;font-size:.88rem;color:var(--hub-gi-title,var(--text))}
+.gic .s{font-size:.74rem;color:var(--hub-gi-text,var(--sub));margin-top:2px}
+.gic .go{margin-left:auto;width:32px;height:32px;border-radius:50%;background:var(--hub-gi-accent,var(--orange));color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.9rem}
+
+/* Explore */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 16px}
+.tile{background:var(--hub-qa-bg,var(--card));border-radius:20px;padding:14px 6px 12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.04);position:relative}
+.tile i{display:flex;width:42px;height:42px;margin:0 auto 8px;border-radius:14px;align-items:center;justify-content:center;font-size:1.2rem;background:rgba(19,103,122,.08);color:var(--hub-qa-icon,var(--teal))}
+.tile b{display:block;font-size:.76rem;line-height:1.25;font-weight:600;color:var(--hub-qa-title,var(--text))}
+
+/* Bottom bar */
+.tab{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:calc(100% - 24px);max-width:406px;height:70px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:24px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.1);z-index:1000}
+.tab a,.tab button{text-align:center;font-size:.64rem;color:var(--sub);font-weight:600;width:60px;background:none;border:0;font-family:inherit;cursor:pointer}
+.tab i{display:block;font-size:1.25rem;margin-bottom:3px}
+.tab .on{color:var(--teal)}
+.tab .serve{width:60px;height:60px;border-radius:20px;background:var(--teal);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-top:-26px;box-shadow:0 8px 18px rgba(19,103,122,.4);font-size:.58rem;letter-spacing:.04em}
+.tab .serve i{margin:0 0 1px;font-size:1.45rem}
+
+/* More sheet */
+.more-list{display:flex;flex-direction:column;gap:10px}
+.more-item{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:14px;background:#F5F5F7;font-weight:600;font-size:.9rem;width:100%;border:0;font-family:inherit;color:var(--text);cursor:pointer;text-align:left}
+.more-item i{width:36px;height:36px;border-radius:10px;background:rgba(19,103,122,.1);color:var(--teal);display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+{#- One place decides how a Hub card behaves when tapped (link, group, media, popup, notice). -#}
+{% macro card_attrs(card) -%}
+  {%- set href = card.target_url or '#' -%}
+  {%- if card.card_type == 'group' %}{% set href = url_for('hub_card_group', cid=card.id) %}{% elif card.card_type in ['media', 'modal'] %}{% set href = '#' %}{% endif -%}
+  href="{{ '#' if card.card_notice_enabled else href }}"
+  {%- if card.open_in_new_tab and card.card_type == 'link' and not card.card_notice_enabled %} target="_blank" rel="noopener noreferrer"{% endif %}
+  {%- if card.card_notice_enabled %} onclick="openCardNotice({{ card.id }}, event)"
+  {%- elif card.card_type == 'media' %} onclick="openMediaCard({{ card.id }}, event)"
+  {%- elif card.card_type == 'modal' %} onclick="openInfoCard({{ card.id }}, event)"{% endif %}
+{%- endmacro %}
+<div class="shell">
+  <div class="top">
+    <div><div class="date">{{ date }}</div><div class="hello">{{ greeting }}</div></div>
+    <img src="/static/{{ settings.logo_path if settings.logo_path else 'logo.png' }}" class="logo" alt="Oasis">
+  </div>
+
+  {% if service.times %}
+  <div class="hero" id="service"
+       data-day="{{ service.day }}" data-times="{{ service.times|join(',') }}" data-lead="{{ service.lead }}">
+    <span class="pill"><span class="live"></span> <span id="svc-when">EVERY {{ service.day_name|upper }}</span></span>
+    <div id="svc-normal">
+      <h2>{{ service.title }}</h2>
+      <p id="svc-next">{{ service.day_name }} · {{ service.labels|join(' · ') }}</p>
+      <div class="count" id="svc-count" hidden><div><b id="svc-d">0</b><span>DAY</span></div><div><b id="svc-h">00</b><span>HRS</span></div><div><b id="svc-m">00</b><span>MIN</span></div></div>
+    </div>
+    <div id="svc-soon" hidden>
+      <h2 class="soonmsg">Starting now</h2>
+      <p id="svc-soon-line"></p>
+    </div>
+    <div class="times">{% for t in service.times %}<span data-t="{{ t }}">{{ service.labels[loop.index0] }}</span>{% endfor %}</div>
+  </div>
+  {% endif %}
+
+  <div class="notes">
+    <div class="band">
+      <div class="k"><span>{{ "TODAY'S NOTES" if note_is_today else 'LATEST NOTES' }}{% if latest_note %} · {{ note_date_label }}{% endif %}</span><a href="{{ url_for('sermon_notes') }}">All notes</a></div>
+      <h2>{{ latest_note.title if latest_note else 'Sermon Notes' }}</h2>
+      <div class="by">{{ 'Follow along during the message' if latest_note else "This Sunday's notes will appear here" }}</div>
+    </div>
+    <div class="body">
+      {% if latest_note %}
+        {% for point in note_points %}<div class="pt"><b>{{ loop.index }}</b><span>{{ point }}</span></div>{% endfor %}
+        <div class="row">
+          <a class="open" href="{{ url_for('sermon_note_detail', nid=latest_note.id) }}">Open notes →</a>
+          {% if ns_count %}<a class="ns" href="{{ url_for('sermon_note_detail', nid=latest_note.id) }}#next-steps"><i class="bi bi-download"></i> {{ ns_count }} Next Step{{ 's' if ns_count != 1 }}</a>{% endif %}
+        </div>
+      {% else %}
+        <div class="empty">Sermon notes are posted every Sunday so you can follow along on your phone.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if quick %}
+  <div class="quick" style="grid-template-columns:repeat({{ quick|length }},1fr)">
+    {% for b in quick %}
+    {% if b.card %}<a class="q" {{ card_attrs(b.card) }}>{% else %}<a class="q" href="{{ b.href }}">{% endif %}<i class="bi {{ b.icon }}"></i>{{ b.label }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if events %}
+  <div class="sec"><h3>COMING UP</h3><a href="{{ url_for('calendar') }}">Calendar</a></div>
+  <div class="events">
+    {% for e in events %}
+    <a class="ev" href="{{ url_for('calendar') }}"><div class="cal"><span>{{ e.month }}</span><b>{{ e.day }}</b></div>
+      <div><div class="t">{{ e.title }}</div><div class="s">{{ e.weekday }}{% if e.time %} · {{ e.time }}{% endif %}</div></div></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if get_involved.cards %}
+  <div class="sec"><h3>GET INVOLVED</h3></div>
+  <div class="gil">
+    {% for gi in get_involved.cards %}
+    <a class="gic" href="#" role="button" onclick="openGetInvolved({{ gi.slot }}, event)">
+      <i class="bi {{ gi.icon }}"></i>
+      <div><div class="t">{{ gi.title or 'Get Involved' }}</div>{% if gi.body %}<div class="s">{{ gi.body.split('\n')[0] }}</div>{% endif %}</div>
+      <span class="go"><i class="bi bi-arrow-right"></i></span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if explore %}
+  <div class="sec"><h3>EXPLORE</h3></div>
+  <div class="grid">
+    {% for card in explore %}
+    <a class="tile" {{ card_attrs(card) }}><i class="bi {{ card.icon or 'bi-grid-fill' }}"></i><b>{{ card.title }}</b></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% include '_hub_overlays.html' %}
+
+<div id="more-sheet" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">More</div>
+      <button class="modal-close" onclick="document.getElementById('more-sheet').classList.remove('open')"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <div class="more-list">
+      <a class="more-item" href="/about"><i class="bi bi-info-circle-fill"></i> About Oasis</a>
+      <a class="more-item" href="/social"><i class="bi bi-share-fill"></i> Social Media</a>
+      <button class="more-item" onclick="document.getElementById('more-sheet').classList.remove('open');document.getElementById('contact-modal').classList.add('open')"><i class="bi bi-telephone-fill"></i> Call or Visit Us</button>
+    </div>
+  </div>
+</div>
+
+<nav class="tab">
+  <a class="on" href="/hub"><i class="bi bi-house-door-fill"></i>Home</a>
+  <a href="{{ url_for('calendar') }}"><i class="bi bi-calendar3"></i>Events</a>
+  <a class="serve" href="/serve" title="Serve"><i class="bi bi-person-raised-hand"></i>SERVE</a>
+  <a href="{{ settings.give_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-heart"></i>Give</a>
+  <button type="button" onclick="document.getElementById('more-sheet').classList.add('open')"><i class="bi bi-grid"></i>More</button>
+</nav>
+
+<script>
+// Service countdown. Uses the phone's own clock (visitors are local). From `lead` minutes before
+// a service starts it shows "Starting now"; once it starts, it moves on to the next service.
+// ?now=2026-10-11T09:58 previews any moment.
+(function () {
+  var el = document.getElementById('service');
+  if (!el) return;
+  var day = +el.dataset.day, lead = +el.dataset.lead;
+  var times = el.dataset.times.split(',').map(function (t) { var p = t.split(':'); return { h: +p[0], m: +p[1], key: t }; });
+  var q = new URLSearchParams(location.search).get('now');
+  function label(t) { return (t.h % 12 || 12) + ':' + String(t.m).padStart(2, '0') + ' ' + (t.h < 12 ? 'AM' : 'PM'); }
+  function render() {
+    var now = q ? new Date(q) : new Date();
+    var serviceDay = new Date(now); serviceDay.setDate(now.getDate() + ((day - now.getDay() + 7) % 7));
+    var next = null, nextT = null;
+    times.forEach(function (t) {
+      var at = new Date(serviceDay); at.setHours(t.h, t.m, 0, 0);
+      var chip = el.querySelector('[data-t="' + t.key + '"]');
+      chip.className = '';
+      if (at > now && !next) { next = at; nextT = t; }
+      else if (at <= now && serviceDay.toDateString() === now.toDateString()) chip.className = 'done';
+    });
+    if (!next) {                                    // the day's last service has started: next week
+      serviceDay.setDate(serviceDay.getDate() + 7);
+      nextT = times[0]; next = new Date(serviceDay); next.setHours(nextT.h, nextT.m, 0, 0);
+      el.querySelectorAll('.times span').forEach(function (c) { c.className = ''; });
+    }
+    el.querySelector('[data-t="' + nextT.key + '"]').className = 'next';
+    var mins = Math.ceil((next - now) / 60000);
+    var today = next.toDateString() === now.toDateString();
+    var dayName = today ? 'Today' : next.toLocaleDateString('en-US', { weekday: 'long' });
+    document.getElementById('svc-when').textContent = today ? 'TODAY' : 'THIS ' + dayName.toUpperCase();
+    var soon = mins <= lead;
+    el.classList.toggle('soon', soon);
+    document.getElementById('svc-normal').hidden = soon;
+    document.getElementById('svc-soon').hidden = !soon;
+    if (soon) {
+      document.getElementById('svc-soon-line').textContent = 'The ' + label(nextT) + ' service begins in ' + mins + ' minute' + (mins === 1 ? '' : 's') + '. Find a seat, we’re glad you’re here.';
+    } else {
+      document.getElementById('svc-next').textContent = 'Next service · ' + dayName + ' ' + label(nextT);
+      document.getElementById('svc-count').hidden = false;
+      document.getElementById('svc-d').textContent = Math.floor(mins / 1440);
+      document.getElementById('svc-h').textContent = String(Math.floor(mins % 1440 / 60)).padStart(2, '0');
+      document.getElementById('svc-m').textContent = String(mins % 60).padStart(2, '0');
+    }
+  }
+  render();
+  if (!q) setInterval(render, 15000);
+})();
+</script>
+</body>
+</html>

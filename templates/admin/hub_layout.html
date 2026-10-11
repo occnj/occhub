@@ -1,0 +1,70 @@
+{% extends "admin/base.html" %}
+{% block title %}Hub Layout{% endblock %}
+{% block page_title %}Hub Layout{% endblock %}
+{% block page_sub %}Which Hub design visitors see, and the service times its countdown uses{% endblock %}
+
+{% block content %}
+<form method="POST">
+<div style="max-width:620px;">
+  <div class="card">
+    <div class="card-header"><div class="card-title"><i class="bi bi-phone"></i> Layout</div></div>
+    <div class="card-body">
+      {% for value, label, note in [('new', 'New Hub', 'Service countdown, Today\'s Notes, Coming Up, Get Involved and Explore'),
+                                     ('classic', 'Classic Hub', 'The previous design, kept so you can switch back at any time')] %}
+      <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;margin-bottom:12px;text-transform:none;letter-spacing:0;">
+        <input type="radio" name="hub_layout" value="{{ value }}" {% if (settings.get('hub_layout') or 'new') == value %}checked{% endif %} style="accent-color:#13677A;margin-top:3px;">
+        <span><b style="font-size:0.9rem;">{{ label }}</b><br><span style="font-size:0.8rem;color:#6e6e73;">{{ note }}</span></span>
+      </label>
+      {% endfor %}
+      <a href="/hub" target="_blank" class="btn btn-ghost" style="margin-top:4px;">View the Hub</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><div class="card-title"><i class="bi bi-clock-fill"></i> Service countdown (New Hub)</div></div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Day</label>
+          <select name="service_day" class="form-control">
+            {% for name in day_names %}<option value="{{ loop.index0 }}" {% if service.day == loop.index0 %}selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Service times</label>
+          <input type="text" name="service_times" class="form-control" required value="{{ service.labels|join(', ') }}" placeholder="8:30 AM, 10:00 AM, 11:30 AM">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">"Starting now" (minutes before)</label>
+          <input type="number" name="service_starting_minutes" min="0" max="60" class="form-control" value="{{ service.lead }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Headline</label>
+          <input type="text" name="service_title" class="form-control" value="{{ service.title }}" placeholder="Worship with us">
+        </div>
+      </div>
+      <div style="font-size:0.8rem;color:#6e6e73;line-height:1.6;">
+        The card counts down to the next service. That many minutes before each service it turns orange and says
+        <b>Starting now</b>; once the service begins it moves on to the next one. After the last service of the day it
+        counts down to next week.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header"><div class="card-title"><i class="bi bi-info-circle"></i> Where the rest comes from</div></div>
+    <div class="card-body" style="font-size:0.84rem;line-height:1.8;color:#3a3a3c;">
+      <b>Today's Notes</b>: the newest note in Sermon Notes &middot;
+      <b>Coming Up</b>: Events &middot;
+      <b>Get Involved</b>: Get Involved &middot;
+      <b>Pray / Life Events / Help Desk</b> buttons and the <b>Explore</b> grid: Hub Cards (hide a card there to hide it here) &middot;
+      card colours: Settings.
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary" style="margin-top:20px;">Save</button>
+</div>
+</form>
+{% endblock %}

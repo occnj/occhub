@@ -141,3 +141,33 @@ def admin_watch_sermons():
 
 # Everything above is shared with the route modules via `from <module> import *`.
 __all__ = [n for n in dir() if not n.startswith('__')]
+
+
+# Hub layout (new / classic) and the Sunday service countdown
+@app.route('/admin/hub-layout', methods=['GET', 'POST'])
+@login_required
+def admin_hub_layout():
+    import hub_layout as hl
+    if request.method == 'POST':
+        raw = request.form.get('service_times', '')
+        parsed = [hl.parse_service_time(t) for t in re.split(r'[,;\n]+', raw) if t.strip()]
+        if not parsed or None in parsed:
+            flash('Please enter service times like 8:30, 10:00, 11:30 AM.', 'info')
+            return redirect(url_for('admin_hub_layout'))
+        values = {
+            'hub_layout': 'classic' if request.form.get('hub_layout') == 'classic' else 'new',
+            'service_day': str(int_or(request.form.get('service_day'), 0) % 7),
+            'service_times': ', '.join(sorted(set(parsed))),
+            'service_starting_minutes': str(max(0, min(60, int_or(request.form.get('service_starting_minutes'), 2)))),
+            'service_title': request.form.get('service_title', '').strip() or 'Worship with us',
+        }
+        conn = get_db()
+        for key, value in values.items():
+            conn.execute("INSERT OR REPLACE INTO settings (key,value) VALUES (?,?)", (key, value))
+        conn.commit()
+        conn.close()
+        flash('Hub layout saved!', 'success')
+        return redirect(url_for('admin_hub_layout'))
+    settings = all_settings()
+    return render_template('admin/hub_layout.html', settings=settings, service=hl.service_info(settings),
+                           day_names=hl.DAY_NAMES)

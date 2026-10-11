@@ -1,0 +1,525 @@
+{# Popups shared by every Hub layout: hub notice, Get Involved, card notices, media/info cards,
+   the Contact sheet, and the script that drives them. Needs: hub_notice, get_involved, hub_cards. #}
+<style>
+        .notice-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 16, 24, 0.46);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 3000;
+        }
+        .notice-overlay.open { display: flex; }
+        .notice-card {
+            width: 100%;
+            max-width: 360px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(249,249,251,0.98) 100%);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 22px 42px rgba(0,0,0,0.18);
+        }
+        .notice-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .notice-body {
+            padding: 22px 20px 20px;
+        }
+        .notice-kicker {
+            font-size: 0.68rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--orange);
+            margin-bottom: 8px;
+        }
+        .notice-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.8rem;
+            line-height: 1.1;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+        .notice-copy {
+            font-size: 0.92rem;
+            line-height: 1.7;
+            color: var(--sub);
+        }
+        .notice-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+        .notice-btn,
+        .notice-close {
+            flex: 1;
+            border: none;
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .notice-btn {
+            background: var(--orange);
+            color: white;
+        }
+        .notice-close {
+            background: rgba(19,103,122,0.08);
+            color: var(--teal);
+        }
+        .card-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 16, 24, 0.62);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 3100;
+        }
+        .card-overlay.open { display: flex; }
+        .overlay-card {
+            width: 100%;
+            max-width: 360px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(249,249,251,0.98) 100%);
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 22px 42px rgba(0,0,0,0.18);
+        }
+        .overlay-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .overlay-body {
+            padding: 20px;
+        }
+        .overlay-title {
+            font-family: 'DM Serif Display', serif;
+            font-size: 1.5rem;
+            line-height: 1.1;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+        .overlay-copy {
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: var(--sub);
+        }
+        .overlay-frame {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            border: 0;
+            display: block;
+            background: #000;
+        }
+        .overlay-btn,
+        .overlay-close {
+            width: 100%;
+            border: none;
+            border-radius: 16px;
+            padding: 13px 16px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        .overlay-btn {
+            background: var(--orange);
+            color: white;
+            margin-top: 12px;
+        }
+        .overlay-close {
+            background: rgba(19,103,122,0.08);
+            color: var(--teal);
+        }
+</style>
+{% if hub_notice.enabled and (hub_notice.title or hub_notice.body or hub_notice.image) %}
+<div id="hub-notice" class="notice-overlay" data-notice-key="{{ (hub_notice.title ~ '|' ~ hub_notice.body ~ '|' ~ hub_notice.image ~ '|' ~ hub_notice.link)|e }}" onclick="if(event.target===this)closeHubNotice()">
+  <div class="notice-card">
+    {% if hub_notice.image %}
+    <img src="/static/{{ hub_notice.image }}" alt="{{ hub_notice.title or 'Hub Notice' }}" class="notice-image">
+    {% endif %}
+    <div class="notice-body">
+      <div class="notice-kicker">Oasis Update</div>
+      <div class="notice-title">{{ hub_notice.title or 'Notice' }}</div>
+      {% if hub_notice.body %}
+      <div class="notice-copy">{{ hub_notice.body|nl2br }}</div>
+      {% endif %}
+      <div class="notice-actions">
+        {% if hub_notice.link %}
+        <a href="{{ hub_notice.link }}" class="notice-btn" {% if hub_notice.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %}>{{ hub_notice.link_label }}</a>
+        {% endif %}
+        <button type="button" class="notice-close" onclick="closeHubNotice()">{{ 'Close' if hub_notice.link else 'Got it' }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% for gi in get_involved.cards %}
+<div id="get-involved-overlay-{{ gi.slot }}" class="notice-overlay involved-overlay" onclick="if(event.target===this)closeGetInvolved()">
+  <div class="notice-card">
+    <div class="notice-body">
+      <div class="notice-kicker">Get Involved</div>
+      <div class="notice-title">{{ gi.title or 'Get Involved' }}</div>
+      {% if gi.body %}
+      <div class="notice-copy">{{ gi.body }}</div>
+      {% endif %}
+      <div class="notice-actions">
+        {% if gi.link %}
+        <a href="{{ gi.link }}" class="notice-btn" {% if gi.link.startswith('http') %}target="_blank" rel="noopener noreferrer"{% endif %} onclick="closeGetInvolved()">{{ gi.link_label }}</a>
+        {% endif %}
+        <button type="button" class="notice-close" onclick="closeGetInvolved()">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endfor %}
+
+<div id="card-notice-overlay" class="notice-overlay" onclick="if(event.target===this)closeCardNotice(false)">
+  <div class="notice-card">
+    <img id="card-notice-img" class="notice-image" style="display:none;" alt="">
+    <div class="notice-body">
+      <div class="notice-kicker">Quick Access</div>
+      <div class="notice-title" id="card-notice-title"></div>
+      <div class="notice-copy" id="card-notice-copy" style="display:none;"></div>
+      <div class="notice-actions">
+        <a id="card-notice-link-btn" class="notice-btn" style="display:none;" onclick="closeCardNotice(false)"></a>
+        <button type="button" class="notice-close" id="card-notice-close-btn" onclick="closeCardNotice()">Got it</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="media-card-overlay" class="card-overlay" onclick="if(event.target===this)closeMediaCard()">
+  <div class="overlay-card">
+    <iframe id="media-card-frame" class="overlay-frame" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
+    <div class="overlay-body">
+      <div class="overlay-title" id="media-card-title"></div>
+      <div class="overlay-copy" id="media-card-copy"></div>
+      <button type="button" class="overlay-close" onclick="closeMediaCard()">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="info-card-overlay" class="card-overlay" onclick="if(event.target===this)closeInfoCard()">
+  <div class="overlay-card">
+    <img id="info-card-image" class="overlay-image" style="display:none;" alt="">
+    <div class="overlay-body">
+      <div class="overlay-title" id="info-card-title"></div>
+      <div class="overlay-copy" id="info-card-copy"></div>
+      <a id="info-card-btn" class="overlay-btn" style="display:none;" target="_blank" rel="noopener noreferrer"></a>
+      <button type="button" class="overlay-close" onclick="closeInfoCard()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Contact Modal -->
+<div id="contact-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">Contact Us</div>
+      <button class="modal-close" onclick="document.getElementById('contact-modal').classList.remove('open')">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-building"></i></div>
+        <div>
+          <div class="info-label">Main Building</div>
+          <div class="info-val">2052 St. Georges Ave<br>Rahway, NJ 07065</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon orange"><i class="bi bi-clock-fill"></i></div>
+        <div>
+          <div class="info-label">Sunday Services</div>
+          <div class="info-val">8:30am · 10:00am · 11:30am</div>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="info-icon teal"><i class="bi bi-briefcase-fill"></i></div>
+        <div>
+          <div class="info-label">Our Offices</div>
+          <div class="info-val">2096 St. Georges Ave<br>Rahway, NJ 07065</div>
+          <div class="info-sub">Mon–Fri: 9:00am – 4:30pm</div>
+        </div>
+      </div>
+
+      <div class="modal-divider"></div>
+
+      <a href="tel:7324990040" class="contact-btn teal-btn">
+        <i class="bi bi-telephone-fill"></i>
+        <span>732-499-0040</span>
+      </a>
+      <a href="mailto:Oasis@OasisNJ.net" class="contact-btn ghost-btn">
+        <i class="bi bi-envelope-fill"></i>
+        <span>Oasis@OasisNJ.net</span>
+      </a>
+      <a href="/contact" class="contact-btn orange-btn">
+        <i class="bi bi-chat-dots-fill"></i>
+        <span>Send a Message</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<style>
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 2000;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-end; justify-content: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal-sheet {
+  background: #fff; border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 390px;
+  padding: 12px 20px 40px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+}
+.modal-overlay.open .modal-sheet { transform: translateY(0); }
+.modal-handle {
+  width: 36px; height: 4px; border-radius: 2px;
+  background: #d2d2d7; margin: 0 auto 16px;
+}
+.modal-header {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 20px;
+}
+.modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem; color: var(--text);
+}
+.modal-close {
+  background: #F5F5F7; border: none; border-radius: 50%;
+  width: 30px; height: 30px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sub); font-size: 0.8rem;
+}
+.modal-body { display: flex; flex-direction: column; gap: 14px; }
+.info-block {
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.info-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.info-icon.teal { background: rgba(19,103,122,0.1); color: var(--teal); }
+.info-icon.orange { background: rgba(242,84,27,0.1); color: var(--orange); }
+.info-label {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sub); margin-bottom: 3px;
+}
+.info-val { font-size: 0.88rem; font-weight: 500; color: var(--text); line-height: 1.5; }
+.info-sub { font-size: 0.78rem; color: var(--sub); margin-top: 2px; }
+.modal-divider {
+  height: 1px; background: #f0f0f0; margin: 4px 0;
+}
+.contact-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 15px 18px; border-radius: 14px;
+  text-decoration: none; font-size: 0.9rem; font-weight: 600;
+  transition: transform 0.15s;
+}
+.contact-btn:active { transform: scale(0.97); }
+.teal-btn { background: var(--teal); color: white; }
+.orange-btn { background: var(--orange); color: white; }
+.ghost-btn {
+  background: #F5F5F7; color: var(--text);
+  border: 1px solid #e5e5ea;
+}
+</style>
+<script>
+const hubCards = [
+  {% for card in hub_cards %}
+  {
+    id: {{ card.id }},
+    card_type: {{ (card.card_type or 'link')|tojson }},
+    title: {{ (card.title or '')|tojson }},
+    subtitle: {{ (card.subtitle or '')|tojson }},
+    media_url: {{ (card.media_url or '')|tojson }},
+    target_url: {{ (card.target_url or '')|tojson }},
+    modal_title: {{ (card.modal_title or '')|tojson }},
+    modal_body: {{ (card.modal_body or '')|tojson }},
+    modal_button_label: {{ (card.modal_button_label or '')|tojson }},
+    modal_button_url: {{ (card.modal_button_url or '')|tojson }},
+    modal_image: {{ (card.modal_image or '')|tojson }}
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+function findHubCard(id) {
+  return hubCards.find(card => card.id === id);
+}
+function embedMediaUrl(url) {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.hostname.includes('youtube.com') && parsed.searchParams.get('v')) {
+      return `https://www.youtube.com/embed/${parsed.searchParams.get('v')}`;
+    }
+    if (parsed.hostname.includes('youtu.be')) {
+      const id = parsed.pathname.replace('/', '');
+      return id ? `https://www.youtube.com/embed/${id}` : url;
+    }
+    return parsed.toString();
+  } catch (err) {
+    return url;
+  }
+}
+function openMediaCard(id, event) {
+  if (event) event.preventDefault();
+  const card = findHubCard(id);
+  if (!card) return;
+  document.getElementById('media-card-title').textContent = card.title || 'Media';
+  document.getElementById('media-card-copy').textContent = card.subtitle || '';
+  document.getElementById('media-card-frame').src = embedMediaUrl(card.media_url || card.target_url || '');
+  document.getElementById('media-card-overlay').classList.add('open');
+}
+function closeMediaCard() {
+  document.getElementById('media-card-frame').src = '';
+  document.getElementById('media-card-overlay').classList.remove('open');
+}
+function openInfoCard(id, event) {
+  if (event) event.preventDefault();
+  const card = findHubCard(id);
+  if (!card) return;
+  document.getElementById('info-card-title').textContent = card.modal_title || card.title || 'Info';
+  document.getElementById('info-card-copy').textContent = card.modal_body || card.subtitle || '';
+  const image = document.getElementById('info-card-image');
+  if (card.modal_image) {
+    image.src = `/static/${card.modal_image}`;
+    image.style.display = 'block';
+  } else {
+    image.style.display = 'none';
+    image.src = '';
+  }
+  const btn = document.getElementById('info-card-btn');
+  if (card.modal_button_label && card.modal_button_url) {
+    btn.textContent = card.modal_button_label;
+    btn.href = card.modal_button_url;
+    btn.style.display = 'inline-flex';
+  } else {
+    btn.style.display = 'none';
+    btn.removeAttribute('href');
+  }
+  document.getElementById('info-card-overlay').classList.add('open');
+}
+function closeInfoCard() {
+  document.getElementById('info-card-overlay').classList.remove('open');
+}
+const cardNotices = {
+    {% for card in hub_cards %}{% if card.card_notice_enabled %}
+    {% if card.card_type == 'group' %}{% set dest = url_for('hub_card_group', cid=card.id) %}
+    {% elif card.card_type == 'link' %}{% set dest = card.target_url or '' %}
+    {% else %}{% set dest = '' %}{% endif %}
+    {{ card.id }}: {
+        title: {{ (card.card_notice_title or card.title) | tojson }},
+        body: {{ (card.card_notice_body or '') | tojson }},
+        link: {{ (card.card_notice_link or '') | tojson }},
+        link_label: {{ (card.card_notice_link_label or 'Learn More') | tojson }},
+        image: {{ (card.card_notice_image or '') | tojson }},
+        dest: {{ dest | tojson }},
+        dest_new_tab: {{ (card.open_in_new_tab and card.card_type == 'link') | tojson }},
+        block: {{ card.card_notice_block | tojson }},
+    },
+    {% endif %}{% endfor %}
+};
+function openCardNotice(cardId, event) {
+    const n = cardNotices[cardId];
+    if (!n) return;
+    event.preventDefault();
+    const overlay = document.getElementById('card-notice-overlay');
+    overlay._dest = n.block ? '' : n.dest;
+    overlay._destNewTab = n.dest_new_tab;
+    const img = document.getElementById('card-notice-img');
+    if (n.image) {
+        img.src = '/static/' + n.image;
+        img.style.display = '';
+    } else {
+        img.style.display = 'none';
+    }
+    document.getElementById('card-notice-title').textContent = n.title;
+    const copy = document.getElementById('card-notice-copy');
+    if (n.body) {
+        copy.innerHTML = n.body.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        copy.style.display = '';
+    } else {
+        copy.style.display = 'none';
+    }
+    const linkBtn = document.getElementById('card-notice-link-btn');
+    const closeBtn = document.getElementById('card-notice-close-btn');
+    if (n.link) {
+        linkBtn.href = n.link;
+        linkBtn.textContent = n.link_label;
+        linkBtn.target = n.link.startsWith('http') ? '_blank' : '_self';
+        linkBtn.rel = n.link.startsWith('http') ? 'noopener noreferrer' : '';
+        linkBtn.style.display = '';
+    } else {
+        linkBtn.style.display = 'none';
+    }
+    closeBtn.textContent = 'Got it';
+    overlay.classList.add('open');
+}
+function closeCardNotice(navigate) {
+    const overlay = document.getElementById('card-notice-overlay');
+    overlay.classList.remove('open');
+    if (navigate !== false && overlay._dest) {
+        if (overlay._destNewTab) {
+            window.open(overlay._dest, '_blank', 'noopener,noreferrer');
+        } else {
+            window.location.href = overlay._dest;
+        }
+    }
+}
+function openGetInvolved(slot, e) {
+  if (e) e.preventDefault();
+  const overlay = document.getElementById(`get-involved-overlay-${slot}`);
+  if (overlay) overlay.classList.add('open');
+}
+function closeGetInvolved() {
+  document.querySelectorAll('.involved-overlay.open').forEach(el => el.classList.remove('open'));
+}
+function closeHubNotice() {
+  const modal = document.getElementById('hub-notice');
+  if (!modal) return;
+  const noticeKey = `oasis-hub-notice-dismissed:${modal.dataset.noticeKey || 'default'}`;
+  sessionStorage.setItem(noticeKey, '1');
+  modal.classList.remove('open');
+}
+window.addEventListener('load', () => {
+  const modal = document.getElementById('hub-notice');
+  const noticeKey = modal ? `oasis-hub-notice-dismissed:${modal.dataset.noticeKey || 'default'}` : '';
+  if (modal && sessionStorage.getItem(noticeKey) !== '1') {
+    modal.classList.add('open');
+  }
+});
+</script>

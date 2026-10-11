@@ -103,6 +103,11 @@ def _init_db():
         ('primary_cta_label','Give'),
         ('primary_cta_icon','bi-heart-fill'),
         ('primary_cta_url','https://thekingdomledger.com/donate?code=2335'),
+        ('hub_layout','new'),                       # 'new' or 'classic' (Admin -> Hub Layout)
+        ('service_day','0'),                        # 0 = Sunday ... 6 = Saturday
+        ('service_times','08:30, 10:00, 11:30'),
+        ('service_starting_minutes','2'),           # "Starting now" this many minutes before each service
+        ('service_title','Worship with us'),
     ]:
         c.execute("INSERT OR IGNORE INTO settings (key,value) VALUES (?,?)",(k,v))
     for k, v in special_event_setting_defaults():

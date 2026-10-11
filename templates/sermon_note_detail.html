@@ -190,6 +190,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
   }
 
   openBtn.addEventListener('click', open);
+  if (location.hash === '#next-steps') open();      // the Hub's "Next Steps" button links here
   document.getElementById('nsCancel').addEventListener('click', close);
   document.getElementById('nsSwitch').addEventListener('click', function(){
     showGuide('all');

@@ -27,7 +27,7 @@ The app is entirely self-hosted — no monthly software fees, no third-party app
 
 | Feature | What It Does |
 |---|---|
-| **Hub (Dashboard)** | Home screen with quick-access tiles and bottom navigation |
+| **Hub (Dashboard)** | Home screen: Sunday service countdown, Today's Notes, quick buttons, Coming Up, Get Involved, Explore grid and bottom bar (Home · Events · Serve · Give · More). The previous design can be switched back on under Admin → Hub Layout |
 | **You Said Yes** | Downloads the "You Said Yes" PDF for new believers |
 | **Sermon Notes** | Read the latest message notes in a phone-friendly format, plus the archive |
 | **Oasis Next Steps** | Download the take-home sheets attached to a sermon note; asks before saving and shows iPhone/Android instructions |
@@ -121,6 +121,8 @@ occ_hub/
 ├── documents.py            ← sermon-note PDF/DOCX import and rich text
 ├── youtube.py              ← Watch-page video lookups (cached)
 ├── maintenance.py          ← expired events, unused uploads (also a command-line tool)
+├── hub_layout.py           ← data for the new Hub (countdown, notes preview, quick buttons)
+├── special_events.py       ← Special Events settings; routes_special_events.py its pages
 ├── tools/occhub_backup.py  ← backup / restore / verify / prune
 ├── deploy/                 ← backup timer + service, droplet receiver script, droplet app templates
 ├── docs/                   ← BACKUP_AND_MIGRATION.md

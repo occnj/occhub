@@ -13,8 +13,8 @@
     {% for note in notes %}
     <tr>
       <td><b>{{ note.note_date }}</b></td>
-      <td>{{ note.title }}</td>
-      <td style="color:#6e6e73;font-size:0.82rem;">{{ note.summary or '—' }}</td>
+      <td>{{ note.title }}{% if note.sermon_title or note.series_name %}<div style="color:#6e6e73;font-size:0.78rem;">{{ note|sermon_byline }}</div>{% endif %}</td>
+      <td style="color:#6e6e73;font-size:0.82rem;">{{ note.summary|striptags or '—' }}</td>
       <td>
         {% set ns_n = ns_counts.get(note.id, 0) %}
         {% if ns_n %}

@@ -138,6 +138,18 @@ def admin_sermon_notes():
     conn.close()
     return render_template('admin/sermon_notes.html', notes=notes, ns_counts=ns_counts)
 
+def sermon_title_fields():
+    """The real sermon title and its place in a series. The hook line lives in `title`."""
+    part = request.form.get('series_part', '').strip()
+    part = re.sub(r'^(?:pt|part)\.?\s*', '', part, flags=re.I)   # "Pt 2" / "Part 2" -> "2"
+    return (request.form.get('sermon_title', '').strip(),
+            request.form.get('series_name', '').strip(),
+            part)
+
+def series_names(conn):
+    return [r[0] for r in conn.execute(
+        "SELECT DISTINCT series_name FROM sermon_notes WHERE COALESCE(series_name,'') <> '' ORDER BY series_name")]
+
 def next_steps_heading_fields(note=None):
     """The note-level heading and instruction for the Oasis Next Steps section.
     A submit that never rendered the homework panel must not silently wipe them,
@@ -193,7 +205,8 @@ def admin_sermon_note_new():
         source_file, ext = save_document_upload('source_file')
         if not source_file:
             flash('Please upload a PDF or DOCX file.', 'info')
-            return render_template('admin/sermon_note_form.html', note=None)
+            conn = get_db(); names = series_names(conn); conn.close()
+            return render_template('admin/sermon_note_form.html', note=None, ns_items=[], series_names=names)
         note_date = request.form.get('note_date', '').strip() or date.today().isoformat()
         payload = build_sermon_note_payload(
             source_file,
@@ -202,19 +215,21 @@ def admin_sermon_note_new():
             summary=request.form.get('summary', '').strip(),
         )
         ns_title, ns_note = next_steps_heading_fields()
+        sermon_title, series_name, series_part = sermon_title_fields()
         conn = get_db()
         cur = conn.execute(
             "INSERT INTO sermon_notes (title,note_date,summary,body_html,source_file,"
-            "next_steps_title,next_steps_note) VALUES (?,?,?,?,?,?,?)",
+            "next_steps_title,next_steps_note,sermon_title,series_name,series_part) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (payload['title'], note_date, payload['summary'], payload['body_html'], payload['source_file'],
-             ns_title, ns_note)
+             ns_title, ns_note, sermon_title, series_name, series_part)
         )
         sync_next_steps(conn, cur.lastrowid)
         conn.commit()
         conn.close()
         flash('Sermon notes imported!', 'success')
         return redirect(url_for('admin_sermon_notes'))
-    return render_template('admin/sermon_note_form.html', note=None, ns_items=[])
+    conn = get_db(); names = series_names(conn); conn.close()
+    return render_template('admin/sermon_note_form.html', note=None, ns_items=[], series_names=names)
 
 @app.route('/admin/sermon-notes/<int:nid>/edit', methods=['GET', 'POST'])
 @login_required
@@ -243,9 +258,10 @@ def admin_sermon_note_edit(nid):
             body_html = request.form.get('body_html', '').strip()
             stored_file = note['source_file']
         ns_title, ns_note = next_steps_heading_fields(note)
+        sermon_title, series_name, series_part = sermon_title_fields()
         conn.execute(
             "UPDATE sermon_notes SET title=?, note_date=?, summary=?, body_html=?, source_file=?,"
-            " next_steps_title=?, next_steps_note=? WHERE id=?",
+            " next_steps_title=?, next_steps_note=?, sermon_title=?, series_name=?, series_part=? WHERE id=?",
             (
                 title,
                 request.form.get('note_date', '').strip() or note['note_date'],
@@ -254,6 +270,9 @@ def admin_sermon_note_edit(nid):
                 stored_file,
                 ns_title,
                 ns_note,
+                sermon_title,
+                series_name,
+                series_part,
                 nid,
             )
         )
@@ -261,12 +280,14 @@ def admin_sermon_note_edit(nid):
         conn.commit()
         updated = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
         ns_items = note_next_steps(conn, nid)
+        names = series_names(conn)
         conn.close()
         flash('Sermon notes updated!', 'success')
-        return render_template('admin/sermon_note_form.html', note=updated, ns_items=ns_items)
+        return render_template('admin/sermon_note_form.html', note=updated, ns_items=ns_items, series_names=names)
     ns_items = note_next_steps(conn, nid)
+    names = series_names(conn)
     conn.close()
-    return render_template('admin/sermon_note_form.html', note=note, ns_items=ns_items)
+    return render_template('admin/sermon_note_form.html', note=note, ns_items=ns_items, series_names=names)
 
 @app.route('/admin/sermon-notes/<int:nid>/delete', methods=['POST'])
 @login_required

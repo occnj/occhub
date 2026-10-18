@@ -19,11 +19,27 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .hero-content{position:relative;z-index:1;padding:56px 24px 28px 78px;}
 .hero-tag{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.62);margin-bottom:8px;}
 .hero-title{font-family:'DM Serif Display',serif;font-size:2rem;color:#fff;line-height:1.08;margin-bottom:10px;}
-.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:250px;}
+.hero-copy{font-size:0.9rem;line-height:1.65;color:rgba(255,255,255,0.78);max-width:280px;}
+.hero-sermon{font-size:0.82rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.88);line-height:1.5;max-width:280px;}
 .body{padding:22px 16px 0;}
 .card{background:var(--card);border-radius:24px;padding:22px 20px;box-shadow:0 8px 24px rgba(0,0,0,0.08);}
 .meta{font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;color:var(--sub);margin-bottom:16px;}
 .summary{font-size:0.95rem;line-height:1.75;color:var(--sub);margin-bottom:18px;}
+.summary p{margin:0 0 12px;}
+.summary p:last-child{margin-bottom:0;}
+.summary strong,.summary b{font-weight:700;color:var(--text);}
+.summary em,.summary i{font-style:italic;}
+
+/* Other parts of the same series */
+.series{margin-top:16px;background:var(--card);border-radius:24px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,0.08);}
+.series-kicker{font-size:0.68rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--sub);margin-bottom:4px;}
+.series-name{font-family:'DM Serif Display',serif;font-size:1.3rem;line-height:1.2;color:var(--text);margin-bottom:12px;}
+.series-list{display:grid;gap:8px;}
+.series-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#f5f5f7;color:var(--text);text-decoration:none;}
+.series-item.current{background:rgba(240,81,35,0.1);}
+.series-part{flex:none;min-width:44px;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--orange);}
+.series-title{flex:1;min-width:0;font-size:0.88rem;font-weight:600;line-height:1.35;}
+.series-date{flex:none;font-size:0.72rem;color:var(--sub);}
 .content{font-size:0.96rem;line-height:1.9;color:#343438;}
 .content h2{font-family:'DM Serif Display',serif;font-size:1.35rem;line-height:1.2;color:var(--text);margin:22px 0 10px;}
 .content h3{font-size:1.08rem;font-weight:700;color:var(--text);margin:18px 0 8px;}
@@ -79,16 +95,33 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
   <div class="hero">
     <a href="{{ url_for('sermon_notes') }}" class="back-btn"><i class="bi bi-arrow-left"></i></a>
     <div class="hero-content">
-      <div class="hero-tag">Sermon Notes</div>
+      <div class="hero-tag">Sermon Notes · {{ note.note_date|short_date }}</div>
       <div class="hero-title">{{ note.title }}</div>
-      <div class="hero-copy">{{ note.note_date }}</div>
+      {% set byline = note|sermon_byline %}
+      {% if byline %}<div class="hero-sermon">{{ byline }}</div>{% endif %}
     </div>
   </div>
   <div class="body">
     <div class="card">
-      {% if note.summary %}<div class="summary">{{ note.summary }}</div>{% endif %}
+      {% if note.summary %}<div class="summary">{{ note.summary|richtext }}</div>{% endif %}
       <div class="content">{{ note.body_html|richtext }}</div>
     </div>
+
+    {% if series|length > 1 %}
+    <div class="series">
+      <div class="series-kicker">Series</div>
+      <div class="series-name">{{ note.series_name }}</div>
+      <div class="series-list">
+        {% for part in series %}
+        <a class="series-item{% if part.id == note.id %} current{% endif %}" href="{{ url_for('sermon_note_detail', nid=part.id) }}"{% if part.id == note.id %} aria-current="page"{% endif %}>
+          <span class="series-part">{{ part|sermon_part or '—' }}</span>
+          <span class="series-title">{{ part.sermon_title or part.title }}</span>
+          <span class="series-date">{{ part.note_date|short_date }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
 
     {% if ns_items %}
     <div class="ns-card">

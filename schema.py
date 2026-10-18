@@ -10,7 +10,7 @@ import fcntl
 from core import *
 from special_events import setting_defaults as special_event_setting_defaults
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 def add_column(c, table, col, defn):
     """ALTER TABLE ... ADD COLUMN only when the column is missing."""
@@ -461,6 +461,18 @@ def _init_db():
     # themselves live in sermon_next_steps, one row per file.
     for col in ('next_steps_file', 'next_steps_title', 'next_steps_note'):
         add_column(c, 'sermon_notes', col, "TEXT DEFAULT ''")
+    # title is the hook line shown big ("A title never replaces a towel."); sermon_title is
+    # the message's real name ("The Towel & the Basin"). series_name + series_part group the
+    # parts of a series so each note can link to the others.
+    for col in ('sermon_title', 'series_name', 'series_part'):
+        add_column(c, 'sermon_notes', col, "TEXT DEFAULT ''")
+    if schema_version < 3:
+        # Notes imported before the PDF reader dropped unmapped glyphs carry "(cid:0)" in their text.
+        from documents import strip_cid_glyphs
+        for row in c.execute("SELECT id, title, summary, body_html FROM sermon_notes "
+                             "WHERE title LIKE '%(cid:%' OR summary LIKE '%(cid:%' OR body_html LIKE '%(cid:%'").fetchall():
+            c.execute("UPDATE sermon_notes SET title=?, summary=?, body_html=? WHERE id=?",
+                      (strip_cid_glyphs(row[1]), strip_cid_glyphs(row[2]), strip_cid_glyphs(row[3]), row[0]))
 
     c.execute('''CREATE TABLE IF NOT EXISTS sermon_next_steps (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

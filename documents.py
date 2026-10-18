@@ -269,6 +269,13 @@ def _pdf_runs_html(words, suppress_bold=False):
         parts.append(text)
     return ' '.join(parts)
 
+# pdfplumber prints a glyph it cannot map to a character as "(cid:N)" — usually a
+# bullet or symbol from an embedded font. It is never readable text, so drop it.
+CID_GLYPH_RE = re.compile(r'\s*\(cid:\d+\)')
+
+def strip_cid_glyphs(text):
+    return CID_GLYPH_RE.sub('', text or '')
+
 def pdf_read_lines(abs_path, max_pages=PDF_MAX_PAGES):
     """Positioned text lines from a PDF. Single source of truth for title and body."""
     lines = []
@@ -281,6 +288,9 @@ def pdf_read_lines(abs_path, max_pages=PDF_MAX_PAGES):
                 pages = pages[:max_pages]
             for page_index, page in enumerate(pages):
                 words = page.extract_words(extra_attrs=['fontname', 'size'], use_text_flow=False)
+                for w in words:
+                    w['text'] = strip_cid_glyphs(w['text']).strip()
+                words = [w for w in words if w['text']]
                 if not words:
                     continue
                 for i, line_words in enumerate(_pdf_cluster_words_into_lines(words)):
@@ -461,6 +471,43 @@ def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
         'body_html': body_html or '<p>Sermon notes were uploaded, but the document did not contain readable text.</p>',
         'source_file': path_rel,
     }
+
+def short_date(iso):
+    """'2026-10-11' -> 'OCT 11' (left as-is if it isn't a date)."""
+    try:
+        d = date.fromisoformat(str(iso))
+    except ValueError:
+        return str(iso or '')
+    return f"{d.strftime('%b').upper()} {d.day}"
+
+app.add_template_filter(short_date, 'short_date')
+
+@app.template_filter('sermon_part')
+def sermon_part_label(note):
+    part = row_value(note, 'series_part').strip()
+    return f'Pt {part}' if part else ''
+
+@app.template_filter('sermon_byline')
+def sermon_byline(note):
+    """The line under the hook title: "The Towel & The Basin · Pt 1". With no sermon
+    title it falls back to the series name, so a part is never shown on its own."""
+    name = row_value(note, 'sermon_title').strip() or row_value(note, 'series_name').strip()
+    if not name:
+        return ''
+    return ' · '.join(p for p in (name, sermon_part_label(note)) if p)
+
+def series_notes(conn, note):
+    """Every note in the same series as `note`, in part order (then date)."""
+    series = row_value(note, 'series_name').strip()
+    if not series:
+        return []
+    rows = conn.execute(
+        "SELECT * FROM sermon_notes WHERE series_name=? COLLATE NOCASE", (series,)
+    ).fetchall()
+    def order(r):
+        part = row_value(r, 'series_part').strip()
+        return (0, int(part), r['note_date']) if part.isdigit() else (1, 0, r['note_date'])
+    return sorted(rows, key=order)
 
 def latest_sermon_note(conn):
     return conn.execute(

@@ -11,8 +11,9 @@
       <form method="POST" enctype="multipart/form-data">
         <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;">
           <div class="form-group">
-            <label class="form-label">Title</label>
-            <input type="text" name="title" class="form-control" value="{{ note.title if note else '' }}" placeholder="Leave blank to use the document heading">
+            <label class="form-label">Hook Title</label>
+            <input type="text" name="title" class="form-control" value="{{ note.title if note else '' }}" placeholder="e.g. A title never replaces a towel.">
+            <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">The big headline. Leave blank to use the document heading.</div>
           </div>
           <div class="form-group">
             <label class="form-label">Date</label>
@@ -21,8 +22,27 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Short Summary</label>
-          <textarea name="summary" class="form-control" style="min-height:90px;" placeholder="Optional short intro for the archive page">{{ note.summary if note else '' }}</textarea>
+          <label class="form-label">Sermon Title</label>
+          <input type="text" name="sermon_title" class="form-control" value="{{ note.sermon_title if note else '' }}" placeholder="e.g. The Towel &amp; The Basin">
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">The message's real title, shown under the hook title.</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:16px;">
+          <div class="form-group">
+            <label class="form-label">Series <span style="font-weight:400;color:#6e6e73;">(optional)</span></label>
+            <input type="text" name="series_name" class="form-control" list="seriesNames" value="{{ note.series_name if note else '' }}" placeholder="Leave blank if this is a stand-alone message">
+            <datalist id="seriesNames">{% for name in series_names or [] %}<option value="{{ name }}">{% endfor %}</datalist>
+            <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Use the same series name on every part so they link to each other.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Part</label>
+            <input type="text" name="series_part" class="form-control" inputmode="numeric" value="{{ note.series_part if note else '' }}" placeholder="1">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Intro</label>
+          <textarea name="summary" class="form-control rich-editor" style="min-height:110px;" placeholder="Optional intro shown at the top of the notes. Separate paragraphs with a blank line.">{{ note.summary if note else '' }}</textarea>
         </div>
 
         <div class="form-group">

@@ -1,8 +1,8 @@
-"""Data for the new Hub layout: service countdown settings, the notes preview, upcoming events,
+"""Data for the new Hub layout: service countdown settings, upcoming events,
 quick buttons and the Explore grid. The template is templates/hub_v2.html; the classic layout
 (templates/hub.html) stays available under Admin -> Hub Layout."""
 from core import *
-from documents import row_value
+from documents import row_value, short_date
 
 DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 _TIME_RE = re.compile(r'^\s*(\d{1,2})(?::(\d{2}))?\s*([ap]\.?m\.?)?\s*$', re.I)
@@ -57,41 +57,6 @@ def service_info(settings):
     times = service_times(settings)
     return {'day': day, 'day_name': DAY_NAMES[day], 'times': times, 'labels': [display_time(t) for t in times],
             'lead': lead, 'title': (settings.get('service_title') or '').strip() or 'Worship with us'}
-
-
-def _plain(fragment):
-    # Block-level tags separate words; inline ones (<b>, <em>…) must not, or "an <b>anchor</b>."
-    # would read "an anchor ." on the card.
-    text = re.sub(r'<(?:br|/?p|/?li|/?h\d|/?div|/?ol|/?ul)\b[^>]*>', ' ', fragment or '', flags=re.I)
-    text = html.unescape(re.sub(r'<[^>]+>', '', text))
-    return re.sub(r'\s+', ' ', text).strip()
-
-
-def note_preview(note, limit=2, width=110):
-    """The first points of a sermon note for the Hub card: list items if there are any,
-    otherwise the first paragraphs. Plain text, trimmed."""
-    if not note:
-        return []
-    body = row_value(note, 'body_html')
-    parts = re.findall(r'<li[^>]*>(.*?)</li>', body, re.S | re.I) or re.findall(r'<p[^>]*>(.*?)</p>', body, re.S | re.I)
-    points = []
-    for part in parts:
-        text = _plain(part)
-        if len(text) < 4:
-            continue
-        points.append(text if len(text) <= width else text[:width].rsplit(' ', 1)[0] + '…')
-        if len(points) == limit:
-            break
-    return points
-
-
-def short_date(iso):
-    """'2026-10-11' -> 'OCT 11' (left as-is if it isn't a date)."""
-    try:
-        d = date.fromisoformat(str(iso))
-    except ValueError:
-        return str(iso or '')
-    return f"{d.strftime('%b').upper()} {d.day}"
 
 
 def upcoming_events(events, limit=6):

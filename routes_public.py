@@ -55,7 +55,6 @@ def hub():
             get_involved=get_get_involved(settings),
             latest_note=latest_note,
             note_is_today=bool(latest_note and latest_note['note_date'] == today_str),
-            note_points=hl.note_preview(latest_note),
             note_date_label=hl.short_date(latest_note['note_date']) if latest_note else '',
             ns_count=ns_count,
             events=hl.upcoming_events(upcoming),
@@ -100,11 +99,12 @@ def sermon_note_detail(nid):
     note = conn.execute("SELECT * FROM sermon_notes WHERE id=?", (nid,)).fetchone()
     latest = latest_sermon_note(conn)
     ns_items = note_next_steps(conn, nid) if note else []
+    series = series_notes(conn, note) if note else []
     conn.close()
     if not note:
         return redirect(url_for('sermon_notes'))
     return render_template('sermon_note_detail.html', note=note, latest=latest,
-                           ns_items=ns_items, settings=all_settings())
+                           ns_items=ns_items, series=series, settings=all_settings())
 
 @app.route('/sermon-notes/<int:nid>/next-steps/<int:fid>')
 def sermon_next_steps(nid, fid):

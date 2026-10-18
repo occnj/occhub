@@ -28,17 +28,6 @@ def test_parse_service_time(text, expected):
     assert hl.parse_service_time(text) == expected
 
 
-def test_note_preview_prefers_list_items_and_trims():
-    note = {'body_html': '<h2>Intro</h2><p>Opening words here.</p><ol><li>Hope is an <b>anchor</b>.<br>Really.</li>'
-                         '<li>' + 'word ' * 60 + '</li><li>Third</li></ol>'}
-    points = hl.note_preview(note)
-    assert points[0] == 'Hope is an anchor. Really.' and len(points) == 2 and points[1].endswith('…') and len(points[1]) <= 111
-
-
-def test_note_preview_falls_back_to_paragraphs():
-    assert hl.note_preview({'body_html': '<p>First &amp; best.</p><p>Second.</p><p>Third.</p>'}) == ['First & best.', 'Second.']
-
-
 def test_new_hub_shows_countdown_notes_and_sections(client, db):
     db.execute("INSERT INTO sermon_notes(title,note_date,summary,body_html) VALUES('Rooted in Hope','2099-01-01','s',"
                "'<ol><li>Hope is an anchor.</li><li>Stay rooted.</li></ol>')")
@@ -49,7 +38,7 @@ def test_new_hub_shows_countdown_notes_and_sections(client, db):
     html = client.get('/hub').get_data(as_text=True)
     assert 'data-times="08:30,10:00,11:30"' in html and 'data-lead="2"' in html
     assert '8:30 AM' in html and '11:30 AM' in html
-    assert 'Rooted in Hope' in html and 'Hope is an anchor.' in html
+    assert 'Rooted in Hope' in html and 'Hope is an anchor.' not in html   # the card no longer previews points
     assert f'/sermon-notes/{nid}#next-steps' in html and '1 Next Step<' in html
     assert 'Fall Outreach Day' in html and 'COMING UP' in html
     assert 'bi-person-raised-hand' in html and 'More' in html

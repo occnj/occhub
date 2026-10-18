@@ -65,9 +65,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .notes h2{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.6rem;margin:6px 0 2px;position:relative;z-index:1}
 .notes .by{font-size:.8rem;opacity:.85;color:{{ site_settings.get('hub_msg_text') or '#fff' }};position:relative;z-index:1}
 .notes .body{padding:14px 18px 16px}
-.notes .pt{display:flex;gap:10px;font-size:.85rem;color:#3a3a3c;line-height:1.45;margin-bottom:8px}
-.notes .pt b{color:var(--orange);font-weight:700}
-.notes .row{display:flex;gap:10px;margin-top:12px}
+.notes .row{display:flex;gap:10px}
 .notes .open{flex:1;background:var(--orange);color:#fff;border-radius:14px;padding:13px;text-align:center;font-weight:700;font-size:.88rem}
 .notes .ns{display:flex;align-items:center;gap:6px;background:rgba(19,103,122,.08);color:var(--teal);border-radius:14px;padding:13px 14px;font-weight:600;font-size:.8rem;white-space:nowrap}
 .notes .empty{font-size:.86rem;color:var(--sub);line-height:1.5}
@@ -162,7 +160,6 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
     </div>
     <div class="body">
       {% if latest_note %}
-        {% for point in note_points %}<div class="pt"><b>{{ loop.index }}</b><span>{{ point }}</span></div>{% endfor %}
         <div class="row">
           <a class="open" href="{{ url_for('sermon_note_detail', nid=latest_note.id) }}">Open notes →</a>
           {% if ns_count %}<a class="ns" href="{{ url_for('sermon_note_detail', nid=latest_note.id) }}#next-steps"><i class="bi bi-download"></i> {{ ns_count }} Next Step{{ 's' if ns_count != 1 }}</a>{% endif %}

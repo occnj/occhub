@@ -1,5 +1,5 @@
-const STATIC_CACHE = 'oasis-hub-static-v12';
-const RUNTIME_CACHE = 'oasis-hub-runtime-v12';
+const STATIC_CACHE = 'oasis-hub-static-v13';
+const RUNTIME_CACHE = 'oasis-hub-runtime-v13';
 const OFFLINE_URL = '/hub';
 
 const PRECACHE = [
@@ -57,6 +57,11 @@ self.addEventListener('fetch', event => {
 
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  // The lobby kiosk (/kiosk) is a separate app that must always show live content.
+  if (requestUrl.pathname === '/kiosk' || requestUrl.pathname.startsWith('/kiosk/')) {
     return;
   }
 

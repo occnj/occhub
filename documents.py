@@ -239,35 +239,39 @@ def _pdf_line_size(words):
     sizes = Counter(round(w.get('size') or 0) for w in words)
     return sizes.most_common(1)[0][0] if sizes else 0
 
+def _pdf_space_before(prev, word):
+    """pdfplumber also splits a word where the font changes, so "**forever**." comes back
+    as two touching words. Only a real gap on the page (or a wrap to a new line) is a space."""
+    if prev is None:
+        return False
+    gap = word['x0'] - prev['x1']
+    return gap > 1 or gap < -1 or abs(word['top'] - prev['top']) > 2
+
 def _pdf_runs_html(words, suppress_bold=False):
     if not words:
         return ''
-    runs = []
-    current_words = []
-    current_style = None
+    runs = []   # [style, text, space_before]
+    prev = None
     for w in words:
         fname = (w.get('fontname') or '').lower()
         style = (('bold' in fname) and not suppress_bold, 'italic' in fname or 'oblique' in fname)
-        if current_style is None or style == current_style:
-            current_words.append(w['text'])
-            current_style = style
+        space = _pdf_space_before(prev, w)
+        if runs and runs[-1][0] == style:
+            runs[-1][1] += (' ' if space else '') + w['text']
         else:
-            runs.append((current_style, current_words))
-            current_words = [w['text']]
-            current_style = style
-    if current_words:
-        runs.append((current_style, current_words))
+            runs.append([style, w['text'], space])
+        prev = w
     parts = []
-    for (is_bold, is_italic), run_words in runs:
-        text = html.escape(' '.join(run_words))
+    for (is_bold, is_italic), run_text, space in runs:
+        text = html.escape(run_text)
         if is_bold and is_italic:
             text = f'<strong><em>{text}</em></strong>'
         elif is_bold:
             text = f'<strong>{text}</strong>'
         elif is_italic:
             text = f'<em>{text}</em>'
-        parts.append(text)
-    return ' '.join(parts)
+        parts.append((' ' if space and parts else '') + text)
+    return ''.join(parts)
 
 # pdfplumber prints a glyph it cannot map to a character as "(cid:N)" — usually a
 # bullet or symbol from an embedded font. It is never readable text, so drop it.
@@ -275,6 +279,29 @@ CID_GLYPH_RE = re.compile(r'\s*\(cid:\d+\)')
 
 def strip_cid_glyphs(text):
     return CID_GLYPH_RE.sub('', text or '')
+
+# Word draws its list bullets in symbol fonts: level 1 "•" usually comes out as a
+# "(cid:N)" glyph, level 2 as a Courier "o", level 3 as a Wingdings "§". Any of these
+# standing alone at the start of a line, set apart from the text by the bullet's tab
+# gap, is a bullet — never the first word of a sentence.
+_PDF_BULLET_GLYPHS = {'o', '§', '▪', '■', '□', '◦', '●', '➢', '►', 'Ø', 'ü', '\uf0b7', '\uf0a7', '\uf0d8', '\uf0fc'}
+
+def _pdf_normalize_line(line_words):
+    """Order a clustered line left to right and turn a leading bullet glyph into "•".
+    Lines are clustered by height, and a bullet set in another font sits a point or so
+    off the text's baseline — sorting by height first put Word's "o" at the end."""
+    line_words = sorted(line_words, key=lambda w: w['x0'])
+    first = line_words[0]
+    is_bullet = len(line_words) > 1 and (
+        first.get('glyph') or (
+            first['text'] in _PDF_BULLET_GLYPHS
+            and line_words[1]['x0'] - first['x1'] >= (first.get('size') or 10) * 0.6
+        )
+    )
+    if is_bullet:
+        first['text'] = '•'
+    # An unmapped glyph anywhere else in the line is a symbol we cannot show; drop it.
+    return [w for i, w in enumerate(line_words) if not w.get('glyph') or (i == 0 and is_bullet)]
 
 def pdf_read_lines(abs_path, max_pages=PDF_MAX_PAGES):
     """Positioned text lines from a PDF. Single source of truth for title and body."""
@@ -289,20 +316,30 @@ def pdf_read_lines(abs_path, max_pages=PDF_MAX_PAGES):
             for page_index, page in enumerate(pages):
                 words = page.extract_words(extra_attrs=['fontname', 'size'], use_text_flow=False)
                 for w in words:
-                    w['text'] = strip_cid_glyphs(w['text']).strip()
+                    text = strip_cid_glyphs(w['text']).strip()
+                    if not text and w['text'].strip():
+                        w['glyph'] = True   # an unmapped symbol — kept only if it is a bullet
+                        text = '(glyph)'
+                    w['text'] = text
                 words = [w for w in words if w['text']]
                 if not words:
                     continue
-                for i, line_words in enumerate(_pdf_cluster_words_into_lines(words)):
+                first_on_page = True
+                for cluster in _pdf_cluster_words_into_lines(words):
+                    top = cluster[0]['top']
+                    line_words = _pdf_normalize_line(cluster)
+                    if not line_words:
+                        continue
                     lines.append({
                         'words': line_words,
-                        'top': line_words[0]['top'],
+                        'top': top,
                         'x0': min(w['x0'] for w in line_words),
                         'x1': max(w['x1'] for w in line_words),
                         'page_width': float(page.width or 0),
                         'text': ' '.join(w['text'] for w in line_words),
-                        'new_page': i == 0 and page_index > 0,
+                        'new_page': first_on_page and page_index > 0,
                     })
+                    first_on_page = False
     except Exception as e:
         app.logger.warning(f"pdf_read_lines() error: {e}")
         return []
@@ -353,24 +390,29 @@ def pdf_lines_to_html(lines):
     fill_tol = max(measure * 0.15, body_size * 2.5)
 
     blocks = []
-    list_kind = None
-    list_items = []
+    list_items = []      # [level, kind, html] — rendered as nested lists by flush_list()
+    marker_xs = []       # bullet x-position of each open nesting level
+    item_text_x0 = None  # where the current item's text starts, to spot its wrapped lines
     para_words = []
     prev_line = None
 
     def flush_list():
-        nonlocal list_kind, list_items
+        nonlocal list_items, marker_xs, item_text_x0
         if list_items:
-            items_html = ''.join(f'<li>{item}</li>' for item in list_items)
-            blocks.append(f'<{list_kind}>{items_html}</{list_kind}>')
-        list_kind = None
+            blocks.append(_nested_list_html(list_items))
         list_items = []
+        marker_xs = []
+        item_text_x0 = None
 
     def flush_para():
         nonlocal para_words
         if para_words:
             blocks.append(f'<p>{_pdf_runs_html(para_words)}</p>')
         para_words = []
+
+    def follows_closely(line):
+        return (prev_line is not None and not line['new_page']
+                and (line['top'] - prev_line['top']) <= leading * 1.35)
 
     for line in lines:
         words = line['words']
@@ -387,18 +429,29 @@ def pdf_lines_to_html(lines):
         kind, marker_len = list_marker_kind(line['text'])
         if kind:
             flush_para()
-            if list_kind and list_kind != kind:
-                flush_list()
-            list_kind = kind
+            marker_x = line['x0']
+            tol = body_size * 0.5
+            while marker_xs and marker_x < marker_xs[-1] - tol:
+                marker_xs.pop()
+            if not marker_xs or marker_x > marker_xs[-1] + tol:
+                marker_xs.append(marker_x)
             item_words = words[1:] if len(words[0]['text']) < marker_len else words
-            list_items.append(_pdf_runs_html(item_words))
+            item_text_x0 = item_words[0]['x0'] if item_words else None
+            list_items.append([len(marker_xs) - 1, kind, _pdf_runs_html(item_words)])
+            prev_line = line
+            continue
+
+        # A wrapped bullet: lines up under the item's text rather than under its bullet.
+        if (list_items and item_text_x0 is not None and follows_closely(line)
+                and abs(line['x0'] - item_text_x0) <= body_size * 0.75
+                and (line['x0'] > left_edge + body_size * 0.5 or prev_line['x1'] >= right_edge - fill_tol)):
+            list_items[-1][2] += ' ' + _pdf_runs_html(words)
             prev_line = line
             continue
 
         flush_list()
         continues_para = (
-            bool(para_words) and prev_line is not None and not line['new_page']
-            and (line['top'] - prev_line['top']) <= leading * 1.35
+            bool(para_words) and follows_closely(line)
             and prev_line['x1'] >= right_edge - fill_tol
             and line['x0'] <= left_edge + body_size
         )
@@ -410,6 +463,29 @@ def pdf_lines_to_html(lines):
     flush_list()
     flush_para()
     return '\n'.join(blocks)
+
+def _nested_list_html(items):
+    """[level, kind, html] items -> <ul>/<ol> markup, deeper levels nested inside the
+    item above them. A level can only open one deeper than the one before it."""
+    out = []
+    open_kinds = []
+    for level, kind, text in items:
+        level = min(level, len(open_kinds))
+        while len(open_kinds) > level + 1:
+            out.append(f'</li></{open_kinds.pop()}>')
+        if len(open_kinds) == level + 1:
+            if open_kinds[-1] == kind:
+                out.append('</li>')
+            else:
+                out.append(f'</li></{open_kinds.pop()}><{kind}>')
+                open_kinds.append(kind)
+        else:
+            out.append(f'<{kind}>')
+            open_kinds.append(kind)
+        out.append(f'<li>{text}')
+    while open_kinds:
+        out.append(f'</li></{open_kinds.pop()}>')
+    return ''.join(out)
 
 def extract_pdf_html(abs_path, skip_first=False):
     lines = pdf_read_lines(abs_path)
@@ -432,6 +508,16 @@ def richtext_filter(raw):
         paragraphs = [p.strip() for p in escaped.split('\n\n') if p.strip()] or ([escaped.strip()] if escaped.strip() else [])
         return Markup(''.join(f'<p>{p.replace(chr(10), "<br>")}</p>' for p in paragraphs))
     return Markup(sanitize_rich_html(raw))
+
+def _plain_words(raw):
+    return ' '.join(html.unescape(re.sub(r'<[^>]+>', ' ', raw or '')).split())
+
+@app.template_filter('intro_repeats_body')
+def intro_repeats_body(note):
+    """True when the intro is just the body's opening line — older imports filled the
+    intro by copying it, so it would show twice in a row."""
+    intro = _plain_words(row_value(note, 'summary'))
+    return bool(intro) and _plain_words(row_value(note, 'body_html')).startswith(intro)
 
 @app.template_filter('nl2br')
 def nl2br_filter(raw):
@@ -459,9 +545,8 @@ def build_sermon_note_payload(path_rel, ext, fallback_title='', summary=''):
         plain_lines = plain_lines[1:]
     if not title:
         title = sermon_title_from_filename(path_rel)
-    if not summary:
-        source_line = next((l for l in plain_lines if len(l.split()) > 6), '')
-        summary = source_line[:180].strip() if source_line else 'Sermon notes for this message.'
+    # No intro is invented from the body: it sits right above the body, so copying the
+    # first long line into it showed that line twice. The archive falls back on its own.
     body_html = to_html(units)
     if not body_html and plain_lines:
         body_html = '\n'.join(f'<p>{html.escape(l)}</p>' for l in plain_lines)

@@ -49,6 +49,8 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
 .content em{font-style:italic;}
 .content ul,.content ol{margin:0 0 14px 20px;}
 .content li{margin-bottom:6px;}
+.content li > ul,.content li > ol{margin:6px 0 0 18px;}
+.content li > ul{list-style-type:circle;}
 .content blockquote{border-left:3px solid var(--orange);padding-left:12px;margin:0 0 14px;color:var(--text);font-style:italic;}
 
 /* Oasis Next Steps — the take-home sheet */
@@ -103,7 +105,7 @@ body{background:var(--bg);{% if site_settings.get('ui_background_image') %}backg
   </div>
   <div class="body">
     <div class="card">
-      {% if note.summary %}<div class="summary">{{ note.summary|richtext }}</div>{% endif %}
+      {% if note.summary and not note|intro_repeats_body %}<div class="summary">{{ note.summary|richtext }}</div>{% endif %}
       <div class="content">{{ note.body_html|richtext }}</div>
     </div>
 

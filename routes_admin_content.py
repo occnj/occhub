@@ -189,7 +189,8 @@ def sync_next_steps(conn, nid):
             break
         stored, _ext = save_document_file(f)
         if not stored:
-            flash(f'"{f.filename}" was skipped — only PDF and DOCX files can be attached.', 'info')
+            flash(f'"{f.filename}" was skipped — only PDF and Word files can be attached. '
+                  'If it is an old .doc file, save it as .docx and try again.', 'info')
             continue
         conn.execute(
             "INSERT INTO sermon_next_steps (note_id, file, title, sort_order) VALUES (?,?,?,?)",
@@ -198,13 +199,16 @@ def sync_next_steps(conn, nid):
         kept += 1
     return kept
 
+UNREADABLE_UPLOAD_MSG = ('Please upload a PDF or Word file. If it is an old .doc file '
+                         'and this keeps happening, save it as .docx and try again.')
+
 @app.route('/admin/sermon-notes/new', methods=['GET', 'POST'])
 @login_required
 def admin_sermon_note_new():
     if request.method == 'POST':
         source_file, ext = save_document_upload('source_file')
         if not source_file:
-            flash('Please upload a PDF or DOCX file.', 'info')
+            flash(UNREADABLE_UPLOAD_MSG, 'info')
             conn = get_db(); names = series_names(conn); conn.close()
             return render_template('admin/sermon_note_form.html', note=None, ns_items=[], series_names=names)
         note_date = request.form.get('note_date', '').strip() or date.today().isoformat()
@@ -241,6 +245,10 @@ def admin_sermon_note_edit(nid):
         return redirect(url_for('admin_sermon_notes'))
     if request.method == 'POST':
         source_file, ext = save_document_upload('source_file')
+        if not source_file and request.files.get('source_file') and request.files['source_file'].filename:
+            conn.close()
+            flash(UNREADABLE_UPLOAD_MSG, 'info')
+            return redirect(url_for('admin_sermon_note_edit', nid=nid))
         if source_file:
             payload = build_sermon_note_payload(
                 source_file,

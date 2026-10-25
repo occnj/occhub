@@ -34,6 +34,11 @@ cd "$APP_DIR"
 mkdir -p static/uploads
 chown -R occnj:occnj "$APP_DIR"
 
+# 2b. LibreOffice (no desktop) — converts old Word .doc sermon notes to .docx on upload
+echo "▶  Installing LibreOffice Writer (for .doc uploads) ..."
+apt-get install -y --no-install-recommends libreoffice-writer-nogui || \
+  echo "  ⚠ LibreOffice not installed — .doc uploads will be refused until it is"
+
 # 3. Create Python virtual environment
 echo "▶  Creating virtual environment ..."
 python3 -m venv venv

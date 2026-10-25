@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ 'Edit' if note else 'Import' }} Sermon Notes{% endblock %}
 {% block page_title %}{{ 'Edit Sermon Notes' if note else 'Import Sermon Notes' }}{% endblock %}
-{% block page_sub %}Upload a PDF or DOCX and the app will convert it into a phone-friendly notes page{% endblock %}
+{% block page_sub %}Upload a PDF or Word file and the app will convert it into a phone-friendly notes page{% endblock %}
 {% block topbar_actions %}<a href="{{ url_for('admin_sermon_notes') }}" class="btn btn-ghost"><i class="bi bi-arrow-left"></i> Back</a>{% endblock %}
 
 {% block content %}
@@ -47,8 +47,8 @@
 
         <div class="form-group">
           <label class="form-label">{{ 'Replace Source File' if note else 'Upload Source File' }}</label>
-          <input type="file" name="source_file" class="form-control" accept=".pdf,.docx" {% if not note %}required{% endif %}>
-          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF and DOCX supported. The app will extract the text and turn it into a mobile reading page saved by date.</div>
+          <input type="file" name="source_file" class="form-control" accept=".pdf,.docx,.doc" {% if not note %}required{% endif %}>
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">PDF and Word (.docx or .doc) supported. The app will extract the text and turn it into a mobile reading page saved by date.</div>
         </div>
 
         {% set ns_items = ns_items or [] %}
@@ -88,7 +88,7 @@
 
             <div class="form-group">
               <label class="form-label">{{ 'Add More Files' if ns_items else 'Homework Files' }}</label>
-              <input type="file" name="next_steps_file" class="form-control" accept=".pdf,.docx" multiple {% if ns_room < 1 %}disabled{% endif %}>
+              <input type="file" name="next_steps_file" class="form-control" accept=".pdf,.docx,.doc" multiple {% if ns_room < 1 %}disabled{% endif %}>
               <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">
                 {% if ns_room < 1 %}
                 This note already has the maximum of {{ max_next_steps }} files. Remove one to add another.

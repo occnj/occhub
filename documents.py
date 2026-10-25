@@ -64,19 +64,19 @@ def _docx_numbering_kinds(docx_zip):
             abstract_id_el = num.find('w:abstractNumId', _DOCX_NS)
             if abstract_id_el is not None:
                 fmt = abstract_fmt.get(abstract_id_el.get(_DOCX_W + 'val'), 'bullet')
-                num_kinds[num_id] = 'ul' if fmt in ('bullet', 'none') else 'ol'
+                num_kinds[num_id] = None if fmt == 'none' else 'ul' if fmt == 'bullet' else 'ol'
         return num_kinds
     except Exception:
         return {}
 
 def _docx_para_runs(para):
-    """[text, bold, italic] in document order. Walks the paragraph tree rather than only
+    """[text, bold, italic, superscript] in document order. Walks the paragraph tree rather than only
     its direct w:r children, so text nested in w:hyperlink (scripture links), w:ins
     (tracked changes) or w:smartTag is not lost, and w:br is honoured wherever it sits.
     Deleted text (w:delText) is skipped because only w:t is read."""
     runs = []
 
-    def walk(node, bold, italic):
+    def walk(node, bold, italic, sup):
         for child in node:
             tag = child.tag.split('}')[-1]
             if tag in ('pPr', 'rPr'):
@@ -85,25 +85,27 @@ def _docx_para_runs(para):
                 continue  # nested text-box paragraph; emitted as its own record
             if tag == 'r':
                 rPr = child.find('w:rPr', _DOCX_NS)
-                walk(child, _docx_toggle_on(rPr, 'b'), _docx_toggle_on(rPr, 'i'))
+                align = rPr.find('w:vertAlign', _DOCX_NS) if rPr is not None else None
+                sup = align is not None and align.get(_DOCX_W + 'val') == 'superscript'
+                walk(child, _docx_toggle_on(rPr, 'b'), _docx_toggle_on(rPr, 'i'), sup)
             elif tag == 't':
                 if child.text:
-                    runs.append([child.text, bold, italic])
+                    runs.append([child.text, bold, italic, sup])
             elif tag == 'br':
-                runs.append(['\n', bold, italic])
+                runs.append(['\n', bold, italic, sup])
             elif tag == 'tab':
-                runs.append(['\t', bold, italic])
+                runs.append(['\t', bold, italic, sup])
             else:
-                walk(child, bold, italic)
+                walk(child, bold, italic, sup)
 
-    walk(para, False, False)
+    walk(para, False, False, False)
 
     merged = []
-    for text, bold, italic in runs:
-        if merged and merged[-1][1] == bold and merged[-1][2] == italic:
-            merged[-1][0] += text
+    for run in runs:
+        if merged and merged[-1][1:] == run[1:]:
+            merged[-1][0] += run[0]
         else:
-            merged.append([text, bold, italic])
+            merged.append(run)
     return merged
 
 def docx_records(abs_path):
@@ -119,6 +121,7 @@ def docx_records(abs_path):
             pPr = para.find('w:pPr', _DOCX_NS)
             style_val = ''
             list_kind = None
+            numbering_off = False
             if pPr is not None:
                 pStyle = pPr.find('w:pStyle', _DOCX_NS)
                 if pStyle is not None:
@@ -127,7 +130,12 @@ def docx_records(abs_path):
                 if numPr is not None:
                     numId_el = numPr.find('w:numId', _DOCX_NS)
                     num_id = numId_el.get(_DOCX_W + 'val') if numId_el is not None else None
-                    list_kind = num_kinds.get(num_id, 'ul')
+                    # numId 0 (or a "none" format) is Word's way of switching numbering off
+                    # for a paragraph — its "I." / "II." are then typed text, not a list.
+                    if num_id == '0' or (num_id in num_kinds and num_kinds[num_id] is None):
+                        numbering_off = True
+                    else:
+                        list_kind = num_kinds.get(num_id, 'ul')
             if not list_kind and style_val.startswith('listbullet'):
                 list_kind = 'ul'
             elif not list_kind and style_val.startswith('listnumber'):
@@ -137,7 +145,7 @@ def docx_records(abs_path):
             if not runs:
                 continue
 
-            if not list_kind:
+            if not list_kind and not numbering_off:
                 first_text = runs[0][0]
                 stripped = first_text.lstrip('\n\t ')
                 lead_len = len(first_text) - len(stripped)
@@ -165,13 +173,15 @@ def extract_docx_paragraphs(abs_path):
 
 def _docx_runs_to_html(runs, suppress_bold=False):
     parts = []
-    for raw_text, is_bold, is_italic in runs:
+    for raw_text, is_bold, is_italic, is_sup in runs:
         if not raw_text:
             continue
         escaped = html.escape(raw_text).replace('\n', '<br>').replace('\t', '&emsp;')
         if suppress_bold:
             is_bold = False
-        if is_bold and is_italic:
+        if is_sup and raw_text.strip():
+            escaped = f'<sup>{escaped.strip()}</sup>' + (' ' if raw_text.endswith(' ') else '')
+        elif is_bold and is_italic:
             escaped = f'<strong><em>{escaped}</em></strong>'
         elif is_bold:
             escaped = f'<strong>{escaped}</strong>'
@@ -252,9 +262,13 @@ def _pdf_runs_html(words, suppress_bold=False):
         return ''
     runs = []   # [style, text, space_before]
     prev = None
+    line_size = _pdf_line_size(words)
     for w in words:
         fname = (w.get('fontname') or '').lower()
-        style = (('bold' in fname) and not suppress_bold, 'italic' in fname or 'oblique' in fname)
+        if (w.get('size') or line_size) < line_size * 0.75 and w['text'].replace('-', '').isdigit():
+            style = 'sup'   # a small raised verse number, like ¹³
+        else:
+            style = (('bold' in fname) and not suppress_bold, 'italic' in fname or 'oblique' in fname)
         space = _pdf_space_before(prev, w)
         if runs and runs[-1][0] == style:
             runs[-1][1] += (' ' if space else '') + w['text']
@@ -262,9 +276,12 @@ def _pdf_runs_html(words, suppress_bold=False):
             runs.append([style, w['text'], space])
         prev = w
     parts = []
-    for (is_bold, is_italic), run_text, space in runs:
+    for style, run_text, space in runs:
         text = html.escape(run_text)
-        if is_bold and is_italic:
+        is_bold, is_italic = (False, False) if style == 'sup' else style
+        if style == 'sup':
+            text = f'<sup>{text}</sup>'
+        elif is_bold and is_italic:
             text = f'<strong><em>{text}</em></strong>'
         elif is_bold:
             text = f'<strong>{text}</strong>'
@@ -284,7 +301,9 @@ def strip_cid_glyphs(text):
 # "(cid:N)" glyph, level 2 as a Courier "o", level 3 as a Wingdings "§". Any of these
 # standing alone at the start of a line, set apart from the text by the bullet's tab
 # gap, is a bullet — never the first word of a sentence.
-_PDF_BULLET_GLYPHS = {'o', '§', '▪', '■', '□', '◦', '●', '➢', '►', 'Ø', 'ü', '\uf0b7', '\uf0a7', '\uf0d8', '\uf0fc'}
+_PDF_BULLET_GLYPHS = {'o', '§', '▪', '■', '□', '◦', '○', '●', '➢', '►', 'Ø', 'ü', '\uf0b7', '\uf0a7', '\uf0d8', '\uf0fc'}
+
+_PDF_SYMBOL_FONT_RE = re.compile(r'courier|symbol|wingding', re.I)
 
 def _pdf_normalize_line(line_words):
     """Order a clustered line left to right and turn a leading bullet glyph into "•".
@@ -295,7 +314,8 @@ def _pdf_normalize_line(line_words):
     is_bullet = len(line_words) > 1 and (
         first.get('glyph') or (
             first['text'] in _PDF_BULLET_GLYPHS
-            and line_words[1]['x0'] - first['x1'] >= (first.get('size') or 10) * 0.6
+            and (line_words[1]['x0'] - first['x1'] >= (first.get('size') or 10) * 0.6
+                 or _PDF_SYMBOL_FONT_RE.search(first.get('fontname') or ''))
         )
     )
     if is_bullet:
@@ -410,9 +430,12 @@ def pdf_lines_to_html(lines):
             blocks.append(f'<p>{_pdf_runs_html(para_words)}</p>')
         para_words = []
 
-    def follows_closely(line):
+    def follows_closely(line, spacing=1.35):
         return (prev_line is not None and not line['new_page']
-                and (line['top'] - prev_line['top']) <= leading * 1.35)
+                and (line['top'] - prev_line['top']) <= leading * spacing)
+
+    def starts_lowercase(line):
+        return line['text'][:1].islower()
 
     for line in lines:
         words = line['words']
@@ -442,18 +465,24 @@ def pdf_lines_to_html(lines):
             continue
 
         # A wrapped bullet: lines up under the item's text rather than under its bullet.
+        # Google Docs hangs the wrap back under the bullet, so a line that carries on
+        # mid-sentence (starts lowercase) also belongs to the item above it.
         if (list_items and item_text_x0 is not None and follows_closely(line)
-                and abs(line['x0'] - item_text_x0) <= body_size * 0.75
-                and (line['x0'] > left_edge + body_size * 0.5 or prev_line['x1'] >= right_edge - fill_tol)):
+                and (starts_lowercase(line) or (
+                    abs(line['x0'] - item_text_x0) <= body_size * 0.75
+                    and (line['x0'] > left_edge + body_size * 0.5 or prev_line['x1'] >= right_edge - fill_tol)))):
             list_items[-1][2] += ' ' + _pdf_runs_html(words)
             prev_line = line
             continue
 
         flush_list()
-        continues_para = (
-            bool(para_words) and follows_closely(line)
-            and prev_line['x1'] >= right_edge - fill_tol
-            and line['x0'] <= left_edge + body_size
+        continues_para = bool(para_words) and (
+            (follows_closely(line) and prev_line['x1'] >= right_edge - fill_tol
+             and line['x0'] <= left_edge + body_size)
+            # A centred line never reaches the margins; it wraps mid-sentence instead,
+            # sometimes with a little extra space.
+            or (starts_lowercase(line) and follows_closely(line, 1.6)
+                and not prev_line['text'].rstrip().endswith(('.', '!', '?')))
         )
         if not continues_para:
             flush_para()
@@ -491,7 +520,7 @@ def extract_pdf_html(abs_path, skip_first=False):
     lines = pdf_read_lines(abs_path)
     return pdf_lines_to_html(lines[1:] if skip_first else lines)
 
-RICH_TEXT_TAGS = ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote']
+RICH_TEXT_TAGS = ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'ul', 'ol', 'li', 'blockquote', 'sup']
 _RICH_TEXT_TAG_RE = re.compile(r'<(' + '|'.join(RICH_TEXT_TAGS) + r')[ >/]', re.I)
 
 def sanitize_rich_html(raw):

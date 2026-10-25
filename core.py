@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 import html
 import json
-import os, random, re, secrets, sqlite3, time, uuid, zipfile, zlib
+import os, random, re, secrets, shutil, sqlite3, subprocess, tempfile, time, uuid, zipfile, zlib
 from collections import Counter
 from PIL import Image, ExifTags
 from pillow_heif import register_heif_opener
@@ -41,7 +41,7 @@ if PROXY_HOPS > 0:
 UPLOAD_FOLDER = os.path.join(BASE_DIR,'static','uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_EXTENSIONS = {'png','jpg','jpeg','webp','gif','heic','heif'}
-DOCUMENT_EXTENSIONS = {'pdf', 'docx'}
+DOCUMENT_EXTENSIONS = {'pdf', 'docx', 'doc'}
 
 app.config.update(
     MAX_CONTENT_LENGTH=64 * 1024 * 1024,  # biggest legit request is a few photos / a sermon PDF
@@ -244,11 +244,44 @@ def save_document_file(f):
         fname = secure_filename(f"{stem}_{uuid.uuid4().hex[:8]}{ext.lower()}")
         dest = os.path.join(UPLOAD_FOLDER, fname)
         f.save(dest)
+        if ext.lower() == '.doc':
+            dest = convert_doc_to_docx(dest)
+            if not dest:
+                return None, None
+            fname = os.path.basename(dest)
         app.logger.info(f"save_document_file: saved {dest}")
-        return 'uploads/' + fname, ext.lower().lstrip('.')
+        return 'uploads/' + fname, os.path.splitext(fname)[1].lstrip('.')
     except Exception as e:
         app.logger.error(f"save_document_file error ({getattr(f, 'filename', '?')}): {e}")
         return None, None
+
+
+def convert_doc_to_docx(doc_path):
+    """Old binary Word (.doc) -> .docx next to it, using LibreOffice; the .doc is removed.
+    Returns the new path, or None when LibreOffice is missing or the conversion fails."""
+    soffice = shutil.which('soffice') or shutil.which('libreoffice')
+    try:
+        if not soffice:
+            app.logger.warning("convert_doc_to_docx: LibreOffice is not installed — "
+                               "sudo apt install libreoffice-writer-nogui")
+            return None
+        out_dir = os.path.dirname(doc_path)
+        # A private profile, so a conversion never collides with another one (or a desktop
+        # LibreOffice) holding the default profile's lock.
+        with tempfile.TemporaryDirectory(prefix='occhub-lo-') as profile:
+            subprocess.run(
+                [soffice, f'-env:UserInstallation=file://{profile}', '--headless',
+                 '--convert-to', 'docx', '--outdir', out_dir, doc_path],
+                check=True, timeout=120, capture_output=True,
+            )
+        docx_path = os.path.splitext(doc_path)[0] + '.docx'
+        return docx_path if os.path.exists(docx_path) else None
+    except Exception as e:
+        app.logger.error(f"convert_doc_to_docx error ({doc_path}): {e}")
+        return None
+    finally:
+        if os.path.exists(doc_path):
+            os.remove(doc_path)
 
 
 def client_ip():

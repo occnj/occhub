@@ -95,3 +95,53 @@ def test_detail_hides_an_intro_that_repeats_the_first_line(client, db):
                 body_html='<p>My daughter Emma writes songs</p><p>Next line</p>')
     html = client.get(f'/sermon-notes/{nid}').get_data(as_text=True)
     assert html.count('My daughter Emma writes songs') == 1
+
+
+# --------------------------------------------------------------- real sermon notes
+# Notes exactly as the pastors hand them over. Every change to the importer has to keep
+# reading these correctly.
+import os
+import shutil
+import pytest
+import core
+
+FIXTURES = os.path.join(os.path.dirname(__file__), 'fixtures')
+
+
+def test_real_google_docs_pdf_reads_cleanly():
+    html = documents.extract_pdf_html(os.path.join(FIXTURES, 'invitation.pdf'))
+    # bullets of every level come through as lists, nothing left as a stray marker
+    assert '○' not in html and '<p>o ' not in html and ' o</' not in html
+    assert ('<li>The song acts as a prayer &amp; invitation for all to come to Jesus'
+            '<ul><li>Whoever has ears come hear the good news</li>') in html
+    # wrapped lines stay with the line they continue
+    assert 'the audience Matthew most had in mind were Jewish</li>' in html
+    assert 'politics &amp; current events more than anything' in html
+    assert 'the enemy comes to take it away.' in html
+    assert 'good to those who can hear/see &amp; understand it' in html
+    assert 'that he warn Israel about their coming judgement' in html
+    # raised verse numbers stay small
+    assert '<sup>13</sup>' in html
+
+
+def test_real_word_doc_main_points_are_not_bullets():
+    html = documents.extract_docx_html(os.path.join(FIXTURES, 'towel-and-basin.docx'))
+    assert '<li>' not in html
+    assert '<p><strong>I. OUT OF THE BASIN CAME HUMILITY</strong></p>' in html
+    assert '<sup>14</sup>If I then' in html and '<sup>15</sup>For I have given' in html
+
+
+@pytest.mark.skipif(not (shutil.which('soffice') or shutil.which('libreoffice')), reason='needs LibreOffice')
+def test_old_doc_upload_is_converted_to_docx(tmp_path):
+    doc = tmp_path / 'notes.doc'
+    shutil.copy(os.path.join(FIXTURES, 'towel-and-basin.doc'), doc)
+    docx = core.convert_doc_to_docx(str(doc))
+    assert docx == str(tmp_path / 'notes.docx') and not doc.exists()
+    assert 'OUT OF THE BASIN CAME HUMILITY' in documents.extract_docx_html(docx)
+
+
+def test_doc_without_libreoffice_is_refused_and_removed(tmp_path, monkeypatch):
+    doc = tmp_path / 'notes.doc'
+    doc.write_bytes(b'not really a doc')
+    monkeypatch.setattr(core.shutil, 'which', lambda name: None)
+    assert core.convert_doc_to_docx(str(doc)) is None and not doc.exists()

@@ -7,6 +7,8 @@ Pages are rendered to JPEGs once, at upload, so phones see the PDF exactly as it
 the picture. The original PDF is kept for Download.
 """
 from core import *
+from documents import (_pdf_cluster_words_into_lines, _pdf_normalize_line, pdf_lines_to_html,
+                       sanitize_rich_html, strip_cid_glyphs)
 import pypdfium2 as pdfium
 
 NEWSLETTER_MAX_PAGES = 40
@@ -34,6 +36,96 @@ def _pdf_links(pdf_path):
     except Exception as e:
         app.logger.warning(f"newsletter: could not read links from {pdf_path}: {e}")
     return out
+
+
+def _slanted(ch):
+    m = ch.get('matrix') or (1, 0, 0, 1)
+    return abs(m[1]) > 0.01 or abs(m[2]) > 0.01
+
+
+def _slanted_runs(chars):
+    """Canva sets taglines on a slant; pdfplumber then reads each letter as its own word on its
+    own line. Rebuild each slanted run (same slant, in drawing order) as one word."""
+    runs, key = [], None
+    for ch in chars:
+        k = tuple(round(v, 3) for v in ch['matrix'][:4])
+        if runs and k == key:
+            runs[-1].append(ch)
+        else:
+            runs.append([ch])
+            key = k
+    words = []
+    for run in runs:
+        text = re.sub(r'\s+', ' ', ''.join(c['text'] for c in run)).strip()
+        if text:
+            words.append({'text': text, 'x0': min(c['x0'] for c in run), 'x1': max(c['x1'] for c in run),
+                          'top': min(c['top'] for c in run), 'bottom': max(c['bottom'] for c in run),
+                          'fontname': run[0].get('fontname', ''), 'size': run[0].get('size', 0)})
+    return words
+
+
+def _join_spaced_letters(words):
+    """Letter-spaced headings ("T H E   N O S E") come back one letter per word. Join the
+    letters, keeping a space only where the gap is clearly wider than between letters."""
+    if len(words) < 4 or sum(len(w['text']) == 1 for w in words) < 0.8 * len(words):
+        return words
+    gaps = sorted(b['x0'] - a['x1'] for a, b in zip(words, words[1:]))
+    letter_gap = gaps[len(gaps) // 4]
+    merged = [dict(words[0])]
+    for prev, w in zip(words, words[1:]):
+        if w['x0'] - prev['x1'] > letter_gap * 1.6 + 1:
+            merged.append(dict(w))
+        else:
+            merged[-1]['text'] += w['text']
+            merged[-1]['x1'] = w['x1']
+    return merged
+
+
+_ORDINALS = {'st', 'nd', 'rd', 'th'}
+
+
+def _attach_ordinals(words):
+    """A small "th" in "19th" sits a few points off its line; put it back next to its number."""
+    for w in words:
+        if w['text'] in _ORDINALS:
+            for n in words:
+                if n is not w and n['text'][-1:].isdigit() and abs(n['x1'] - w['x0']) < 2 \
+                        and abs(n['top'] - w['top']) < (n.get('size') or 10) * 0.6:
+                    w['top'] = n['top']
+                    break
+    return words
+
+
+def pdf_text_html(pdf_path):
+    """The newsletter as plain, readable text (headings, paragraphs, bold/italic), or '' when
+    the PDF has no text (e.g. a scan or a picture)."""
+    lines = []
+    try:
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_index, page in enumerate(pdf.pages[:NEWSLETTER_MAX_PAGES]):
+                chars = [c for c in page.chars if c.get('upright', True)]
+                flat = page.filter(lambda o: o.get('object_type') != 'char' or (o.get('upright', True) and not _slanted(o)))
+                words = flat.extract_words(extra_attrs=['fontname', 'size'], use_text_flow=False)
+                for w in words:
+                    w['text'] = strip_cid_glyphs(w['text']).strip()
+                words = _attach_ordinals([w for w in words if w['text']]) + _slanted_runs([c for c in chars if _slanted(c)])
+                first_on_page = True
+                for cluster in _pdf_cluster_words_into_lines(words):
+                    line_words = _join_spaced_letters(_pdf_normalize_line(cluster))
+                    if not line_words:
+                        continue
+                    lines.append({'words': line_words, 'top': cluster[0]['top'],
+                                  'x0': min(w['x0'] for w in line_words), 'x1': max(w['x1'] for w in line_words),
+                                  'page_width': float(page.width or 0),
+                                  'text': ' '.join(w['text'] for w in line_words),
+                                  'new_page': first_on_page and page_index > 0})
+                    first_on_page = False
+    except Exception as e:
+        app.logger.warning(f"newsletter: could not read text from {pdf_path}: {e}")
+        return ''
+    if sum(len(l['text']) for l in lines) < 40:
+        return ''
+    return sanitize_rich_html(pdf_lines_to_html(lines))
 
 
 def render_pdf_pages(pdf_path):
@@ -104,6 +196,24 @@ def newsletter_pages(row, part):
         return []
 
 
+def _abs_upload(rel):
+    return os.path.join(UPLOAD_FOLDER, rel[len('uploads/'):]) if rel and rel.startswith('uploads/') else ''
+
+
+def newsletter_text(issue, part):
+    """The part's text version. Read from the PDF at upload; issues uploaded before text mode
+    existed (column still NULL) are read once, the first time someone asks."""
+    text = issue[f'{part}_text']
+    if text is None:
+        path = _abs_upload(issue[f'{part}_pdf'])
+        text = pdf_text_html(path) if path and os.path.exists(path) else ''
+        conn = get_db()
+        conn.execute(f"UPDATE newsletters SET {part}_text=? WHERE id=?", (text, issue['id']))
+        conn.commit()
+        conn.close()
+    return text
+
+
 def published_newsletters(conn):
     return conn.execute("SELECT * FROM newsletters WHERE is_published=1 AND cover_pdf<>'' "
                         "ORDER BY issue_date DESC, id DESC").fetchall()
@@ -113,7 +223,11 @@ def published_newsletters(conn):
 
 def _render_issue(issue, part, issues):
     pages = newsletter_pages(issue, part)
+    text = newsletter_text(issue, part)
+    view = 'text' if request.args.get('view') == 'text' and text else 'original'
+    links = [l for p in pages for l in p.get('links', [])]
     return render_template('newsletter.html', settings=all_settings(), issue=issue, part=part, pages=pages,
+                           text=text, view=view, links=links,
                            has_full=bool(issue['full_pdf']), issues=issues, pages_of=newsletter_pages)
 
 
@@ -125,7 +239,7 @@ def newsletter():
     conn.close()
     if not issues:
         return render_template('newsletter.html', settings=all_settings(), issue=None, part='cover', pages=[],
-                               has_full=False, issues=[])
+                               text='', view='original', links=[], has_full=False, issues=[])
     return _render_issue(issues[0], 'cover', issues)
 
 
@@ -212,8 +326,9 @@ def admin_newsletter_form(nid=None):
         remove_full = request.form.get('remove_full') and 'full' not in new
         for part, (pdf, pages) in new.items():
             values[f'{part}_pdf'], values[f'{part}_pages'] = pdf, json.dumps(pages)
+            values[f'{part}_text'] = pdf_text_html(_abs_upload(pdf))
         if remove_full:
-            values['full_pdf'], values['full_pages'] = '', '[]'
+            values['full_pdf'], values['full_pages'], values['full_text'] = '', '[]', ''
         if not values['title']:
             values['title'] = values['issue_label'] or 'Volunteer Newsletter'
         if not values['issue_date']:

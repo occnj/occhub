@@ -7,16 +7,25 @@ import pytest
 import newsletter
 
 
-def make_pdf(pages=1, link=None):
-    """A tiny hand-written PDF: `pages` US-letter pages, the first one carrying a web link."""
-    objs = ['<< /Type /Catalog /Pages 2 0 R >>',
-            '<< /Type /Pages /Kids [%s] /Count %d >>' % (' '.join(f'{3 + i} 0 R' for i in range(pages)), pages)]
+def make_pdf(pages=1, link=None, text=None):
+    """A tiny hand-written PDF: `pages` US-letter pages, the first one carrying a web link and,
+    when given, `text`: lines of (size, x, y, string) in Helvetica."""
+    objs = ['<< /Type /Catalog /Pages 2 0 R >>', None]
+    kids = []
     for i in range(pages):
-        annots = ' /Annots [%d 0 R]' % (3 + pages) if link and i == 0 else ''
-        objs.append(f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]{annots} >>')
-    if link:
-        objs.append(f'<< /Type /Annot /Subtype /Link /Rect [100 600 300 650] /Border [0 0 0] '
-                    f'/A << /S /URI /URI ({link}) >> >>')
+        extra = ''
+        if text and i == 0:
+            body = ''.join(f'BT /F1 {size} Tf {x} {y} Td ({s}) Tj ET\n' for size, x, y, s in text)
+            objs.append(f'<< /Length {len(body)} >>\nstream\n{body}endstream')
+            objs.append('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>')
+            extra += f' /Contents {len(objs) - 1} 0 R /Resources << /Font << /F1 {len(objs)} 0 R >> >>'
+        if link and i == 0:
+            objs.append(f'<< /Type /Annot /Subtype /Link /Rect [100 600 300 650] /Border [0 0 0] '
+                        f'/A << /S /URI /URI ({link}) >> >>')
+            extra += f' /Annots [{len(objs)} 0 R]'
+        objs.append(f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]{extra} >>')
+        kids.append(f'{len(objs)} 0 R')
+    objs[1] = f'<< /Type /Pages /Kids [{" ".join(kids)}] /Count {pages} >>'
     out, offsets = b'%PDF-1.4\n', []
     for n, body in enumerate(objs, 1):
         offsets.append(len(out))
@@ -26,6 +35,11 @@ def make_pdf(pages=1, link=None):
     out += b''.join(f'{o:010d} 00000 n \n'.encode() for o in offsets)
     out += f'trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n'.encode()
     return out
+
+
+STORY = [(24, 72, 700, 'The Nose of a Camel'),
+         (11, 72, 660, 'There was a story of a man traveling through the desert. He noticed'),
+         (11, 72, 646, 'that it was getting late and needed to bed down for the night.')]
 
 
 @pytest.fixture
@@ -155,3 +169,49 @@ def test_delete_removes_the_issue_and_its_files(admin, db, folder):
 def test_admin_pages_need_login(client):
     assert client.get('/admin/newsletter').status_code == 302
     assert client.post('/admin/newsletter/new', {}).status_code in (302, 403)
+
+
+def test_text_only_view_reads_the_pdf_text(admin, client, db, folder):
+    upload(admin, cover=make_pdf(1, text=STORY), full=make_pdf(1, text=[(20, 72, 700, 'Hey There'),
+           (11, 72, 660, 'I lived with my grandmother growing up and helped get the house ready.')],
+           link='https://example.com/devotion'))
+    row = latest(db)
+    assert 'The Nose of a Camel' in row['cover_text'] and 'Hey There' in row['full_text']
+    html = client.get('/newsletter').get_data(as_text=True)
+    assert 'Text only' in html and 'Original' in html
+    text = client.get(f'/newsletter/{row["id"]}?view=text').get_data(as_text=True)
+    assert 'needed to bed down for the night' in text and '<article class="text">' in text
+    assert f'/newsletter/{row["id"]}/full?view=text' in text                 # the button stays in text mode
+    full = client.get(f'/newsletter/{row["id"]}/full?view=text').get_data(as_text=True)
+    assert 'grandmother' in full and 'https://example.com/devotion' in full   # links listed under the text
+
+
+def test_a_pdf_without_text_has_no_text_switch(admin, client, db, folder):
+    upload(admin, cover=make_pdf(1))
+    assert latest(db)['cover_text'] == ''
+    html = client.get(f'/newsletter/{latest(db)["id"]}?view=text').get_data(as_text=True)
+    assert 'Text only' not in html and 'class="page"' in html                   # falls back to the original
+
+
+def test_issues_uploaded_before_text_mode_are_read_on_first_view(admin, client, db, folder):
+    upload(admin, cover=make_pdf(1, text=STORY))
+    nid = latest(db)['id']
+    db.execute("UPDATE newsletters SET cover_text=NULL WHERE id=?", (nid,))
+    db.commit()
+    assert 'traveling through the desert' in client.get(f'/newsletter/{nid}?view=text').get_data(as_text=True)
+    assert 'traveling' in latest(db)['cover_text']
+
+
+def test_letter_spaced_headings_are_joined_into_words():
+    def word(t, x0):
+        return {'text': t, 'x0': x0, 'x1': x0 + 6, 'top': 10}
+    x, words = 0, []
+    for ch in 'THE NOSE':
+        if ch == ' ':
+            x += 14
+            continue
+        words.append(word(ch, x))
+        x += 10
+    assert [w['text'] for w in newsletter._join_spaced_letters(words)] == ['THE', 'NOSE']
+    normal = [word('Hello', 0), word('there', 40)]
+    assert newsletter._join_spaced_letters(normal) == normal

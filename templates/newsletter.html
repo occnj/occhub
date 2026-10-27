@@ -5,7 +5,8 @@
 {% include '_pwa_head.html' %}
 {#- Volunteer Newsletter. part='cover': the issue's cover (tap it to open the full newsletter) and the
     past issues; part='full': every page of the full newsletter. Pages are pictures of the PDF, so
-    they look exactly like the original; the PDF's own links sit on top of them. -#}
+    they look exactly like the original; the PDF's own links sit on top of them. ?view=text shows
+    the text read from the PDF instead (headings and paragraphs, no pictures). -#}
 <title>{{ (issue.full_title or 'Full newsletter') if part == 'full' else 'Volunteer Newsletter' }} — Oasis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -40,6 +41,18 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 .issue b{display:block;font-size:0.95rem;}
 .issue span{font-size:0.8rem;color:var(--sub);}
 .issue.on{outline:2px solid var(--teal);}
+.views{display:flex;background:rgba(0,0,0,0.06);border-radius:14px;padding:4px;margin-bottom:16px;}
+.views a{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border-radius:11px;font-size:0.88rem;font-weight:600;color:var(--sub);text-decoration:none;}
+.views a.on{background:var(--card);color:var(--teal);box-shadow:0 1px 4px rgba(0,0,0,0.1);}
+.text{background:var(--card);border-radius:20px;padding:24px 20px;box-shadow:0 1px 4px rgba(0,0,0,0.06);font-size:1.05rem;line-height:1.7;color:#2c2c2e;overflow-wrap:anywhere;}
+.text h2{font-family:'DM Serif Display',serif;font-weight:400;font-size:1.55rem;line-height:1.2;color:var(--teal);margin:28px 0 10px;}
+.text h3{font-size:0.78rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--orange);margin:22px 0 8px;}
+.text > :first-child{margin-top:0;}
+.text p{margin:0 0 14px;}
+.text ul,.text ol{margin:0 0 14px 22px;}
+.text blockquote{border-left:3px solid var(--teal);padding-left:14px;margin:0 0 14px;color:#3a3a3c;}
+.text-links{display:flex;flex-direction:column;gap:8px;margin-top:14px;}
+.text-links a{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:14px;color:var(--teal);font-weight:600;font-size:0.88rem;text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow-wrap:anywhere;}
 .empty{background:var(--card);border-radius:20px;padding:40px 24px;text-align:center;color:var(--sub);font-size:0.9rem;line-height:1.6;}
 .empty i{display:block;font-size:2rem;color:var(--teal);margin-bottom:10px;}
 </style>
@@ -47,7 +60,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
 <body>
 <div class="shell">
   <div class="hero">
-    <a href="{{ url_for('newsletter_issue', nid=issue.id) if part == 'full' else '/hub' }}" class="back-btn" aria-label="Back"><i class="bi bi-arrow-left"></i></a>
+    <a href="{{ url_for('newsletter_issue', nid=issue.id, **({'view': 'text'} if view == 'text' else {})) if part == 'full' else '/hub' }}" class="back-btn" aria-label="Back"><i class="bi bi-arrow-left"></i></a>
     <div class="hero-content">
       <div class="hero-tag">Volunteer Newsletter</div>
       <div class="hero-title">{% if not issue %}Volunteer Newsletter{% elif part == 'full' %}{{ issue.full_title or issue.title }}{% else %}{{ issue.title }}{% endif %}</div>
@@ -59,25 +72,43 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="empty"><i class="bi bi-newspaper"></i>The next newsletter is on its way. Check back soon!</div>
   {% else %}
     {% set open_full = part == 'cover' and has_full %}
+    {% set as_text = view == 'text' %}
+    {% set keep = {'view': 'text'} if as_text else {} %}
+    {% set full_url = url_for('newsletter_full', nid=issue.id, **keep) %}
+    {% set here = 'newsletter_full' if part == 'full' else 'newsletter_issue' %}
+    {% if text %}
+    <nav class="views" aria-label="How to read">
+      <a href="{{ url_for(here, nid=issue.id) }}" class="{{ '' if as_text else 'on' }}"><i class="bi bi-file-earmark-richtext"></i> Original</a>
+      <a href="{{ url_for(here, nid=issue.id, view='text') }}" class="{{ 'on' if as_text else '' }}"><i class="bi bi-text-paragraph"></i> Text only</a>
+    </nav>
+    {% endif %}
+    {% if as_text %}
+    <article class="text">{{ text|safe }}</article>
+    {% if links %}
+    <div class="sect">Links</div>
+    <div class="text-links">{% for l in links %}<a href="{{ l.url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right"></i> {{ l.url }}</a>{% endfor %}</div>
+    {% endif %}
+    {% else %}
     <div class="pages">
       {% for p in pages %}
       <div class="page">
         <img src="/static/{{ p.src }}" width="{{ p.w }}" height="{{ p.h }}" alt="{{ issue.title }}, page {{ loop.index }}" {% if not loop.first %}loading="lazy"{% endif %}>
-        {% if open_full %}<a class="tap" href="{{ url_for('newsletter_full', nid=issue.id) }}" aria-label="Open {{ issue.full_title or 'the full newsletter' }}"></a>{% endif %}
+        {% if open_full %}<a class="tap" href="{{ full_url }}" aria-label="Open {{ issue.full_title or 'the full newsletter' }}"></a>{% endif %}
         {% for l in p.links %}
         <a class="pdf-link" href="{{ l.url }}" target="_blank" rel="noopener noreferrer" style="left:{{ l.x }}%;top:{{ l.y }}%;width:{{ l.w }}%;height:{{ l.h }}%;" aria-label="{{ l.url }}"></a>
         {% endfor %}
       </div>
       {% endfor %}
     </div>
+    {% endif %}
 
     {% if open_full %}
-    <a class="btn btn-main" href="{{ url_for('newsletter_full', nid=issue.id) }}"><i class="bi bi-book"></i> Read {{ issue.full_title or 'the full newsletter' }}</a>
+    <a class="btn btn-main" href="{{ full_url }}"><i class="bi bi-book"></i> Read {{ issue.full_title or 'the full newsletter' }}</a>
     {% endif %}
     {% set pdf = issue.full_pdf if part == 'full' else issue.cover_pdf %}
     <a class="btn btn-ghost" href="/static/{{ pdf }}" target="_blank" rel="noopener" download><i class="bi bi-download"></i> Download PDF</a>
     {% if part == 'full' %}
-    <a class="btn btn-ghost" href="{{ url_for('newsletter_issue', nid=issue.id) }}"><i class="bi bi-arrow-left"></i> Back to the cover</a>
+    <a class="btn btn-ghost" href="{{ url_for('newsletter_issue', nid=issue.id, **keep) }}"><i class="bi bi-arrow-left"></i> Back to the cover</a>
     {% endif %}
 
     {% if part == 'cover' and issues|length > 1 %}

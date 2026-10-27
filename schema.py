@@ -513,6 +513,10 @@ def _init_db():
         is_published INTEGER DEFAULT 1,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )''')
+    # Text version of each PDF (headings and paragraphs), for reading without the pictures.
+    # NULL = not read yet (issues uploaded before text mode); '' = the PDF has no text.
+    add_column(c, 'newsletters', 'cover_text', 'TEXT')
+    add_column(c, 'newsletters', 'full_text', 'TEXT')
     # v4: Volunteer Newsletter card on the Hub (added once; after that admins control it under Hub Cards)
     if schema_version < 4 and not c.execute("SELECT 1 FROM hub_cards WHERE slug='volunteer-newsletter'").fetchone():
         next_order = c.execute("SELECT COALESCE(MAX(sort_order),0)+1 FROM hub_cards WHERE parent_id IS NULL").fetchone()[0]

@@ -10,7 +10,7 @@ import fcntl
 from core import *
 from special_events import setting_defaults as special_event_setting_defaults
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 def add_column(c, table, col, defn):
     """ALTER TABLE ... ADD COLUMN only when the column is missing."""
@@ -497,6 +497,29 @@ def _init_db():
             (row[0], row[1])
         )
         c.execute("UPDATE sermon_notes SET next_steps_file='' WHERE id=?", (row[0],))
+
+    # Volunteer Newsletter: a one-page cover PDF (what the page shows) that opens the full newsletter PDF.
+    # *_pages hold the rendered page images as JSON ([{src, w, h, links}]).
+    c.execute('''CREATE TABLE IF NOT EXISTS newsletters (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL DEFAULT '',
+        issue_label TEXT DEFAULT '',
+        issue_date TEXT DEFAULT '',
+        cover_pdf TEXT DEFAULT '',
+        cover_pages TEXT DEFAULT '[]',
+        full_title TEXT DEFAULT '',
+        full_pdf TEXT DEFAULT '',
+        full_pages TEXT DEFAULT '[]',
+        is_published INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )''')
+    # v4: Volunteer Newsletter card on the Hub (added once; after that admins control it under Hub Cards)
+    if schema_version < 4 and not c.execute("SELECT 1 FROM hub_cards WHERE slug='volunteer-newsletter'").fetchone():
+        next_order = c.execute("SELECT COALESCE(MAX(sort_order),0)+1 FROM hub_cards WHERE parent_id IS NULL").fetchone()[0]
+        c.execute(
+            "INSERT INTO hub_cards (slug,title,subtitle,icon,card_type,target_url,open_in_new_tab,sort_order,is_active) "
+            "VALUES ('volunteer-newsletter','Volunteer Newsletter','News & a devotion for our volunteers','bi-newspaper','link',"
+            "'/newsletter',0,?,1)", (next_order,))
 
     c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     conn.commit(); conn.close()

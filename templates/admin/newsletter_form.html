@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ 'Edit Issue' if issue else 'New Issue' }}{% endblock %}
+{% block page_title %}{{ 'Edit Newsletter Issue' if issue else 'New Newsletter Issue' }}{% endblock %}
+{% block page_sub %}The cover is what people see first; tapping it opens the full newsletter. Both keep their original look.{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px;">
+  <div class="card-body">
+    <form method="POST" enctype="multipart/form-data">
+      <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" name="title" class="form-control" maxlength="120" value="{{ form.title or '' }}" placeholder="e.g. The Nose of a Camel">
+          <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Shown above the cover and in the list of past issues.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" name="issue_date" class="form-control" value="{{ form.issue_date or '' }}">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Issue</label>
+        <input type="text" name="issue_label" class="form-control" maxlength="80" value="{{ form.issue_label or '' }}" placeholder="e.g. #1 · November 2026">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">1. Cover PDF <span style="color:#F2541B;">*</span></label>
+        {% set cover = pages_of(issue, 'cover') if issue else [] %}
+        {% if issue and issue.cover_pdf %}
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:0.82rem;">
+          {% if cover %}<img src="/static/{{ cover[0].src }}" alt="" style="width:60px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}
+          <span><a href="/static/{{ issue.cover_pdf }}" target="_blank" style="color:#13677A;">Current cover</a> · {{ cover|length }} page{{ '' if cover|length == 1 else 's' }}<br><span style="color:#6e6e73;">Choose a file only to replace it.</span></span>
+        </div>
+        {% endif %}
+        <input type="file" name="cover_file" class="form-control" accept=".pdf,application/pdf" {% if not issue %}required{% endif %}>
+        <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Usually one page, e.g. The Nose of a Camel.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">2. Full newsletter PDF (opens from the cover)</label>
+        {% set full = pages_of(issue, 'full') if issue else [] %}
+        {% if issue and issue.full_pdf %}
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:0.82rem;">
+          {% if full %}<img src="/static/{{ full[0].src }}" alt="" style="width:60px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}
+          <span><a href="/static/{{ issue.full_pdf }}" target="_blank" style="color:#13677A;">Current newsletter</a> · {{ full|length }} page{{ '' if full|length == 1 else 's' }}<br>
+          <label style="color:#c0392b;font-weight:400;"><input type="checkbox" name="remove_full" value="1"> Remove it (cover only)</label></span>
+        </div>
+        {% endif %}
+        <input type="file" name="full_file" class="form-control" accept=".pdf,application/pdf">
+        <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">e.g. The Table Leaf. Up to 40 pages. Links inside the PDF stay tappable. In Canva use <b>Download → PDF Standard</b> so links are kept.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Name of the full newsletter</label>
+        <input type="text" name="full_title" class="form-control" maxlength="120" value="{{ form.full_title or '' }}" placeholder="e.g. The Table Leaf">
+        <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Used on the button: “Read The Table Leaf”.</div>
+      </div>
+
+      <div class="form-group">
+        <label style="display:flex;gap:8px;align-items:center;font-size:0.88rem;"><input type="checkbox" name="is_published" value="1" {% if form.is_published %}checked{% endif %}> Published (the newest published issue is the one the Hub card opens)</label>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if issue else 'Upload Issue' }}</button>
+        <a href="{{ url_for('admin_newsletter') }}" class="btn btn-ghost">Cancel</a>
+      </div>
+      <div style="font-size:0.74rem;color:#6e6e73;margin-top:10px;">Uploading turns each page into a picture; a big PDF can take a few seconds.</div>
+    </form>
+  </div>
+</div>
+{% endblock %}

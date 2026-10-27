@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+{% include '_pwa_head.html' %}
+{#- Volunteer Newsletter. part='cover': the issue's cover (tap it to open the full newsletter) and the
+    past issues; part='full': every page of the full newsletter. Pages are pictures of the PDF, so
+    they look exactly like the original; the PDF's own links sit on top of them. -#}
+<title>{{ (issue.full_title or 'Full newsletter') if part == 'full' else 'Volunteer Newsletter' }} — Oasis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+<link rel="icon" type="image/png" href="/static/icon-192x192.png">
+<style>
+:root{--teal:{{ settings.get('theme_primary', '#13677A') }};--orange:{{ settings.get('theme_accent', '#F2541B') }};--bg:{{ settings.get('theme_background', '#F5F5F7') }};--card:{{ settings.get('theme_card', '#ffffff') }};--text:{{ settings.get('theme_text', '#1d1d1f') }};--sub:{{ settings.get('theme_subtext', '#6e6e73') }};}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);display:flex;justify-content:center;min-height:100vh;padding-bottom:48px;}
+.shell{width:100%;max-width:760px;}
+.hero{background:linear-gradient(150deg,#0f4250 0%,#13677A 55%,#f05123 100%);padding:56px 24px 26px;position:relative;overflow:hidden;border-radius:28px;margin:16px 16px 0;box-shadow:0 10px 30px rgba(0,0,0,0.08);}
+.hero::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.08);pointer-events:none;}
+.back-btn{position:absolute;top:56px;left:20px;color:#fff;text-decoration:none;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:1rem;background:#f05123;border-radius:12px;box-shadow:0 10px 24px rgba(240,81,35,0.28);z-index:2;}
+.hero-content{position:relative;z-index:1;padding-left:58px;}
+.hero-tag{font-size:0.65rem;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-bottom:6px;}
+.hero-title{font-family:'DM Serif Display',serif;font-size:1.9rem;line-height:1.15;color:#fff;}
+.hero-copy{font-size:0.88rem;line-height:1.6;color:rgba(255,255,255,0.8);margin-top:8px;}
+.body{padding:20px 16px;}
+.pages{display:flex;flex-direction:column;gap:14px;}
+.page{position:relative;display:block;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 6px 24px rgba(0,0,0,0.12);}
+.page img{display:block;width:100%;height:auto;}
+.page .tap{position:absolute;inset:0;z-index:1;}
+.page .pdf-link{position:absolute;z-index:2;border-radius:6px;}
+.page .pdf-link:active{background:rgba(19,103,122,0.15);}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;border-radius:14px;padding:16px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;text-decoration:none;cursor:pointer;margin-top:14px;}
+.btn-main{background:var(--teal);color:#fff;box-shadow:0 8px 25px rgba(19,103,122,0.25);}
+.btn-ghost{background:var(--card);color:var(--teal);box-shadow:0 1px 4px rgba(0,0,0,0.06);}
+.sect{font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--sub);margin:30px 4px 10px;}
+.issues{display:flex;flex-direction:column;gap:10px;}
+.issue{display:flex;gap:14px;align-items:center;background:var(--card);border-radius:16px;padding:10px;text-decoration:none;color:inherit;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+.issue img{width:54px;height:70px;object-fit:cover;object-position:top;border-radius:6px;flex-shrink:0;background:#eee;}
+.issue b{display:block;font-size:0.95rem;}
+.issue span{font-size:0.8rem;color:var(--sub);}
+.issue.on{outline:2px solid var(--teal);}
+.empty{background:var(--card);border-radius:20px;padding:40px 24px;text-align:center;color:var(--sub);font-size:0.9rem;line-height:1.6;}
+.empty i{display:block;font-size:2rem;color:var(--teal);margin-bottom:10px;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="hero">
+    <a href="{{ url_for('newsletter_issue', nid=issue.id) if part == 'full' else '/hub' }}" class="back-btn" aria-label="Back"><i class="bi bi-arrow-left"></i></a>
+    <div class="hero-content">
+      <div class="hero-tag">Volunteer Newsletter</div>
+      <div class="hero-title">{% if not issue %}Volunteer Newsletter{% elif part == 'full' %}{{ issue.full_title or issue.title }}{% else %}{{ issue.title }}{% endif %}</div>
+      {% if issue and issue.issue_label %}<div class="hero-copy">{{ issue.issue_label }}</div>{% endif %}
+    </div>
+  </div>
+  <div class="body">
+  {% if not issue %}
+    <div class="empty"><i class="bi bi-newspaper"></i>The next newsletter is on its way. Check back soon!</div>
+  {% else %}
+    {% set open_full = part == 'cover' and has_full %}
+    <div class="pages">
+      {% for p in pages %}
+      <div class="page">
+        <img src="/static/{{ p.src }}" width="{{ p.w }}" height="{{ p.h }}" alt="{{ issue.title }}, page {{ loop.index }}" {% if not loop.first %}loading="lazy"{% endif %}>
+        {% if open_full %}<a class="tap" href="{{ url_for('newsletter_full', nid=issue.id) }}" aria-label="Open {{ issue.full_title or 'the full newsletter' }}"></a>{% endif %}
+        {% for l in p.links %}
+        <a class="pdf-link" href="{{ l.url }}" target="_blank" rel="noopener noreferrer" style="left:{{ l.x }}%;top:{{ l.y }}%;width:{{ l.w }}%;height:{{ l.h }}%;" aria-label="{{ l.url }}"></a>
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if open_full %}
+    <a class="btn btn-main" href="{{ url_for('newsletter_full', nid=issue.id) }}"><i class="bi bi-book"></i> Read {{ issue.full_title or 'the full newsletter' }}</a>
+    {% endif %}
+    {% set pdf = issue.full_pdf if part == 'full' else issue.cover_pdf %}
+    <a class="btn btn-ghost" href="/static/{{ pdf }}" target="_blank" rel="noopener" download><i class="bi bi-download"></i> Download PDF</a>
+    {% if part == 'full' %}
+    <a class="btn btn-ghost" href="{{ url_for('newsletter_issue', nid=issue.id) }}"><i class="bi bi-arrow-left"></i> Back to the cover</a>
+    {% endif %}
+
+    {% if part == 'cover' and issues|length > 1 %}
+    <div class="sect">Past issues</div>
+    <div class="issues">
+      {% for it in issues %}
+      {% set cover = (pages_of(it, 'cover') or [{}])[0] %}
+      <a class="issue{% if it.id == issue.id %} on{% endif %}" href="{{ url_for('newsletter_issue', nid=it.id) }}">
+        {% if cover.src %}<img src="/static/{{ cover.src }}" alt="" loading="lazy">{% endif %}
+        <div><b>{{ it.title }}</b><span>{{ it.issue_label or it.issue_date }}</span></div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endif %}
+  </div>
+</div>
+</body>
+</html>

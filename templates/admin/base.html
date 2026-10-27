@@ -411,6 +411,9 @@
         <a href="{{ url_for('admin_sermon_notes') }}" class="nav-item {% if 'sermon_note' in request.endpoint %}active{% endif %}">
             <i class="bi bi-journal-richtext"></i> Sermon Notes
         </a>
+        <a href="{{ url_for('admin_newsletter') }}" class="nav-item {% if 'newsletter' in request.endpoint %}active{% endif %}">
+            <i class="bi bi-newspaper"></i> Volunteer Newsletter
+        </a>
         <a href="{{ url_for('admin_missions') }}" class="nav-item {% if 'mission' in request.endpoint and request.endpoint != 'admin_page_headers' %}active{% endif %}">
             <i class="bi bi-globe-americas"></i> Mission
         </a>

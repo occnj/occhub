@@ -1,0 +1,40 @@
+{% extends "admin/base.html" %}
+{% block title %}Volunteer Newsletter{% endblock %}
+{% block page_title %}Volunteer Newsletter{% endblock %}
+{% block page_sub %}Upload each issue as two PDFs: the cover people see first, and the full newsletter it opens{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_newsletter_form') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Issue</a>{% endblock %}
+
+{% block content %}
+<div class="card">
+  {% if issues %}
+  <table>
+    <thead><tr><th>Cover</th><th>Issue</th><th>Opens</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for it in issues %}
+    {% set cover = (pages_of(it, 'cover') or [{}])[0] %}
+    {% set full_n = pages_of(it, 'full')|length %}
+    <tr {% if not it.is_published %}style="opacity:0.6;"{% endif %}>
+      <td>{% if cover.src %}<img src="/static/{{ cover.src }}" alt="" style="width:52px;height:68px;object-fit:cover;object-position:top;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}</td>
+      <td><b>{{ it.title }}</b><div style="color:#6e6e73;font-size:0.78rem;">{{ it.issue_label }}{% if it.issue_label %} · {% endif %}{{ it.issue_date }}</div></td>
+      <td style="font-size:0.82rem;">{% if it.full_pdf %}{{ it.full_title or 'Full newsletter' }} <span style="color:#6e6e73;">({{ full_n }} page{{ '' if full_n == 1 else 's' }})</span>{% else %}<span style="color:#c7c7cc;">— cover only</span>{% endif %}</td>
+      <td>{% if it.is_published %}<span class="tag">Published</span>{% else %}<span style="color:#6e6e73;font-size:0.8rem;">Hidden</span>{% endif %}{% if loop.first and it.is_published %}<div style="color:#13677A;font-size:0.72rem;margin-top:4px;">Shown first</div>{% endif %}</td>
+      <td style="white-space:nowrap;">
+        {% if it.is_published %}<a href="{{ url_for('newsletter_issue', nid=it.id) }}" class="btn btn-ghost btn-sm" target="_blank"><i class="bi bi-eye"></i> View</a>{% endif %}
+        <a href="{{ url_for('admin_newsletter_form', nid=it.id) }}" class="btn btn-ghost btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+        <form method="POST" action="{{ url_for('admin_newsletter_delete', nid=it.id) }}" style="display:inline;" onsubmit="return confirm('Delete this issue and its PDFs?')">
+          <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="card-body" style="color:#6e6e73;">No issues yet. <a href="{{ url_for('admin_newsletter_form') }}" style="color:#13677A;">Upload the first one →</a></div>
+  {% endif %}
+</div>
+<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+  <a href="{{ url_for('newsletter') }}" class="btn btn-ghost" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Open the newsletter page</a>
+  {% if hub_card %}<a href="{{ url_for('admin_hub_card_edit', cid=hub_card.id) }}" class="btn btn-ghost">Edit the Hub card{% if not hub_card.is_active %} (currently hidden){% endif %}</a>{% endif %}
+</div>
+{% endblock %}

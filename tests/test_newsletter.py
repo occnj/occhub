@@ -153,8 +153,8 @@ def test_hidden_issues_are_not_shown(admin, client, db, folder):
 
 
 def test_newest_issue_comes_first_and_past_issues_are_listed(admin, client, db, folder):
-    upload(admin, cover=make_pdf(1), title='October issue', issue_date='2026-10-01')
-    upload(admin, cover=make_pdf(1), title='November issue', issue_date='2026-11-01')
+    upload(admin, cover=make_pdf(1), issue_label='October issue', issue_date='2026-10-01')
+    upload(admin, cover=make_pdf(1), issue_label='November issue', issue_date='2026-11-01')
     html = client.get('/newsletter').get_data(as_text=True)
     assert html.index('November issue') < html.index('October issue') and 'Past issues' in html
 
@@ -215,3 +215,29 @@ def test_letter_spaced_headings_are_joined_into_words():
     assert [w['text'] for w in newsletter._join_spaced_letters(words)] == ['THE', 'NOSE']
     normal = [word('Hello', 0), word('there', 40)]
     assert newsletter._join_spaced_letters(normal) == normal
+
+
+def test_new_month_reuses_the_cover_and_only_needs_the_new_pdf(admin, client, db, folder):
+    upload(admin, cover=make_pdf(1, text=STORY), full=make_pdf(2), issue_date='2026-11-01', issue_label='#1 NOV 2026')
+    first = latest(db)
+    form = admin.get('/admin/newsletter/new').get_data(as_text=True)
+    assert 'Leave empty to use it again' in form and 'value="The Table Leaf"' in form   # names carried over
+    assert upload(admin, full=make_pdf(1), issue_date='2026-12-01', issue_label='#2 DEC 2026').status_code == 302
+    second = latest(db)
+    assert second['id'] != first['id']
+    assert (second['cover_pdf'], second['cover_pages'], second['cover_text']) == \
+        (first['cover_pdf'], first['cover_pages'], first['cover_text'])
+    assert second['full_pdf'] != first['full_pdf']
+    html = client.get('/newsletter').get_data(as_text=True)
+    assert json.loads(first['cover_pages'])[0]['src'] in html and '#2 DEC 2026' in html
+    assert f'/newsletter/{second["id"]}/full' in html
+
+
+def test_deleting_a_month_keeps_the_shared_cover(admin, db, folder):
+    upload(admin, cover=make_pdf(1), full=make_pdf(1), issue_date='2026-11-01')
+    upload(admin, full=make_pdf(1), issue_date='2026-12-01')
+    second = latest(db)
+    cover_files = [second['cover_pdf']] + [p['src'] for p in json.loads(second['cover_pages'])]
+    admin.post(f'/admin/newsletter/{second["id"]}/delete')
+    assert all(os.path.exists(folder / f.split('/', 1)[1]) for f in cover_files)
+    assert not os.path.exists(folder / second['full_pdf'].split('/', 1)[1])

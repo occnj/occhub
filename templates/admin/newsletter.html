@@ -1,17 +1,17 @@
 {% extends "admin/base.html" %}
 {% block title %}Volunteer Newsletter{% endblock %}
 {% block page_title %}Volunteer Newsletter{% endblock %}
-{% block page_sub %}Upload each issue as two PDFs: the cover people see first, and the full newsletter it opens{% endblock %}
-{% block topbar_actions %}<a href="{{ url_for('admin_newsletter_form') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Issue</a>{% endblock %}
+{% block page_sub %}The cover (e.g. The Nose of a Camel) is uploaded once and stays; each month, add the new newsletter PDF that opens from it{% endblock %}
+{% block topbar_actions %}<a href="{{ url_for('admin_newsletter_form') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add This Month</a>{% endblock %}
 
 {% block content %}
 <div class="card">
   {% if issues %}
   <table>
-    <thead><tr><th>Cover</th><th>Issue</th><th>Opens</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th></th><th>Issue</th><th>Opens</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>
     {% for it in issues %}
-    {% set cover = (pages_of(it, 'cover') or [{}])[0] %}
+    {% set cover = (pages_of(it, 'full') or pages_of(it, 'cover') or [{}])[0] %}
     {% set full_n = pages_of(it, 'full')|length %}
     <tr {% if not it.is_published %}style="opacity:0.6;"{% endif %}>
       <td>{% if cover.src %}<img src="/static/{{ cover.src }}" alt="" style="width:52px;height:68px;object-fit:cover;object-position:top;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}</td>

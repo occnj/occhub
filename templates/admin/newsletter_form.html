@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}{{ 'Edit Issue' if issue else 'New Issue' }}{% endblock %}
-{% block page_title %}{{ 'Edit Newsletter Issue' if issue else 'New Newsletter Issue' }}{% endblock %}
-{% block page_sub %}The cover is what people see first; tapping it opens the full newsletter. Both keep their original look.{% endblock %}
+{% block page_title %}{{ 'Edit Newsletter Issue' if issue else 'Add This Month\'s Newsletter' }}{% endblock %}
+{% block page_sub %}People see the cover first, then a button under it opens this month's newsletter. Both keep their original look.{% endblock %}
 
 {% block content %}
 <div class="card" style="max-width:760px;">
@@ -24,20 +24,22 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">1. Cover PDF <span style="color:#F2541B;">*</span></label>
-        {% set cover = pages_of(issue, 'cover') if issue else [] %}
-        {% if issue and issue.cover_pdf %}
+        {% set src = issue or cover %}
+        <label class="form-label">1. Cover PDF{% if not src %} <span style="color:#F2541B;">*</span>{% endif %}</label>
+        {% if src and src.cover_pdf %}
+        {% set cover_pages = pages_of(src, 'cover') %}
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:0.82rem;">
-          {% if cover %}<img src="/static/{{ cover[0].src }}" alt="" style="width:60px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}
-          <span><a href="/static/{{ issue.cover_pdf }}" target="_blank" style="color:#13677A;">Current cover</a> · {{ cover|length }} page{{ '' if cover|length == 1 else 's' }}<br><span style="color:#6e6e73;">Choose a file only to replace it.</span></span>
+          {% if cover_pages %}<img src="/static/{{ cover_pages[0].src }}" alt="" style="width:60px;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,0.15);">{% endif %}
+          <span><a href="/static/{{ src.cover_pdf }}" target="_blank" style="color:#13677A;">Current cover</a>{% if src.title %} · {{ src.title }}{% endif %}<br>
+          <span style="color:#6e6e73;">{{ 'Choose a file only to replace it.' if issue else 'Kept for this issue. Leave empty to use it again; choose a file only for a new cover.' }}</span></span>
         </div>
         {% endif %}
-        <input type="file" name="cover_file" class="form-control" accept=".pdf,application/pdf" {% if not issue %}required{% endif %}>
-        <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">Usually one page, e.g. The Nose of a Camel.</div>
+        <input type="file" name="cover_file" class="form-control" accept=".pdf,application/pdf" {% if not src %}required{% endif %}>
+        <div style="font-size:0.74rem;color:#6e6e73;margin-top:6px;">The page people see first, e.g. The Nose of a Camel. Upload it once; every new month reuses it.</div>
       </div>
 
       <div class="form-group">
-        <label class="form-label">2. Full newsletter PDF (opens from the cover)</label>
+        <label class="form-label">2. This month's newsletter PDF (opens from the button under the cover)</label>
         {% set full = pages_of(issue, 'full') if issue else [] %}
         {% if issue and issue.full_pdf %}
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;font-size:0.82rem;">
@@ -59,7 +61,7 @@
         <label style="display:flex;gap:8px;align-items:center;font-size:0.88rem;"><input type="checkbox" name="is_published" value="1" {% if form.is_published %}checked{% endif %}> Published (the newest published issue is the one the Hub card opens)</label>
       </div>
       <div style="display:flex;gap:10px;">
-        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if issue else 'Upload Issue' }}</button>
+        <button type="submit" class="btn btn-primary">{{ 'Save Changes' if issue else 'Upload This Month' }}</button>
         <a href="{{ url_for('admin_newsletter') }}" class="btn btn-ghost">Cancel</a>
       </div>
       <div style="font-size:0.74rem;color:#6e6e73;margin-top:10px;">Uploading turns each page into a picture; a big PDF can take a few seconds.</div>

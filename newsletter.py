@@ -180,9 +180,19 @@ def save_newsletter_pdf(f):
     return 'uploads/' + name, pages, None
 
 
+def _still_used(rel):
+    """Issues share the cover (it is uploaded once and reused every month), so a file is only
+    deleted when no issue refers to it any more."""
+    conn = get_db()
+    used = conn.execute("SELECT 1 FROM newsletters WHERE cover_pdf=? OR full_pdf=? OR cover_pages LIKE ? "
+                        "OR full_pages LIKE ? LIMIT 1", (rel, rel, f'%"{rel}"%', f'%"{rel}"%')).fetchone()
+    conn.close()
+    return bool(used)
+
+
 def remove_newsletter_files(pdf, pages):
     for rel in [pdf] + [p.get('src', '') for p in pages]:
-        if rel and rel.startswith('uploads/') and '/' not in rel[len('uploads/'):]:
+        if rel and rel.startswith('uploads/') and '/' not in rel[len('uploads/'):] and not _still_used(rel):
             try:
                 os.remove(os.path.join(UPLOAD_FOLDER, rel[len('uploads/'):]))
             except OSError:
@@ -212,6 +222,11 @@ def newsletter_text(issue, part):
         conn.commit()
         conn.close()
     return text
+
+
+def current_cover(conn):
+    """The cover new issues reuse: the one on the most recent issue."""
+    return conn.execute("SELECT * FROM newsletters WHERE cover_pdf<>'' ORDER BY issue_date DESC, id DESC LIMIT 1").fetchone()
 
 
 def published_newsletters(conn):
@@ -314,19 +329,27 @@ def admin_newsletter_form(nid=None):
                 errors.append(f"{'Cover' if part == 'cover' else 'Full newsletter'}: {error}")
             elif pdf:
                 new[part] = (pdf, pages)
+        reuse = None
         if not errors and not new.get('cover') and not old['cover'][0]:
-            errors.append('Please choose the cover PDF.')
+            reuse = current_cover(conn)
+            if not reuse:
+                errors.append('Please choose the cover PDF.')
         if errors:
             for pdf, pages in new.values():
                 remove_newsletter_files(pdf, pages)
+            cover = None if issue else current_cover(conn)
             conn.close()
             for e in errors:
                 flash(e, 'info')
-            return render_template('admin/newsletter_form.html', issue=issue, form=values, pages_of=newsletter_pages)
+            return render_template('admin/newsletter_form.html', issue=issue, form=values, pages_of=newsletter_pages,
+                                   cover=cover)
         remove_full = request.form.get('remove_full') and 'full' not in new
         for part, (pdf, pages) in new.items():
             values[f'{part}_pdf'], values[f'{part}_pages'] = pdf, json.dumps(pages)
             values[f'{part}_text'] = pdf_text_html(_abs_upload(pdf))
+        if reuse:
+            for col in ('cover_pdf', 'cover_pages', 'cover_text'):
+                values[col] = reuse[col]
         if remove_full:
             values['full_pdf'], values['full_pages'], values['full_text'] = '', '[]', ''
         if not values['title']:
@@ -348,10 +371,15 @@ def admin_newsletter_form(nid=None):
             remove_newsletter_files(*old['full'])
         flash('Newsletter saved!', 'success')
         return redirect(url_for('admin_newsletter'))
+    cover = None if issue else current_cover(conn)
     conn.close()
-    form = dict(issue) if issue else {'title': '', 'issue_label': '', 'full_title': '',
-                                      'issue_date': date.today().isoformat(), 'is_published': 1}
-    return render_template('admin/newsletter_form.html', issue=issue, form=form, pages_of=newsletter_pages)
+    if issue:
+        form = dict(issue)
+    else:   # a new month: same cover and names as last time, new date
+        form = {'title': cover['title'] if cover else '', 'full_title': cover['full_title'] if cover else '',
+                'issue_label': '', 'issue_date': date.today().isoformat(), 'is_published': 1}
+    return render_template('admin/newsletter_form.html', issue=issue, form=form, pages_of=newsletter_pages,
+                           cover=cover)
 
 
 @app.route('/admin/newsletter/<int:nid>/delete', methods=['POST'])

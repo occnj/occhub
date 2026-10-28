@@ -115,10 +115,10 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     <div class="sect">Past issues</div>
     <div class="issues">
       {% for it in issues %}
-      {% set cover = (pages_of(it, 'cover') or [{}])[0] %}
+      {% set cover = (pages_of(it, 'full') or pages_of(it, 'cover') or [{}])[0] %}
       <a class="issue{% if it.id == issue.id %} on{% endif %}" href="{{ url_for('newsletter_issue', nid=it.id) }}">
         {% if cover.src %}<img src="/static/{{ cover.src }}" alt="" loading="lazy">{% endif %}
-        <div><b>{{ it.title }}</b><span>{{ it.issue_label or it.issue_date }}</span></div>
+        <div><b>{{ it.full_title or it.title }}</b><span>{{ it.issue_label or it.issue_date }}</span></div>
       </a>
       {% endfor %}
     </div>

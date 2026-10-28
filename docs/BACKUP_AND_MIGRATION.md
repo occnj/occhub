@@ -130,7 +130,7 @@ Prepare the droplet while the Pi keeps serving visitors, then switch in a short 
 
 The droplet also runs **PIBASE** (its own repo, `scripts/setup-droplet.sh`). The two share one Caddy for
 HTTPS and nothing else: PIBASE runs in Docker on ports 18080/18081 with its data in `/srv/pibase`;
-OccHub runs as `occhub` on port 5500 with its own SQLite database. Each needs its own DNS name, for
+OccHub runs as `occhub` on port 5500 with its own SQLite database. Each needs its own DNS name:
 `pibase.oasisnj.net` for PIBASE and `hub.oasisnj.net` for OccHub, both A records to the droplet.
 
 1. Set up PIBASE first, following its `docs/VPS.md` (it adds swap, the firewall and Caddy). A 2 GB

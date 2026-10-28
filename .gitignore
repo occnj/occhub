@@ -43,3 +43,6 @@ access.log
 # Backup tool: local snapshots and settings (settings can name key/passphrase files)
 backups/
 .backup.env
+
+# Download Everything ZIPs (built on the Pi)
+exports/

@@ -10,6 +10,7 @@ The app is split by concern; importing the route modules registers their routes:
   routes_admin_*.py       admin panel
   special_events.py       Special Events settings; routes_special_events.py its pages
   newsletter.py           Volunteer Newsletter: PDF upload, page rendering, viewer and admin
+  export.py               Download Everything: one ZIP of the database and uploads, sorted by item
 """
 from core import *
 from schema import init_db
@@ -17,6 +18,7 @@ import youtube, documents, maintenance  # noqa: F401  (documents/maintenance reg
 import routes_public, routes_admin_core, routes_admin_content, routes_admin_system  # noqa: F401
 import routes_special_events  # noqa: F401
 import newsletter  # noqa: F401
+import export  # noqa: F401
 
 @app.errorhandler(404)
 def not_found(e): return redirect(url_for('hub'))

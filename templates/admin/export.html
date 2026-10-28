@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+{% block title %}Download Everything{% endblock %}
+{% block page_title %}Download Everything{% endblock %}
+{% block page_sub %}One ZIP with all the text, pictures and documents, sorted by where they are used, plus the full database{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+<div class="card">
+  <div class="card-body" style="font-size:0.9rem;line-height:1.7;">
+    {% if status.state == 'building' %}
+      <div style="display:flex;align-items:center;gap:10px;font-weight:600;"><i class="bi bi-hourglass-split" style="color:#13677A;"></i> Preparing your download&hellip;</div>
+      <div style="background:#eee;border-radius:99px;height:10px;margin:12px 0;overflow:hidden;">
+        <div id="bar" style="background:#13677A;height:100%;width:{{ ((status.done / status.total * 100) if status.total else 2)|round|int }}%;transition:width .4s;"></div>
+      </div>
+      <div id="count" style="color:#6e6e73;">{% if status.total %}{{ status.done }} of {{ status.total }} files{% else %}Starting{% endif %}</div>
+      <div style="color:#6e6e73;margin-top:6px;">You can leave this page; it keeps going. This page updates by itself.</div>
+    {% elif status.state == 'ready' %}
+      <div style="font-weight:600;font-size:1rem;"><i class="bi bi-check-circle-fill" style="color:#2e9d57;"></i> Ready &middot; {{ status.size|human_size }}</div>
+      <div style="color:#6e6e73;">Prepared {{ status.built }}. It includes everything up to that moment.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <a href="{{ url_for('admin_export_download') }}" class="btn btn-primary"><i class="bi bi-download"></i> Download {{ status.file }}</a>
+        <form method="POST" action="{{ url_for('admin_export_build') }}" style="display:inline;"><button class="btn btn-ghost" type="submit"><i class="bi bi-arrow-clockwise"></i> Prepare a fresh one</button></form>
+        <form method="POST" action="{{ url_for('admin_export_delete') }}" style="display:inline;" onsubmit="return confirm('Delete the prepared download from the server?')"><button class="btn btn-ghost" type="submit" style="color:#c0392b;"><i class="bi bi-trash"></i> Delete from server</button></form>
+      </div>
+      <div style="color:#6e6e73;font-size:0.8rem;margin-top:12px;">Once you have downloaded it, delete it from the server to free the space.</div>
+    {% else %}
+      {% if status.state == 'failed' %}<div style="color:#c0392b;margin-bottom:10px;"><i class="bi bi-exclamation-triangle-fill"></i> {{ status.error }}</div>{% endif %}
+      <div>About <b>{{ (uploads_bytes + db_bytes)|human_size }}</b>: {{ uploads_bytes|human_size }} of pictures and documents, plus the database ({{ db_bytes|human_size }}).</div>
+      <form method="POST" action="{{ url_for('admin_export_build') }}" style="margin-top:14px;">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-box-seam"></i> Prepare download</button>
+      </form>
+      <div style="color:#6e6e73;font-size:0.8rem;margin-top:10px;">It is put together on the server first (a minute or two with a lot of pictures), then you get a Download button.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title"><i class="bi bi-folder2-open"></i> What is inside</div></div>
+  <div class="card-body" style="font-size:0.86rem;line-height:1.8;">
+    <div><b>START HERE.html</b> &mdash; open it in a browser: every section and item, with its text and the pictures and documents attached to it.</div>
+    <div><b>One folder per section</b> (Sermon Notes, Events, Leadership, Volunteer Newsletter&hellip;), with <b>one folder per item</b>: a <code>text.txt</code> and that item's own pictures and files. Gallery photos, team members and Next Steps sit in their parent's folder.</div>
+    <div><b>Not used by anything/</b> &mdash; uploads no item refers to any more.</div>
+    <div><b>Spreadsheets/</b> &mdash; every table as a .csv for Excel or Google Sheets.</div>
+    <div><b>Database/oasis.db</b> &mdash; the complete database, to restore the Hub.</div>
+    <div><b>To add it to another Hub</b> &mdash; every item folder has an <code>item.json</code> (its database record, which field points at which file, where each file goes: <code>static/uploads/&hellip;</code>, and its page routes), all of it in <code>manifest.json</code>, plus <code>HOW TO IMPORT.md</code> and <code>Restore/restore_to_hub.py</code>. Give the unzipped folder to Claude Code, or run:
+      <pre style="background:#f5f5f7;border-radius:8px;padding:8px 10px;margin:6px 0 0;font-size:0.78rem;white-space:pre-wrap;">python3 Restore/restore_to_hub.py /home/occnj/occ_hub --merge --dry-run</pre></div>
+    <div style="color:#c0392b;margin-top:8px;"><i class="bi bi-shield-lock"></i> It contains people's names, emails, phone numbers and prayer requests. Keep it private. Passwords are never included.</div>
+  </div>
+</div>
+</div>
+{% if status.state == 'building' %}
+<script>
+(function poll() {
+  setTimeout(function () {
+    fetch('{{ url_for('admin_export_status') }}', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (s) {
+      if (s.state !== 'building') return location.reload();
+      if (s.total) {
+        document.getElementById('bar').style.width = Math.max(2, Math.round(s.done / s.total * 100)) + '%';
+        document.getElementById('count').textContent = s.done + ' of ' + s.total + ' files';
+      }
+      poll();
+    }, poll);
+  }, 2000);
+})();
+</script>
+{% endif %}
+{% endblock %}

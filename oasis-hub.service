@@ -12,8 +12,12 @@ Environment="PATH=/home/occnj/occ_hub/venv/bin"
 #   SECRET_KEY, RESEND_API_KEY, MAIL_FROM
 # Optional: PROXY_HOPS (default 1) = reverse proxies in front of gunicorn
 EnvironmentFile=/home/occnj/occ_hub/.env
+# gthread: a long download (Admin -> Download Everything, newsletter PDFs) must not tie up a
+# whole worker or be killed by --timeout, which is what happens with plain sync workers.
 ExecStart=/home/occnj/occ_hub/venv/bin/gunicorn \
     --workers 2 \
+    --worker-class gthread \
+    --threads 4 \
     --bind 127.0.0.1:5500 \
     --timeout 60 \
     --access-logfile /home/occnj/occ_hub/access.log \

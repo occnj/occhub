@@ -1,0 +1,16 @@
+# /etc/caddy/pibase.d/occhub.caddy on the droplet (setup_droplet.sh puts it there and fills in the name).
+# Not /etc/caddy/Caddyfile: PIBASE's setup-droplet.sh rewrites that file each time it runs and keeps
+# only "import /etc/caddy/pibase.d/*.caddy", so a site written there would disappear. Files in
+# pibase.d stay. Caddy gets the HTTPS certificate by itself once the DNS A record points here.
+hub.oasisnj.net {
+	encode zstd gzip
+
+	# A little above the app's own 64 MB upload limit
+	request_body {
+		max_size 70MB
+	}
+
+	# Caddy puts the visitor's real address in X-Forwarded-For, which is what OccHub's
+	# PROXY_HOPS=1 (the default) expects. Do not add another proxy in front without changing it.
+	reverse_proxy 127.0.0.1:5500
+}

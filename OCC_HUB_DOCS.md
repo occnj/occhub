@@ -124,7 +124,7 @@ occ_hub/
 ├── hub_layout.py           ← data for the new Hub (countdown, notes preview, quick buttons)
 ├── special_events.py       ← Special Events settings; routes_special_events.py its pages
 ├── tools/occhub_backup.py  ← backup / restore / verify / prune
-├── deploy/                 ← backup timer + service, droplet receiver script, droplet app templates
+├── deploy/                 ← backup timer + service, droplet receiver script, droplet/ (app setup next to PIBASE)
 ├── docs/                   ← BACKUP_AND_MIGRATION.md
 ├── tests/                  ← pytest suite
 ├── oasis.db                ← SQLite database (auto-created; not in git)

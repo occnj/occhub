@@ -76,6 +76,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     {% set keep = {'view': 'text'} if as_text else {} %}
     {% set full_url = url_for('newsletter_full', nid=issue.id, **keep) %}
     {% set here = 'newsletter_full' if part == 'full' else 'newsletter_issue' %}
+    {% set read_label = "Read this month's issue" if issue.id == issues[0].id else 'Read this issue' %}
     {% if text %}
     <nav class="views" aria-label="How to read">
       <a href="{{ url_for(here, nid=issue.id) }}" class="{{ '' if as_text else 'on' }}"><i class="bi bi-file-earmark-richtext"></i> Original</a>
@@ -93,7 +94,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
       {% for p in pages %}
       <div class="page">
         <img src="/static/{{ p.src }}" width="{{ p.w }}" height="{{ p.h }}" alt="{{ issue.title }}, page {{ loop.index }}" {% if not loop.first %}loading="lazy"{% endif %}>
-        {% if open_full %}<a class="tap" href="{{ full_url }}" aria-label="Open {{ issue.full_title or 'the full newsletter' }}"></a>{% endif %}
+        {% if open_full %}<a class="tap" href="{{ full_url }}" aria-label="{{ read_label }}"></a>{% endif %}
         {% for l in p.links %}
         <a class="pdf-link" href="{{ l.url }}" target="_blank" rel="noopener noreferrer" style="left:{{ l.x }}%;top:{{ l.y }}%;width:{{ l.w }}%;height:{{ l.h }}%;" aria-label="{{ l.url }}"></a>
         {% endfor %}
@@ -103,7 +104,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     {% endif %}
 
     {% if open_full %}
-    <a class="btn btn-main" href="{{ full_url }}"><i class="bi bi-book"></i> Read {{ issue.full_title or 'the full newsletter' }}</a>
+    <a class="btn btn-main" href="{{ full_url }}"><i class="bi bi-book"></i> {{ read_label }}</a>
     {% endif %}
     {% set pdf = issue.full_pdf if part == 'full' else issue.cover_pdf %}
     <a class="btn btn-ghost" href="/static/{{ pdf }}" target="_blank" rel="noopener" download><i class="bi bi-download"></i> Download PDF</a>

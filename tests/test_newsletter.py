@@ -93,7 +93,7 @@ def test_upload_renders_every_page_and_the_cover_opens_the_full_newsletter(admin
 
     html = client.get('/newsletter').get_data(as_text=True)
     assert cover[0]['src'] in html and full[0]['src'] not in html                  # the cover only
-    assert f'/newsletter/{row["id"]}/full' in html and 'Read The Table Leaf' in html
+    assert f'/newsletter/{row["id"]}/full' in html and "Read this month&#39;s issue" in html
     full_html = client.get(f'/newsletter/{row["id"]}/full').get_data(as_text=True)
     assert all(p['src'] in full_html for p in full) and row['full_pdf'] in full_html  # pages + download
 
@@ -111,7 +111,7 @@ def test_links_in_the_pdf_stay_tappable(admin, client, db, folder):
 def test_cover_only_issue_has_no_read_more_button(admin, client, db, folder):
     upload(admin, cover=make_pdf(1))
     nid = latest(db)['id']
-    assert 'Read The Table Leaf' not in client.get('/newsletter').get_data(as_text=True)
+    assert "this month&#39;s issue" not in client.get('/newsletter').get_data(as_text=True)
     assert client.get(f'/newsletter/{nid}/full').status_code == 302
 
 

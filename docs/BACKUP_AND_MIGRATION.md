@@ -128,43 +128,50 @@ Prepare the droplet while the Pi keeps serving visitors, then switch in a short 
 
 ### A. Prepare the droplet (no visitor impact)
 
-```bash
-# as root
-apt install -y python3-venv python3-pip git caddy rsync gnupg
-adduser --disabled-password --gecos "" occhub
-sudo -u occhub git clone https://github.com/occnj/occhub.git /home/occhub/occ_hub
-cd /home/occhub/occ_hub
-sudo -u occhub python3 -m venv venv
-sudo -u occhub venv/bin/pip install -r requirements.txt
+The droplet also runs **PIBASE** (its own repo, `scripts/setup-droplet.sh`). The two share one Caddy for
+HTTPS and nothing else: PIBASE runs in Docker on ports 18080/18081 with its data in `/srv/pibase`;
+OccHub runs as `occhub` on port 5500 with its own SQLite database. Each needs its own DNS name, for
+example `api.oasisnj.net` for PIBASE and `hub.oasisnj.net` for OccHub, both A records to the droplet.
 
-# secrets: a NEW SECRET_KEY is fine (admins just sign in again). Copy the Resend values from the Pi's .env.
-sudo -u occhub tee .env >/dev/null <<EOF
-SECRET_KEY=$(openssl rand -hex 32)
-RESEND_API_KEY=re_xxxxxxxx
-MAIL_FROM=Oasis Hub <media@oasisnj.net>
-EOF
-chmod 600 .env
-cp deploy/droplet/occhub.service /etc/systemd/system/ && systemctl daemon-reload
+1. Set up PIBASE first, following its `docs/VPS.md` (it adds swap, the firewall and Caddy). A 2 GB
+   droplet is enough for both: idle, PIBASE uses about 60 MB and OccHub about 110 MB.
+2. Then OccHub, as root, from the `/opt/occhub-tools` clone made in step 2 of the setup above
+   (`git -C /opt/occhub-tools pull` first):
+
+```bash
+bash /opt/occhub-tools/deploy/droplet/setup_droplet.sh --domain hub.oasisnj.net
 ```
 
-Do step 2 above (receiver) if you haven't, and let one nightly backup arrive.
+It installs Python, LibreOffice Writer (for `.doc` sermon notes), the app in `/home/occhub/occ_hub`, a
+`.env` with a new `SECRET_KEY` (fine: admins just sign in again), the `occhub` service, and the Caddy
+site. Add the Resend values from the Pi's `.env` to `/home/occhub/occ_hub/.env` and
+`systemctl restart occhub`. Running it again is safe; it keeps `.env` and the database.
+
+**Caddy:** OccHub's site lives in `/etc/caddy/pibase.d/occhub.caddy`, never in `/etc/caddy/Caddyfile`.
+PIBASE's setup rewrites `/etc/caddy/Caddyfile` every time it runs, keeping only
+`import /etc/caddy/pibase.d/*.caddy`; anything else written there would vanish and OccHub would go
+offline. Either order of installing the two works.
+
+Until the restore below, the droplet shows an empty OccHub. Do step 2 above (receiver) if you
+haven't, and let one nightly backup arrive.
 
 ### B. Rehearse with a copy (no visitor impact)
 
 Restore runs as **root** (only root and the backup account can read `/srv/occhub-backup`, by design);
-the tool hands the restored files to the app's user automatically.
+the tool hands the restored files to the app's user automatically. The setup script started the app,
+which made an empty database, so stop it and use `--force` (the empty one is kept aside).
 
 ```bash
 install -m 600 /dev/null /root/pass && nano /root/pass          # paste the passphrase
+systemctl stop occhub
 python3 /opt/occhub-tools/tools/occhub_backup.py --app-dir /home/occhub/occ_hub restore \
-     --source /srv/occhub-backup --passphrase-file /root/pass
+     --source /srv/occhub-backup --passphrase-file /root/pass --force
 systemctl start occhub
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5500/hub      # 200
 ```
 
-Put the Caddy block from `deploy/droplet/Caddyfile.example` in `/etc/caddy/Caddyfile` (use your real
-hostname, point its DNS A record at the droplet) and `systemctl reload caddy`. Open the new address,
-sign in to `/admin`, click around, check photos show.
+Open `https://hub.oasisnj.net` (its DNS A record must point at the droplet), sign in to `/admin`, click
+around, check photos show. `https://api.oasisnj.net/healthz` should still say `ok` for PIBASE.
 
 ### C. Cut over (a few minutes)
 
@@ -199,10 +206,10 @@ Once the droplet is the live copy, the Pi no longer is. Don't let the droplet be
 
 - Turn on DigitalOcean weekly droplet backups (a few dollars a month), **and**
 - point the same tool at a second place. On the droplet, `cp deploy/backup.env.example .backup.env`, set
-  `BACKUP_REMOTE` to another machine you control that has run the receiver script (for example the
-  Pibase droplet, using a different `BACKUP_USER` and `BACKUP_ROOT` so it doesn't mix with Pibase's own
-  data), and install the timer there too after editing the unit's `User=` and paths to `occhub` /
-  `/home/occhub/occ_hub`.
+  `BACKUP_REMOTE` to another machine you control that has run the receiver script (not this droplet:
+  PIBASE lives here too now, so a copy here dies with it), and install the timer there too after editing
+  the unit's `User=` and paths to `occhub` / `/home/occhub/occ_hub`.
+- PIBASE's own daily backups (`/srv/pibase/backups`) cover only PIBASE's projects, not OccHub.
 
 ## Restoring after a disaster
 
@@ -254,5 +261,9 @@ overwrite protection, and an unreachable monitor.
 By hand on Ubuntu 24.04: the receiver script, a real `sshd`, a push over SSH with the restricted key, the
 key being refused a shell, commands, port forwarding and paths outside the backup folder, the daily check
 job, a restore into a fresh folder, and the real app starting from the restored data.
-**Not yet run:** on the actual Pi (Raspberry Pi OS) and a real droplet, and the two systemd units
-(no systemd in the test environment). The first real push and the step-5 verification are the proof.
+Next to PIBASE, on Ubuntu 24.04 with PIBASE built and running from its own repo: `setup_droplet.sh` in
+both orders (PIBASE first, and OccHub first on a stock Caddy), re-runs of both setups, both sites over
+HTTPS through one Caddy, an admin sign-in, a 60 MB request, the receiver script, a push and a `--force`
+restore into the running app, and the test suite on Ubuntu's Python 3.12.
+**Not yet run:** on the actual Pi (Raspberry Pi OS) and a real droplet with real DNS, and the systemd
+units (no systemd in the test environment). The first real push and the step-5 verification are the proof.

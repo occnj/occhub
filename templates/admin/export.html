@@ -1,0 +1,181 @@
+{% extends "admin/base.html" %}
+{% block title %}Download & Upload{% endblock %}
+{% block page_title %}Download & Upload{% endblock %}
+{% block page_sub %}One ZIP with all the text, pictures and documents, sorted by where they are used, plus the full database &mdash; and the way to put one back{% endblock %}
+
+{% block content %}
+<div style="max-width:760px;">
+<div class="card">
+  <div class="card-body" style="font-size:0.9rem;line-height:1.7;">
+    {% if status.state == 'building' %}
+      <div style="display:flex;align-items:center;gap:10px;font-weight:600;"><i class="bi bi-hourglass-split" style="color:#13677A;"></i> Preparing your download&hellip;</div>
+      <div style="background:#eee;border-radius:99px;height:10px;margin:12px 0;overflow:hidden;">
+        <div id="bar" style="background:#13677A;height:100%;width:{{ ((status.done / status.total * 100) if status.total else 2)|round|int }}%;transition:width .4s;"></div>
+      </div>
+      <div id="count" style="color:#6e6e73;">{% if status.total %}{{ status.done }} of {{ status.total }} files{% else %}Starting{% endif %}</div>
+      <div style="color:#6e6e73;margin-top:6px;">You can leave this page; it keeps going. This page updates by itself.</div>
+    {% elif status.state == 'ready' %}
+      <div style="font-weight:600;font-size:1rem;"><i class="bi bi-check-circle-fill" style="color:#2e9d57;"></i> Ready &middot; {{ status.size|human_size }}</div>
+      <div style="color:#6e6e73;">Prepared {{ status.built }}. It includes everything up to that moment.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <a href="{{ url_for('admin_export_download') }}" class="btn btn-primary"><i class="bi bi-download"></i> Download {{ status.file }}</a>
+        <form method="POST" action="{{ url_for('admin_export_build') }}" style="display:inline;"><button class="btn btn-ghost" type="submit"><i class="bi bi-arrow-clockwise"></i> Prepare a fresh one</button></form>
+        <form method="POST" action="{{ url_for('admin_export_delete') }}" style="display:inline;" onsubmit="return confirm('Delete the prepared download from the server?')"><button class="btn btn-ghost" type="submit" style="color:#c0392b;"><i class="bi bi-trash"></i> Delete from server</button></form>
+      </div>
+      <div style="color:#6e6e73;font-size:0.8rem;margin-top:12px;">Once you have downloaded it, delete it from the server to free the space.</div>
+    {% else %}
+      {% if status.state == 'failed' %}<div style="color:#c0392b;margin-bottom:10px;"><i class="bi bi-exclamation-triangle-fill"></i> {{ status.error }}</div>{% endif %}
+      <div>About <b>{{ (uploads_bytes + db_bytes)|human_size }}</b>: {{ uploads_bytes|human_size }} of pictures and documents, plus the database ({{ db_bytes|human_size }}).</div>
+      <form method="POST" action="{{ url_for('admin_export_build') }}" style="margin-top:14px;">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-box-seam"></i> Prepare download</button>
+      </form>
+      <div style="color:#6e6e73;font-size:0.8rem;margin-top:10px;">It is put together on the server first (a minute or two with a lot of pictures), then you get a Download button.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px;" id="upload">
+  <div class="card-header"><div class="card-title"><i class="bi bi-cloud-upload-fill"></i> Upload a download</div></div>
+  <div class="card-body" style="font-size:0.9rem;line-height:1.7;">
+  {% if imp.state == 'uploaded' %}
+    {% set s = imp.summary %}
+    <div style="font-weight:600;"><i class="bi bi-file-earmark-zip-fill" style="color:#13677A;"></i> {{ imp.name or 'Download' }} &middot; made {{ (s.exported_at or '')[:16]|replace('T', ' ') }}</div>
+    <div style="color:#6e6e73;">{{ s.files }} pictures and documents ({{ s.bytes|human_size }}), {{ s.files_new }} of them not on this Hub yet.</div>
+    <form method="POST" action="{{ url_for('admin_import_run') }}" style="margin-top:14px;" id="runForm">
+      <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid #13677A;border-radius:12px;cursor:pointer;">
+        <input type="radio" name="mode" value="merge" checked style="margin-top:5px;">
+        <span><b>Add what is missing</b> (recommended)<br><span style="color:#6e6e73;font-size:0.82rem;">Each item goes back to its section with its pictures and files. What this Hub already has is left exactly as it is.</span></span>
+      </label>
+      <table style="margin:10px 0 4px;">
+        <thead><tr><th></th><th>Section</th><th>New</th><th>Already here</th></tr></thead>
+        <tbody>
+        {% for sec in s.sections %}
+        <tr>
+          <td><input type="checkbox" name="sections" value="{{ sec.name }}" {% if sec.new %}checked{% endif %}></td>
+          <td>{{ sec.name }}</td>
+          <td>{% if sec.new %}<b style="color:#13677A;">{{ sec.new }}</b>{% else %}<span style="color:#c7c7cc;">0</span>{% endif %}</td>
+          <td style="color:#6e6e73;">{{ sec.already }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <label style="display:flex;gap:8px;align-items:center;font-size:0.84rem;margin:6px 0 14px;"><input type="checkbox" name="include_settings" value="1"> Also add site settings this Hub does not have yet (existing settings are never changed)</label>
+      {% if s.has_database %}
+      <label style="display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid #f3c6c0;border-radius:12px;cursor:pointer;">
+        <input type="radio" name="mode" value="replace" style="margin-top:5px;">
+        <span><b style="color:#c0392b;">Replace this whole Hub</b> with the download<br><span style="color:#6e6e73;font-size:0.82rem;">Everything becomes exactly as it was in the download, including admin users and passwords. The current database is saved on the server first. You may need to sign in again.</span>
+        <input type="text" name="confirm" class="form-control" placeholder="Type REPLACE to confirm" style="margin-top:8px;max-width:260px;" autocomplete="off"></span>
+      </label>
+      {% endif %}
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-check2-circle"></i> Put it in place</button>
+      </div>
+    </form>
+    <form method="POST" action="{{ url_for('admin_import_discard') }}" style="margin-top:8px;"><button class="btn btn-ghost" type="submit">Cancel and remove the uploaded file</button></form>
+  {% elif imp.state == 'running' %}
+    <div style="font-weight:600;"><i class="bi bi-hourglass-split" style="color:#13677A;"></i> Putting everything in place&hellip;</div>
+    <div style="color:#6e6e73;">This page updates by itself. With a lot of pictures it can take a few minutes.</div>
+  {% elif imp.state == 'done' %}
+    <div style="font-weight:600;font-size:1rem;"><i class="bi bi-check-circle-fill" style="color:#2e9d57;"></i> Done</div>
+    {% if imp.mode == 'replace' %}
+      <div>The whole Hub now matches the download. {{ imp.files_copied }} files were added.{% if imp.saved %} The previous database is saved on the server as <code>{{ imp.saved }}</code>.{% endif %}</div>
+    {% else %}
+      <div><b>{{ imp.added_count }}</b> item(s) added &middot; {{ imp.already_count }} already here &middot; {{ imp.files_copied }} files added{% if imp.files_kept %}, {{ imp.files_kept }} already there{% endif %}.</div>
+      {% if imp.added %}<details style="margin-top:8px;"><summary style="cursor:pointer;color:#13677A;">What was added</summary><ul style="margin:6px 0 0 18px;font-size:0.82rem;">{% for a in imp.added %}<li>{{ a }}</li>{% endfor %}</ul></details>{% endif %}
+    {% endif %}
+    {% if imp.skipped %}<details style="margin-top:8px;" open><summary style="cursor:pointer;color:#c0392b;">{{ imp.skipped|length }} skipped</summary><ul style="margin:6px 0 0 18px;font-size:0.82rem;">{% for a in imp.skipped %}<li>{{ a }}</li>{% endfor %}</ul></details>{% endif %}
+    {% if imp.files_missing %}<div style="color:#c0392b;font-size:0.84rem;">{{ imp.files_missing }} file(s) were missing from the download.</div>{% endif %}
+    <form method="POST" action="{{ url_for('admin_import_discard') }}" style="margin-top:12px;"><button class="btn btn-ghost" type="submit"><i class="bi bi-trash"></i> Remove the uploaded file from the server</button></form>
+  {% else %}
+    {% if imp.state == 'failed' %}<div style="color:#c0392b;margin-bottom:10px;"><i class="bi bi-exclamation-triangle-fill"></i> {{ imp.error }}</div>{% endif %}
+    <div>Choose a ZIP made with <b>Download Everything</b> (from this Hub or another one). Nothing changes until you have seen what is in it and pressed <b>Put it in place</b>.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+      <input type="file" id="zipFile" accept=".zip,application/zip" class="form-control" style="max-width:380px;">
+      <button class="btn btn-primary" type="button" id="zipGo"><i class="bi bi-cloud-upload"></i> Upload</button>
+    </div>
+    <div id="upProgress" hidden style="margin-top:12px;">
+      <div style="background:#eee;border-radius:99px;height:10px;overflow:hidden;"><div id="upBar" style="background:#13677A;height:100%;width:0;transition:width .3s;"></div></div>
+      <div id="upText" style="color:#6e6e73;font-size:0.84rem;margin-top:6px;"></div>
+    </div>
+  {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <div class="card-header"><div class="card-title"><i class="bi bi-folder2-open"></i> What is inside</div></div>
+  <div class="card-body" style="font-size:0.86rem;line-height:1.8;">
+    <div><b>START HERE.html</b> &mdash; open it in a browser: every section and item, with its text and the pictures and documents attached to it.</div>
+    <div><b>One folder per section</b> (Sermon Notes, Events, Leadership, Volunteer Newsletter&hellip;), with <b>one folder per item</b>: a <code>text.txt</code> and that item's own pictures and files. Gallery photos, team members and Next Steps sit in their parent's folder.</div>
+    <div><b>Not used by anything/</b> &mdash; uploads no item refers to any more.</div>
+    <div><b>Spreadsheets/</b> &mdash; every table as a .csv for Excel or Google Sheets.</div>
+    <div><b>Database/oasis.db</b> &mdash; the complete database, to restore the Hub.</div>
+    <div><b>To add it to another Hub</b> &mdash; every item folder has an <code>item.json</code> (its database record, which field points at which file, where each file goes: <code>static/uploads/&hellip;</code>, and its page routes), all of it in <code>manifest.json</code>, plus <code>HOW TO IMPORT.md</code> and <code>Restore/restore_to_hub.py</code>. Give the unzipped folder to Claude Code, or run:
+      <pre style="background:#f5f5f7;border-radius:8px;padding:8px 10px;margin:6px 0 0;font-size:0.78rem;white-space:pre-wrap;">python3 Restore/restore_to_hub.py /home/occnj/occ_hub --merge --dry-run</pre></div>
+    <div style="color:#c0392b;margin-top:8px;"><i class="bi bi-shield-lock"></i> It contains people's names, emails, phone numbers and prayer requests. Keep it private. Passwords are never included.</div>
+  </div>
+</div>
+</div>
+<script>
+(function () {
+  var go = document.getElementById('zipGo');
+  if (!go) return;
+  var CHUNK = 8 * 1024 * 1024;
+  var tok = document.querySelector('meta[name="csrf-token"]').content;
+  function mb(n) { return (n / 1048576).toFixed(n < 10485760 ? 1 : 0) + ' MB'; }
+  go.addEventListener('click', function () {
+    var file = document.getElementById('zipFile').files[0];
+    if (!file) return alert('Choose the ZIP first.');
+    go.disabled = true;
+    document.getElementById('upProgress').hidden = false;
+    var bar = document.getElementById('upBar'), text = document.getElementById('upText'), tries = 0;
+    function send(offset) {
+      bar.style.width = Math.round(offset / file.size * 100) + '%';
+      text.textContent = offset ? 'Uploading… ' + mb(offset) + ' of ' + mb(file.size) : 'Starting…';
+      var fd = new FormData();
+      fd.append('csrf_token', tok); fd.append('offset', offset); fd.append('total', file.size); fd.append('name', file.name);
+      fd.append('chunk', file.slice(offset, offset + CHUNK), 'chunk');
+      fetch('{{ url_for('admin_import_chunk') }}', { method: 'POST', body: fd, credentials: 'same-origin' })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, status: r.status, j: j }; }); })
+        .then(function (res) {
+          if (res.j.done) { text.textContent = 'Checking the download…'; return location.reload(); }
+          if (res.ok) { tries = 0; return send(res.j.offset); }
+          if (res.status === 409 && res.j.error === 'resume') return send(res.j.offset);
+          text.textContent = res.j.error || 'The upload failed.'; text.style.color = '#c0392b'; go.disabled = false;
+        })
+        .catch(function () {
+          if (++tries > 5) { text.textContent = 'The connection keeps dropping. Try again on a better connection.'; go.disabled = false; return; }
+          text.textContent = 'Connection lost, trying again…';
+          setTimeout(function () { send(offset); }, 2000 * tries);
+        });
+    }
+    send(0);
+  });
+})();
+</script>
+{% if imp.state == 'running' %}
+<script>
+(function poll() {
+  setTimeout(function () {
+    fetch('{{ url_for('admin_import_status') }}', {credentials: 'same-origin'}).then(function (r) { return r.json(); })
+      .then(function (s) { if (s.state !== 'running') location.reload(); else poll(); }, poll);
+  }, 2000);
+})();
+</script>
+{% endif %}
+{% if status.state == 'building' %}
+<script>
+(function poll() {
+  setTimeout(function () {
+    fetch('{{ url_for('admin_export_status') }}', {credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(function (s) {
+      if (s.state !== 'building') return location.reload();
+      if (s.total) {
+        document.getElementById('bar').style.width = Math.max(2, Math.round(s.done / s.total * 100)) + '%';
+        document.getElementById('count').textContent = s.done + ' of ' + s.total + ' files';
+      }
+      poll();
+    }, poll);
+  }, 2000);
+})();
+</script>
+{% endif %}
+{% endblock %}

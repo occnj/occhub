@@ -1,5 +1,7 @@
 """Download Everything (/admin/export): one ZIP with the database and every upload, sorted so
-each item's text sits next to its own pictures and documents.
+each item's text sits next to its own pictures and documents. The same page takes such a ZIP back
+(Upload): it arrives in pieces, is checked and previewed, then either adds what this Hub is
+missing or replaces the whole Hub (tools/restore_to_hub.py does the work, reading from the ZIP).
 
   START HERE.html        open in a browser: every section and item, its text and pictures
   <Section>/<NNN Title>/ text.txt plus the files that item uses (photos, PDFs, documents)
@@ -14,7 +16,11 @@ JSON file so either gunicorn worker can show it.
 from core import *
 import csv
 import io
+import sys
 import threading
+
+sys.path.insert(0, os.path.join(BASE_DIR, 'tools'))
+import restore_to_hub  # noqa: E402
 
 EXPORT_DIR = os.path.join(BASE_DIR, 'exports')
 _STATUS = os.path.join(EXPORT_DIR, 'status.json')
@@ -297,7 +303,10 @@ It is written so a person *or Claude Code* can restore it, fully or item by item
 
 ## Restoring
 
-Run on the Hub's machine (the folder with `oasis.db` and `static/`), then restart the Hub
+Easiest: on the Hub, Admin -> Download & Upload -> **Upload a download**, choose this ZIP, check the
+preview, then **Add what is missing** (per section) or **Replace this whole Hub**.
+
+Or run on the Hub's machine (`--export` takes the .zip itself or this unzipped folder) (the folder with `oasis.db` and `static/`), then restart the Hub
 (`sudo systemctl restart oasis-hub`):
 
 * Whole Hub (new install, or replace everything; stop the Hub first; the old database is kept as
@@ -448,7 +457,7 @@ def build_export(stamp=None):
         except OSError:
             pass
     for old in os.listdir(EXPORT_DIR):              # keep only the newest export
-        if old.endswith('.zip') and old != name:
+        if old.startswith('oasis-hub-export-') and old.endswith('.zip') and old != name:
             os.remove(os.path.join(EXPORT_DIR, old))
     os.replace(part, os.path.join(EXPORT_DIR, name))
     _write_status(state='ready', file=name, size=os.path.getsize(os.path.join(EXPORT_DIR, name)),
@@ -473,7 +482,7 @@ def _build_in_background(user):
 @app.route('/admin/export')
 @superadmin_required
 def admin_export():
-    return render_template('admin/export.html', status=export_status(),
+    return render_template('admin/export.html', status=export_status(), imp=import_status(),
                            uploads_bytes=_uploads_size(), db_bytes=os.path.getsize(DB))
 
 
@@ -512,6 +521,183 @@ def admin_export_download():
 def admin_export_delete():
     if export_status().get('state') != 'building' and os.path.isdir(EXPORT_DIR):
         for f in os.listdir(EXPORT_DIR):
-            os.remove(os.path.join(EXPORT_DIR, f))
+            if f.startswith(('oasis-hub-export-', 'status.json')):
+                os.remove(os.path.join(EXPORT_DIR, f))
         flash('The download was deleted from the server.', 'info')
     return redirect(url_for('admin_export'))
+
+
+# ---- Upload: putting a download back -------------------------------------------------------
+
+_IMPORT_STATUS_NAME = 'import.json'
+_IMPORT_ZIP_NAME = 'upload.zip'
+CHUNK_MAX = 16 * 1024 * 1024
+
+
+def _import_paths():
+    return (os.path.join(EXPORT_DIR, _IMPORT_STATUS_NAME), os.path.join(EXPORT_DIR, _IMPORT_ZIP_NAME))
+
+
+def _write_import_status(**status):
+    path, _ = _import_paths()
+    os.makedirs(EXPORT_DIR, exist_ok=True)
+    status['updated'] = time.time()
+    with open(path + '.tmp', 'w') as f:
+        json.dump(status, f, default=str)
+    os.replace(path + '.tmp', path)
+
+
+def import_status():
+    path, zip_path = _import_paths()
+    try:
+        with open(path) as f:
+            status = json.load(f)
+    except (OSError, ValueError):
+        status = {'state': 'none'}
+    if status.get('state') == 'running' and time.time() - status.get('updated', 0) > _STALE_SECONDS:
+        status = dict(status, state='failed', error='The server restarted during the upload. Nothing after that point was saved; you can run it again.')
+    if status.get('state') in ('uploaded', 'running') and not os.path.exists(zip_path):
+        return {'state': 'none'}
+    return status
+
+
+def _preview(zip_path):
+    """What the ZIP holds and, per section, how much of it this Hub already has."""
+    export = restore_to_hub.Export(zip_path)
+    m = export.manifest
+    dry = restore_to_hub.merge(export, DB, UPLOAD_FOLDER, dry_run=True)
+    sections = []
+    for sec in m['sections']:
+        if all(i.get('id') is None for i in sec['items']):
+            continue                               # site settings: the separate "also add settings" box
+        prefix = sec['name'] + '/'
+        sections.append({'name': sec['name'], 'count': len(sec['items']),
+                         'new': sum(1 for a in dry['added'] if a.startswith(prefix)),
+                         'already': sum(1 for a in dry['already'] if a.startswith(prefix))})
+    return {'exported_at': m.get('exported_at', ''), 'hub_schema_version': m.get('hub_schema_version'),
+            'sections': sections, 'files': len(m['uploads']),
+            'files_new': dry['files_copied'], 'bytes': sum(u.get('bytes', 0) for u in m['uploads'].values()),
+            'has_database': export.exists(m['database'])}
+
+
+@app.route('/admin/import/status')
+@superadmin_required
+def admin_import_status():
+    return import_status()
+
+
+@app.route('/admin/import/chunk', methods=['POST'])
+@superadmin_required
+def admin_import_chunk():
+    """One piece of the uploaded ZIP. Pieces must arrive in order; a 409 tells the page where to
+    carry on (so a dropped connection resumes instead of starting over)."""
+    _, zip_path = _import_paths()
+    part = zip_path + '.part'
+    try:
+        offset, total = int(request.form.get('offset', -1)), int(request.form.get('total', 0))
+    except ValueError:
+        return {'error': 'Bad upload.'}, 400
+    chunk = request.files.get('chunk')
+    if not chunk or total <= 0 or offset < 0:
+        return {'error': 'Bad upload.'}, 400
+    if offset == 0:
+        if import_status().get('state') == 'running':
+            return {'error': 'An upload is being applied right now. Wait for it to finish.'}, 409
+        os.makedirs(EXPORT_DIR, exist_ok=True)
+        need = 2 * total + 50 * 1024 * 1024        # the ZIP, plus the files it adds
+        free = shutil.disk_usage(EXPORT_DIR).free
+        if free < need:
+            return {'error': f'Not enough free space on the server: about {need // (1024 * 1024)} MB is needed '
+                             f'and {free // (1024 * 1024)} MB is free.'}, 507
+        for p in (zip_path, part):
+            if os.path.exists(p):
+                os.remove(p)
+        open(part, 'wb').close()
+        _write_import_status(state='uploading', total=total)
+    size = os.path.getsize(part) if os.path.exists(part) else 0
+    if size != offset:
+        return {'error': 'resume', 'offset': size}, 409
+    data = chunk.read(CHUNK_MAX + 1)
+    if len(data) > CHUNK_MAX or size + len(data) > total:
+        return {'error': 'Bad upload.'}, 400
+    with open(part, 'ab') as f:
+        f.write(data)
+    size += len(data)
+    if size < total:
+        return {'offset': size}
+    os.replace(part, zip_path)
+    try:
+        summary = _preview(zip_path)
+    except Exception as e:
+        os.remove(zip_path)
+        msg = str(e) if isinstance(e, ValueError) else 'That file could not be read as an Oasis Hub download.'
+        app.logger.warning(f'import: rejected upload: {e}')
+        _write_import_status(state='failed', error=msg)
+        return {'error': msg}, 400
+    _write_import_status(state='uploaded', summary=summary, name=request.form.get('name', '')[:200])
+    return {'done': True}
+
+
+def _run_import(mode, sections, include_settings, user):
+    _, zip_path = _import_paths()
+    status = import_status()
+    done = threading.Event()
+
+    def heartbeat():
+        while not done.wait(30):
+            _write_import_status(**dict(import_status(), state='running'))
+    threading.Thread(target=heartbeat, daemon=True).start()
+    try:
+        export = restore_to_hub.Export(zip_path)
+        report = restore_to_hub.new_report()
+        saved = None
+        if mode == 'replace':
+            saved = restore_to_hub.replace_database(export, DB)
+            restore_to_hub.copy_all_files(export, UPLOAD_FOLDER, False, report)
+            from schema import init_db
+            init_db()                              # bring an older download's tables up to date
+        else:
+            restore_to_hub.merge(export, DB, UPLOAD_FOLDER, sections, include_settings, False, report)
+        app.logger.info(f'import: {user} applied an upload ({mode}): {len(report["added"])} added, '
+                        f'{report["files_copied"]} files')
+        done.set()
+        _write_import_status(state='done', mode=mode, summary=status.get('summary'),
+                             saved=os.path.basename(saved) if saved else '',
+                             added=report['added'][:500], added_count=len(report['added']),
+                             already_count=len(report['already']), skipped=report['skipped'][:200],
+                             files_copied=report['files_copied'], files_kept=report['files_kept'],
+                             files_missing=len(report['files_missing']))
+    except Exception as e:
+        done.set()
+        app.logger.error(f'import failed: {e}')
+        _write_import_status(state='failed', error='Something went wrong while applying the upload. The details are in error.log.')
+
+
+@app.route('/admin/import/run', methods=['POST'])
+@superadmin_required
+def admin_import_run():
+    if import_status().get('state') != 'uploaded':
+        return redirect(url_for('admin_export') + '#upload')
+    mode = 'replace' if request.form.get('mode') == 'replace' else 'merge'
+    if mode == 'replace' and request.form.get('confirm', '').strip().upper() != 'REPLACE':
+        flash('To replace the whole Hub, type REPLACE in the box.', 'info')
+        return redirect(url_for('admin_export') + '#upload')
+    sections = request.form.getlist('sections')
+    if mode == 'merge' and not sections:
+        flash('Tick at least one section to add.', 'info')
+        return redirect(url_for('admin_export') + '#upload')
+    _write_import_status(**dict(import_status(), state='running', mode=mode))
+    threading.Thread(target=_run_import, args=(mode, sections, bool(request.form.get('include_settings')),
+                                               session.get('admin_user')), daemon=True).start()
+    return redirect(url_for('admin_export') + '#upload')
+
+
+@app.route('/admin/import/discard', methods=['POST'])
+@superadmin_required
+def admin_import_discard():
+    if import_status().get('state') != 'running':
+        status_path, zip_path = _import_paths()
+        for p in (zip_path, zip_path + '.part', status_path):
+            if os.path.exists(p):
+                os.remove(p)
+    return redirect(url_for('admin_export') + '#upload')

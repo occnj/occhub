@@ -173,3 +173,84 @@ def test_replace_database_restores_the_whole_hub(world, tmp_path):
     assert db.execute("SELECT 1 FROM leaders WHERE name='Pastor Exporttest'").fetchone()
     assert any(n.startswith('oasis.db.before-restore-') for n in os.listdir(hub))
     assert len(os.listdir(hub / 'static' / 'uploads')) == 4
+
+
+# ---- Upload: putting a download back from the admin page ------------------------------------
+
+def upload_zip(admin, data, piece=4000, name='oasis-hub-export.zip'):
+    offset = 0
+    while True:
+        r = admin.post('/admin/import/chunk', {'offset': str(offset), 'total': str(len(data)), 'name': name,
+                                               'chunk': (io.BytesIO(data[offset:offset + piece]), 'chunk')},
+                       content_type='multipart/form-data')
+        j = r.get_json()
+        if j.get('done') or 'offset' not in j:
+            return r
+        offset = j['offset']
+
+
+def wait_done(admin):
+    for _ in range(200):
+        s = admin.get('/admin/import/status').get_json()
+        if s['state'] != 'running':
+            return s
+        time.sleep(0.05)
+    raise AssertionError('import did not finish')
+
+
+def test_upload_adds_what_is_missing_and_leaves_the_rest(admin, world, db):
+    data = open(f'{export.EXPORT_DIR}/{export.build_export("2026-10-28")}', 'rb').read()
+    mid = db.execute("SELECT id FROM missions WHERE title='Clean Water Export'").fetchone()[0]
+    db.execute("DELETE FROM mission_images WHERE mission_id=?", (mid,))
+    db.execute("DELETE FROM missions WHERE id=?", (mid,))
+    db.commit()
+    (world / 'well2_ef56.jpg').unlink()
+
+    assert upload_zip(admin, data).get_json() == {'done': True}
+    page = admin.get('/admin/export').get_data(as_text=True)
+    assert 'Put it in place' in page and 'Add what is missing' in page
+    preview = {s['name']: s for s in export.import_status()['summary']['sections']}
+    assert (preview['Mission']['new'], preview['Leadership']['new']) == (1, 0)    # the rest is already here
+
+    admin.post('/admin/import/run', {'mode': 'merge', 'sections': ['Mission', 'Leadership']})
+    s = wait_done(admin)
+    assert s['state'] == 'done' and s['added_count'] == 1 and s['files_copied'] == 1
+    new_mid, = db.execute("SELECT id FROM missions WHERE title='Clean Water Export'").fetchone()
+    assert db.execute("SELECT caption FROM mission_images WHERE mission_id=?", (new_mid,)).fetchone()[0] == 'The new well'
+    assert db.execute("SELECT COUNT(*) FROM leaders WHERE name='Pastor Exporttest'").fetchone()[0] == 1   # not doubled
+    assert (world / 'well2_ef56.jpg').exists()
+    admin.post('/admin/import/discard')
+    assert export.import_status()['state'] == 'none'
+
+
+def test_upload_can_replace_the_whole_hub_after_typing_replace(admin, world, db):
+    data = open(f'{export.EXPORT_DIR}/{export.build_export("2026-10-28")}', 'rb').read()
+    db.execute("UPDATE leaders SET role='Changed later' WHERE name='Pastor Exporttest'")
+    db.commit()
+    upload_zip(admin, data, piece=len(data))
+    admin.post('/admin/import/run', {'mode': 'replace', 'confirm': 'nope'})
+    assert export.import_status()['state'] == 'uploaded'                           # not without REPLACE
+    admin.post('/admin/import/run', {'mode': 'replace', 'confirm': 'REPLACE'})
+    s = wait_done(admin)
+    assert s['state'] == 'done' and s['saved'].startswith(os.path.basename(export.DB) + '.before-restore-')
+    fresh = sqlite3.connect(export.DB)
+    assert fresh.execute("SELECT role FROM leaders WHERE name='Pastor Exporttest'").fetchone() == ('Lead Pastor',)
+    admin.post('/admin/import/discard')
+
+
+def test_upload_resumes_and_rejects_files_that_are_not_downloads(admin, world):
+    data = open(f'{export.EXPORT_DIR}/{export.build_export("2026-10-28")}', 'rb').read()
+    first = admin.post('/admin/import/chunk', {'offset': '0', 'total': str(len(data)),
+                                               'chunk': (io.BytesIO(data[:1000]), 'chunk')}, content_type='multipart/form-data')
+    assert first.get_json() == {'offset': 1000}
+    skipped = admin.post('/admin/import/chunk', {'offset': '5000', 'total': str(len(data)),
+                                                 'chunk': (io.BytesIO(data[5000:6000]), 'chunk')}, content_type='multipart/form-data')
+    assert skipped.status_code == 409 and skipped.get_json() == {'error': 'resume', 'offset': 1000}
+
+    junk = io.BytesIO()
+    with zipfile.ZipFile(junk, 'w') as z:
+        z.writestr('holiday.jpg', b'not a hub')
+    r = upload_zip(admin, junk.getvalue())
+    assert r.status_code == 400 and 'not an Oasis Hub download' in r.get_json()['error']
+    assert export.import_status()['state'] == 'failed'
+    admin.post('/admin/import/discard')

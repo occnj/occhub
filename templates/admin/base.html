@@ -456,8 +456,8 @@
         <a href="{{ url_for('admin_storage') }}" class="nav-item {% if request.endpoint and 'storage' in request.endpoint %}active{% endif %}">
             <i class="bi bi-hdd-fill"></i> Storage
         </a>
-        <a href="{{ url_for('admin_export') }}" class="nav-item {% if request.endpoint and 'export' in request.endpoint %}active{% endif %}">
-            <i class="bi bi-cloud-download-fill"></i> Download Everything
+        <a href="{{ url_for('admin_export') }}" class="nav-item {% if request.endpoint and ('export' in request.endpoint or 'import' in request.endpoint) %}active{% endif %}">
+            <i class="bi bi-cloud-download-fill"></i> Download &amp; Upload
         </a>
         {% endif %}
         <a href="{{ url_for('admin_password') }}" class="nav-item {% if request.endpoint == 'admin_password' %}active{% endif %}">

@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Put an "Oasis Hub export" (Admin -> Download Everything) back into a Hub install.
 
-Ships inside every export as Restore/restore_to_hub.py. Python 3 standard library only.
-Run it from anywhere; it finds the export next to it (or pass --export).
+Ships inside every export as Restore/restore_to_hub.py, and is what Admin -> Download Everything ->
+Upload runs. Python 3 standard library only. The export can be the downloaded .zip itself or the
+unzipped folder (default: the folder this script is in).
 
-  Whole Hub (a new or replaced install; stop the Hub first):
+  Whole Hub (a new or replaced install; the current database is saved first):
     python3 restore_to_hub.py /home/occnj/occ_hub --replace-database
 
-  Add items to a Hub that already has content (new ids; nothing existing is changed):
+  Add items to a Hub that already has content (new ids; existing content is never changed, and
+  records the Hub already has are skipped, so running it twice adds nothing twice):
     python3 restore_to_hub.py /home/occnj/occ_hub --merge --dry-run          # see what would happen
     python3 restore_to_hub.py /home/occnj/occ_hub --merge --only "Sermon Notes"
-    python3 restore_to_hub.py /home/occnj/occ_hub --merge --only "Sermon Notes/003 2026-10-18 Invitation"
+    python3 restore_to_hub.py /home/occnj/occ_hub --merge --export oasis-hub-export-2026-10-28.zip
 
   Only the pictures and documents:
     python3 restore_to_hub.py /home/occnj/occ_hub --files
@@ -26,26 +28,71 @@ import os
 import shutil
 import sqlite3
 import sys
+import tempfile
+import zipfile
 
 
-def load(export_root):
-    with open(os.path.join(export_root, 'manifest.json'), encoding='utf-8') as f:
-        return json.load(f)
+class Export:
+    """An export, read either from its .zip or from the unzipped folder."""
+
+    def __init__(self, path):
+        self.path = path
+        self.zf = None
+        if os.path.isfile(path) and zipfile.is_zipfile(path):
+            self.zf = zipfile.ZipFile(path)
+            manifests = sorted((n for n in self.zf.namelist() if n.endswith('manifest.json')), key=len)
+            if not manifests:
+                raise ValueError('This ZIP is not an Oasis Hub download (it has no manifest.json).')
+            self.root = manifests[0][:-len('manifest.json')]
+            self.names = set(self.zf.namelist())
+        elif os.path.isfile(os.path.join(path, 'manifest.json')):
+            self.root = ''
+        else:
+            raise ValueError(f'{path} is not an Oasis Hub download (no manifest.json).')
+        self.manifest = json.loads(self.read('manifest.json'))
+        if self.manifest.get('format') != 'oasis-hub-export':
+            raise ValueError('This is not an Oasis Hub download (unknown format).')
+
+    def read(self, rel):
+        if self.zf:
+            return self.zf.read(self.root + rel)
+        with open(os.path.join(self.path, rel), 'rb') as f:
+            return f.read()
+
+    def exists(self, rel):
+        return (self.root + rel) in self.names if self.zf else os.path.exists(os.path.join(self.path, rel))
+
+    def copy_to(self, rel, dest):
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        tmp = dest + '.restoring'
+        if self.zf:
+            with self.zf.open(self.root + rel) as src, open(tmp, 'wb') as out:
+                shutil.copyfileobj(src, out, 1024 * 1024)
+        else:
+            shutil.copy2(os.path.join(self.path, rel), tmp)
+        os.replace(tmp, dest)
 
 
-def copy_file(export_root, hub, info, dry_run, report):
-    src = os.path.join(export_root, info['zip_path'])
-    dest = os.path.join(hub, info['hub_path'])
+def new_report():
+    return {'added': [], 'already': [], 'skipped': [], 'files_copied': 0, 'files_kept': 0, 'files_missing': []}
+
+
+def copy_file(export, uploads_dir, name, dry_run, report):
+    info = export.manifest['uploads'].get(name)
+    dest = os.path.join(uploads_dir, name)
     if os.path.exists(dest):
         report['files_kept'] += 1
-        return
-    if not os.path.exists(src):
-        report['files_missing'].append(info['zip_path'])
-        return
-    if not dry_run:
-        os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy2(src, dest)
-    report['files_copied'] += 1
+    elif not info or not export.exists(info['zip_path']):
+        report['files_missing'].append(name)
+    else:
+        if not dry_run:
+            export.copy_to(info['zip_path'], dest)
+        report['files_copied'] += 1
+
+
+def copy_all_files(export, uploads_dir, dry_run, report):
+    for name in export.manifest['uploads']:
+        copy_file(export, uploads_dir, name, dry_run, report)
 
 
 def selected(item, section, only):
@@ -58,32 +105,51 @@ def selected(item, section, only):
     return False
 
 
-def replace_database(export_root, hub, manifest, dry_run):
-    target = os.path.join(hub, 'oasis.db')
-    source = os.path.join(export_root, manifest['database'])
+def replace_database(export, db_path, dry_run=False):
+    """Copy the export's database over db_path with SQLite's backup API, which is safe even while
+    the Hub is running. The current database is saved first. Returns the saved copy's path."""
     stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    if os.path.exists(target):
-        backup = f'{target}.before-restore-{stamp}'
-        print(f'Saving the current database as {backup}')
+    saved = None
+    if os.path.exists(db_path):
+        saved = f'{db_path}.before-restore-{stamp}'
         if not dry_run:
-            src, dst = sqlite3.connect(target), sqlite3.connect(backup)
+            src, dst = sqlite3.connect(db_path), sqlite3.connect(saved)
             src.backup(dst)
             src.close()
             dst.close()
-    print(f'Putting {manifest["database"]} in place as {target}')
-    if not dry_run:
-        for extra in ('-wal', '-shm'):
-            if os.path.exists(target + extra):
-                os.remove(target + extra)        # stale write-ahead files would be replayed onto the restored copy
-        shutil.copy2(source, target)
+    if dry_run:
+        return saved
+    fd, tmp = tempfile.mkstemp(suffix='.db', dir=os.path.dirname(os.path.abspath(db_path)))
+    os.close(fd)
+    try:
+        with open(tmp, 'wb') as f:
+            f.write(export.read(export.manifest['database']))
+        src, dst = sqlite3.connect(tmp), sqlite3.connect(db_path)
+        src.backup(dst)
+        src.close()
+        dst.close()
+    finally:
+        os.remove(tmp)
+    return saved
 
 
-def merge(export_root, hub, manifest, only, include_settings, dry_run, report):
-    conn = sqlite3.connect(os.path.join(hub, 'oasis.db'))
+def merge(export, db_path, uploads_dir, only=(), include_settings=False, dry_run=False, report=None):
+    report = report if report is not None else new_report()
+    manifest = export.manifest
+    conn = sqlite3.connect(db_path)
     tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     cols = {t: [c[1] for c in conn.execute(f'PRAGMA table_info("{t}")')] for t in tables}
     fks = {t: {fk[3]: fk[2] for fk in conn.execute(f'PRAGMA foreign_key_list("{t}")')} for t in tables}
     id_map, self_links, files = {}, [], []
+
+    def same_row(table, rec):
+        """The id of a row that already holds exactly this record, if any."""
+        keep = [c for c in cols[table] if c != 'id' and c in rec]
+        if not keep:
+            return None
+        where = ' AND '.join(f'"{c}" IS ?' for c in keep)
+        row = conn.execute(f'SELECT id FROM "{table}" WHERE {where} LIMIT 1', [rec[c] for c in keep]).fetchone()
+        return row[0] if row else None
 
     def insert(table, rec):
         keep = [c for c in cols[table] if c != 'id' and c in rec]
@@ -120,6 +186,11 @@ def merge(export_root, hub, manifest, only, include_settings, dry_run, report):
             if missing_link:
                 report['skipped'].append(f"{item['folder']}: {missing_link}")
                 continue
+            existing = same_row(table, rec)
+            if existing:
+                id_map[(table, item['id'])] = existing
+                report['already'].append(item['folder'])
+                continue
             try:
                 new_id = insert(table, rec)
             except sqlite3.IntegrityError as e:
@@ -152,18 +223,30 @@ def merge(export_root, hub, manifest, only, include_settings, dry_run, report):
     else:
         conn.commit()
     conn.close()
-    seen = set()
-    for f in files:
-        if f['name'] not in seen:
-            seen.add(f['name'])
-            copy_file(export_root, hub, manifest['uploads'][f['name']], dry_run, report)
+    for name in dict.fromkeys(f['name'] for f in files):
+        copy_file(export, uploads_dir, name, dry_run, report)
+    return report
+
+
+def print_report(report, dry_run):
+    print(('DRY RUN, nothing changed. ' if dry_run else '') + 'Summary:')
+    for line in report['added']:
+        print('  added   ', line)
+    if report['already']:
+        print(f"  already here (left as is): {len(report['already'])} item(s)")
+    for line in report['skipped']:
+        print('  skipped ', line)
+    print(f"  files: {report['files_copied']} copied, {report['files_kept']} already there"
+          + (f", {len(report['files_missing'])} missing from the export" if report['files_missing'] else ''))
+    if not dry_run:
+        print('Restart the Hub to see the changes: sudo systemctl restart oasis-hub')
 
 
 def main(argv=None):
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('hub', help='the Hub install folder (the one with oasis.db and static/), e.g. /home/occnj/occ_hub')
-    ap.add_argument('--export', default=here, help='the export folder (default: the one this script is in)')
+    ap.add_argument('--export', default=here, help='the export: its .zip or unzipped folder (default: the folder this script is in)')
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument('--replace-database', action='store_true', help='whole Hub: replace oasis.db (old one kept) and copy every file')
     mode.add_argument('--merge', action='store_true', help='add items to the Hub with new ids')
@@ -176,30 +259,26 @@ def main(argv=None):
     hub = os.path.abspath(args.hub)
     if not os.path.isdir(os.path.join(hub, 'static')):
         sys.exit(f'{hub} does not look like a Hub install (no static/ folder).')
-    manifest = load(args.export)
-    report = {'added': [], 'skipped': [], 'files_copied': 0, 'files_kept': 0, 'files_missing': []}
+    try:
+        export = Export(args.export)
+    except ValueError as e:
+        sys.exit(str(e))
+    db_path, uploads_dir = os.path.join(hub, 'oasis.db'), os.path.join(hub, 'static', 'uploads')
+    report = new_report()
 
     if args.replace_database:
-        replace_database(args.export, hub, manifest, args.dry_run)
-        for info in manifest['uploads'].values():
-            copy_file(args.export, hub, info, args.dry_run, report)
+        saved = replace_database(export, db_path, args.dry_run)
+        if saved:
+            print(f'The previous database is saved as {saved}')
+        copy_all_files(export, uploads_dir, args.dry_run, report)
+        report['added'].append('the whole database')
     elif args.files:
-        for info in manifest['uploads'].values():
-            copy_file(args.export, hub, info, args.dry_run, report)
+        copy_all_files(export, uploads_dir, args.dry_run, report)
     else:
-        if not os.path.exists(os.path.join(hub, 'oasis.db')):
+        if not os.path.exists(db_path):
             sys.exit('That Hub has no oasis.db yet. Start it once (so it creates its database), or use --replace-database.')
-        merge(args.export, hub, manifest, args.only, args.include_settings, args.dry_run, report)
-
-    print(('DRY RUN, nothing changed. ' if args.dry_run else '') + 'Summary:')
-    for line in report['added']:
-        print('  added   ', line)
-    for line in report['skipped']:
-        print('  skipped ', line)
-    print(f"  files: {report['files_copied']} copied, {report['files_kept']} already there"
-          + (f", {len(report['files_missing'])} missing from the export" if report['files_missing'] else ''))
-    if not args.dry_run:
-        print('Restart the Hub to see the changes: sudo systemctl restart oasis-hub')
+        merge(export, db_path, uploads_dir, args.only, args.include_settings, args.dry_run, report)
+    print_report(report, args.dry_run)
     return report
 
 

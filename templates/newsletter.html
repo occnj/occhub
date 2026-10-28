@@ -109,7 +109,7 @@ body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);dis
     {% set pdf = issue.full_pdf if part == 'full' else issue.cover_pdf %}
     <a class="btn btn-ghost" href="/static/{{ pdf }}" target="_blank" rel="noopener" download><i class="bi bi-download"></i> Download PDF</a>
     {% if part == 'full' %}
-    <a class="btn btn-ghost" href="{{ url_for('newsletter_issue', nid=issue.id, **keep) }}"><i class="bi bi-arrow-left"></i> Back to the cover</a>
+    <a class="btn btn-ghost" href="{{ url_for('newsletter_issue', nid=issue.id, **keep) }}"><i class="bi bi-arrow-left"></i> Back to Volunteer Newsletter</a>
     {% endif %}
 
     {% if part == 'cover' and issues|length > 1 %}

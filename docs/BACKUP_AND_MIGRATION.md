@@ -131,7 +131,7 @@ Prepare the droplet while the Pi keeps serving visitors, then switch in a short 
 The droplet also runs **PIBASE** (its own repo, `scripts/setup-droplet.sh`). The two share one Caddy for
 HTTPS and nothing else: PIBASE runs in Docker on ports 18080/18081 with its data in `/srv/pibase`;
 OccHub runs as `occhub` on port 5500 with its own SQLite database. Each needs its own DNS name, for
-example `api.oasisnj.net` for PIBASE and `hub.oasisnj.net` for OccHub, both A records to the droplet.
+`pibase.oasisnj.net` for PIBASE and `hub.oasisnj.net` for OccHub, both A records to the droplet.
 
 1. Set up PIBASE first, following its `docs/VPS.md` (it adds swap, the firewall and Caddy). A 2 GB
    droplet is enough for both: idle, PIBASE uses about 60 MB and OccHub about 110 MB.
@@ -171,7 +171,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:5500/hub      # 200
 ```
 
 Open `https://hub.oasisnj.net` (its DNS A record must point at the droplet), sign in to `/admin`, click
-around, check photos show. `https://api.oasisnj.net/healthz` should still say `ok` for PIBASE.
+around, check photos show. `https://pibase.oasisnj.net/healthz` should still say `ok` for PIBASE.
 
 ### C. Cut over (a few minutes)
 
